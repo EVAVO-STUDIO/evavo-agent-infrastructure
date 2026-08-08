@@ -1,0 +1,31 @@
+{
+  "name": "@evavo/agent-mcp",
+  "version": "1.0.0",
+  "description": "Claude/MCP integration for EVAVO agent infrastructure",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "dev": "tsc --watch",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.1.0",
+    "@evavo/git-operations": "workspace:*",
+    "@evavo/code-quality": "workspace:*",
+    "@evavo/testing-runner": "workspace:*",
+    "@evavo/build-system": "workspace:*",
+    "@evavo/visual-testing": "workspace:*",
+    "@evavo/package-manager": "workspace:*",
+    "@evavo/code-review": "workspace:*",
+    "@evavo/multi-repo": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

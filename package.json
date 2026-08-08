@@ -1,0 +1,36 @@
+{
+  "name": "evavo-agent-infrastructure",
+  "version": "1.0.0",
+  "description": "Comprehensive agent infrastructure for EVAVO ecosystem - code, test, build, deploy, review",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "mcp-server",
+    "cli-tool"
+  ],
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "type-check": "pnpm -r type-check",
+    "dev": "pnpm -r dev",
+    "format": "prettier --write '**/*.{ts,js,json,md}'",
+    "clean": "pnpm -r clean && rm -rf node_modules",
+    "docs:generate": "typedoc --out docs src"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0",
+    "typedoc": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}
