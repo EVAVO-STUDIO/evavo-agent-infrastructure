@@ -1,4 +1,4 @@
-name: Defectra Expo public metadata probe
+name: Defectra App Check authority recovery probe
 
 on:
   push:
@@ -10,116 +10,334 @@ permissions:
 
 env:
   DEFECTRA_EAS_PROJECT_ID: de9cd3cb-bf98-4cfa-aeb0-f21635b57378
+  DEFECTRA_FIREBASE_API_KEY: AIzaSyAPMEwjTr1Az0YU0YPKReiX5nYHK3Xt_rQ
+  DEFECTRA_FIREBASE_PROJECT_ID: defectra-fa684
+  DEFECTRA_FIREBASE_PROJECT_NUMBER: "784337791023"
+  DEFECTRA_FIREBASE_AUTH_DOMAIN: defectra-fa684.firebaseapp.com
+  DEFECTRA_FIREBASE_APP_ID: 1:784337791023:web:7e20b6c984aa9b9bba7eda
+  DEFECTRA_FIREBASE_SENDER_ID: "784337791023"
+  PROBE_PUBLIC_KEY: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAl22yfFbe2IBZmhzno5IQ
+    SSNFT+2ST4jfYhRjWgsO0FhWP2tk7BnT/NDR2Yq1dCvb8PcBMzrnA0ZdMvm0An5x
+    bvQMzyYTQlrwI9FbwAcogFQF55bPiiHBm9VB2oTt1IL5yexEIqJtwhO7MUo8Ff5U
+    /MSHMcrXZEX00gF4K5b9if9NJ3/TGgYZLxYhsIhkycfTUGnzP8F239/8RtmHGzJu
+    6IyYIIEao5/RnZ8r3shECFmX7kb7PNOr5qLiPw8d7uD6RVf4HgewcZr6pmCDNzP3
+    yiANV6SjDOGsD3BmjQZGsZo7dtY5zg9UpOgilbt0XF0rqtMtIyg1O7WjAZmZ+8ZO
+    oQIDAQAB
+    -----END PUBLIC KEY-----
 
 jobs:
   probe:
-    name: Probe Expo public project and build schema
+    name: Resolve and encrypt exact browser-public App Check authority
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 12
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
     steps:
-      - name: Query Expo GraphQL public metadata
+      - name: Probe public Firebase, App Check and EAS authority surfaces
         shell: bash
         run: |
           set -euo pipefail
-          node --input-type=module <<'NODE'
-          import { writeFileSync } from 'node:fs';
+          cat > /tmp/defectra-app-check-probe.mjs <<'NODE'
+          import {
+            constants,
+            createHash,
+            publicEncrypt,
+          } from "node:crypto";
+          import {
+            mkdtempSync,
+            readFileSync,
+            rmSync,
+            writeFileSync,
+          } from "node:fs";
+          import { tmpdir } from "node:os";
+          import { join } from "node:path";
+          import { spawnSync } from "node:child_process";
 
-          const endpoint = 'https://api.expo.dev/graphql';
-          async function graphql(name, query, variables = {}) {
+          const expected = Object.freeze({
+            easProjectId: process.env.DEFECTRA_EAS_PROJECT_ID,
+            projectId: process.env.DEFECTRA_FIREBASE_PROJECT_ID,
+            projectNumber: process.env.DEFECTRA_FIREBASE_PROJECT_NUMBER,
+            authDomain: process.env.DEFECTRA_FIREBASE_AUTH_DOMAIN,
+            appId: process.env.DEFECTRA_FIREBASE_APP_ID,
+            messagingSenderId: process.env.DEFECTRA_FIREBASE_SENDER_ID,
+            apiKey: process.env.DEFECTRA_FIREBASE_API_KEY,
+          });
+
+          const diagnostics = [];
+          const candidates = [];
+          const siteKeyPattern = /6L[0-9A-Za-z_-]{20,}/gu;
+          const supportedNames = new Set([
+            "EXPO_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY",
+            "NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY",
+            "NEXT_PUBLIC_RECAPTCHA_SITE_KEY",
+            "FIREBASE_APP_CHECK_SITE_KEY",
+            "RECAPTCHA_ENTERPRISE_SITE_KEY",
+          ]);
+
+          function sha256(value) {
+            return createHash("sha256").update(value).digest("hex");
+          }
+
+          function redact(value) {
+            return String(value ?? "")
+              .replace(/AIza[0-9A-Za-z_-]{20,}/gu, "[firebase-api-key]")
+              .replace(siteKeyPattern, "[recaptcha-site-key]")
+              .slice(0, 800);
+          }
+
+          function identityCompatible(payload) {
+            if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+              return true;
+            }
+            for (const [name, wanted] of [
+              ["projectId", expected.projectId],
+              ["appId", expected.appId],
+              ["messagingSenderId", expected.messagingSenderId],
+              ["apiKey", expected.apiKey],
+            ]) {
+              if (typeof payload[name] === "string" && payload[name] !== wanted) {
+                return false;
+              }
+            }
+            return true;
+          }
+
+          function collect(name, text, payload = null) {
+            if (!identityCompatible(payload)) {
+              diagnostics.push({ name, identity: "mismatch" });
+              return;
+            }
+            for (const match of String(text ?? "").matchAll(siteKeyPattern)) {
+              candidates.push({ source: name, value: match[0] });
+            }
+          }
+
+          async function probe(name, url, headers = {}) {
             let response;
-            let text = '';
+            let text = "";
             try {
-              response = await fetch(endpoint, {
-                method: 'POST',
-                headers: {
-                  Accept: 'application/json',
-                  'Content-Type': 'application/json',
-                  'Expo-Client-Platform': 'github-actions',
-                },
-                body: JSON.stringify({ operationName: name, query, variables }),
-                cache: 'no-store',
+              response = await fetch(url, {
+                method: "GET",
+                headers: { Accept: "application/json", ...headers },
+                cache: "no-store",
+                redirect: "follow",
               });
               text = await response.text();
             } catch (error) {
-              return { name, status: 'network-error', error: String(error?.message ?? error).slice(0, 400) };
+              diagnostics.push({
+                name,
+                status: "network-error",
+                error: redact(error?.message ?? error),
+              });
+              return;
             }
+
             let payload = null;
-            try { payload = text ? JSON.parse(text) : null; } catch {}
-            return {
+            try {
+              payload = text ? JSON.parse(text) : null;
+            } catch {}
+
+            diagnostics.push({
               name,
               status: response.status,
               ok: response.ok,
-              contentType: response.headers.get('content-type'),
-              payload: payload ?? { bodyPreview: text.replace(/\s+/gu, ' ').slice(0, 800) },
-            };
+              contentType: response.headers.get("content-type"),
+              fields:
+                payload && typeof payload === "object" && !Array.isArray(payload)
+                  ? Object.keys(payload).sort()
+                  : [],
+              bodySha256: sha256(text),
+              bodyPreview: response.ok ? undefined : redact(text.replace(/\s+/gu, " ")),
+            });
+            if (response.ok) collect(name, text, payload);
           }
 
-          const app = await graphql(
-            'DefectraPublicApp',
-            `query DefectraPublicApp($appId: String!) {
-              app {
-                byId(appId: $appId) {
-                  id
-                  name
-                  fullName
-                  slug
-                  ownerAccount { id name }
-                  githubRepository {
-                    id
-                    metadata { id githubRepoOwnerName githubRepoName }
+          const encodedAppId = encodeURIComponent(expected.appId);
+          const encodedApiKey = encodeURIComponent(expected.apiKey);
+          await probe(
+            "firebase-web-app-config",
+            `https://firebase.googleapis.com/v1beta1/projects/-/webApps/${encodedAppId}/config?key=${encodedApiKey}`,
+          );
+          await probe(
+            "firebase-hosting-init",
+            `https://${expected.authDomain}/__/firebase/init.json`,
+          );
+          for (const version of ["v1", "v1beta"]) {
+            for (const provider of [
+              "recaptchaEnterpriseConfig",
+              "recaptchaV3Config",
+            ]) {
+              await probe(
+                `appcheck-${version}-${provider}`,
+                `https://firebaseappcheck.googleapis.com/${version}/projects/${expected.projectNumber}/apps/${encodedAppId}/${provider}?key=${encodedApiKey}`,
+                { "x-goog-api-key": expected.apiKey },
+              );
+            }
+          }
+          await probe(
+            "recaptcha-enterprise-key-list",
+            `https://recaptchaenterprise.googleapis.com/v1/projects/${expected.projectId}/keys?pageSize=1000&key=${encodedApiKey}`,
+            { "x-goog-api-key": expected.apiKey },
+          );
+
+          for (const channel of [
+            "vercel-app-check-authority",
+            "production",
+          ]) {
+            for (const platform of ["android", "ios"]) {
+              await probe(
+                `eas-${channel}-${platform}`,
+                `https://u.expo.dev/${expected.easProjectId}`,
+                {
+                  Accept:
+                    "application/expo+json,application/json,multipart/mixed",
+                  "expo-channel-name": channel,
+                  "expo-platform": platform,
+                  "expo-protocol-version": "1",
+                  "expo-runtime-version": "exposdk:52.0.0",
+                },
+              );
+            }
+          }
+
+          const expoToken = String(process.env.EXPO_TOKEN ?? "").trim();
+          if (expoToken) {
+            const directory = mkdtempSync(join(tmpdir(), "defectra-eas-env-"));
+            try {
+              writeFileSync(
+                join(directory, "app.json"),
+                JSON.stringify({
+                  expo: {
+                    name: "Defectra",
+                    slug: "defectra",
+                    extra: { eas: { projectId: expected.easProjectId } },
+                  },
+                }),
+                { mode: 0o600 },
+              );
+              writeFileSync(
+                join(directory, "package.json"),
+                JSON.stringify({ name: "defectra-eas-env-probe", private: true }),
+                { mode: 0o600 },
+              );
+              const result = spawnSync(
+                "npx",
+                [
+                  "--yes",
+                  "eas-cli@21.3.0",
+                  "env:pull",
+                  "--environment",
+                  "production",
+                  "--path",
+                  ".env.production.probe",
+                  "--non-interactive",
+                ],
+                {
+                  cwd: directory,
+                  env: {
+                    ...process.env,
+                    EXPO_TOKEN: expoToken,
+                    EXPO_NO_TELEMETRY: "1",
+                  },
+                  encoding: "utf8",
+                  timeout: 420_000,
+                  maxBuffer: 8 * 1024 * 1024,
+                },
+              );
+              diagnostics.push({
+                name: "eas-production-env-pull",
+                status: result.status,
+                ok: result.status === 0,
+                outputSha256: sha256(
+                  `${result.stdout ?? ""}\n${result.stderr ?? ""}`,
+                ),
+              });
+              if (result.status === 0) {
+                const envText = readFileSync(
+                  join(directory, ".env.production.probe"),
+                  "utf8",
+                );
+                for (const line of envText.split(/\r?\n/gu)) {
+                  const separator = line.indexOf("=");
+                  if (separator < 1) continue;
+                  const name = line.slice(0, separator).trim();
+                  if (!supportedNames.has(name)) continue;
+                  let value = line.slice(separator + 1).trim();
+                  if (
+                    (value.startsWith('"') && value.endsWith('"')) ||
+                    (value.startsWith("'") && value.endsWith("'"))
+                  ) {
+                    value = value.slice(1, -1);
                   }
+                  collect(`eas-production:${name}`, value);
                 }
               }
-            }`,
-            { appId: process.env.DEFECTRA_EAS_PROJECT_ID },
-          );
+            } finally {
+              rmSync(directory, { recursive: true, force: true });
+            }
+          } else {
+            diagnostics.push({
+              name: "eas-production-env-pull",
+              status: "skipped",
+              reason: "EXPO_TOKEN unavailable",
+            });
+          }
 
-          const schema = await graphql(
-            'DefectraPublicSchema',
-            `query DefectraPublicSchema {
-              appQuery: __type(name: "AppQuery") {
-                name
-                fields {
-                  name
-                  args { name type { kind name ofType { kind name } } }
-                  type { kind name ofType { kind name } }
-                }
-              }
-              appType: __type(name: "App") {
-                name
-                fields {
-                  name
-                  args { name type { kind name ofType { kind name } } }
-                  type { kind name ofType { kind name } }
-                }
-              }
-              buildType: __type(name: "Build") {
-                name
-                fields {
-                  name
-                  args { name type { kind name ofType { kind name } } }
-                  type { kind name ofType { kind name } }
-                }
-              }
-            }`,
-          );
-
+          const unique = [
+            ...new Map(
+              candidates.map((candidate) => [candidate.value, candidate]),
+            ).values(),
+          ];
           const report = {
-            schema: 'defectra_expo_public_metadata_probe_v1',
-            projectId: process.env.DEFECTRA_EAS_PROJECT_ID,
-            app,
-            schemaResult: schema,
+            schema: "defectra_app_check_authority_probe_v3",
+            projectId: expected.projectId,
+            appId: expected.appId,
+            easProjectId: expected.easProjectId,
+            diagnostics,
+            candidateCount: unique.length,
           };
-          writeFileSync('defectra-expo-public-metadata.json', `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
-          console.log(JSON.stringify(report, null, 2));
-          if (!app.ok) process.exitCode = 1;
-          NODE
 
-      - name: Upload bounded Expo metadata result
+          if (unique.length === 1) {
+            const siteKey = unique[0].value;
+            report.siteKeySha256 = sha256(siteKey);
+            report.source = unique[0].source;
+            report.ciphertext = publicEncrypt(
+              {
+                key: process.env.PROBE_PUBLIC_KEY,
+                padding: constants.RSA_PKCS1_OAEP_PADDING,
+                oaepHash: "sha256",
+              },
+              Buffer.from(siteKey, "utf8"),
+            ).toString("base64");
+          } else {
+            report.failure =
+              unique.length === 0
+                ? "No registered-shaped site key was recovered."
+                : "Conflicting registered-shaped site keys were recovered.";
+          }
+
+          writeFileSync(
+            "defectra-app-check-authority-probe.json",
+            `${JSON.stringify(report, null, 2)}\n`,
+            { mode: 0o600 },
+          );
+          console.log(
+            `DEFECTRA_APP_CHECK_PROBE_RESULT=${Buffer.from(
+              JSON.stringify(report),
+              "utf8",
+            ).toString("base64")}`,
+          );
+          if (unique.length !== 1) process.exitCode = 1;
+          NODE
+          node /tmp/defectra-app-check-probe.mjs
+
+      - name: Upload encrypted bounded result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: defectra-expo-public-metadata
-          path: defectra-expo-public-metadata.json
+          name: defectra-app-check-authority-probe
+          path: defectra-app-check-authority-probe.json
           if-no-files-found: error
           retention-days: 1
