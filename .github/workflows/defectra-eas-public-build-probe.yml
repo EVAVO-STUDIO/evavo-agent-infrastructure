@@ -1,0 +1,121 @@
+name: Defectra EAS public build artifact probe
+
+on:
+  push:
+    branches:
+      - agent/defectra-app-check-public-config-probe-20260811
+
+permissions:
+  contents: read
+
+env:
+  DEFECTRA_EAS_PROJECT_ID: de9cd3cb-bf98-4cfa-aeb0-f21635b57378
+
+jobs:
+  probe:
+    name: Query exact EAS build artifacts without credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Query EAS GraphQL build surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/eas-build-probe.mjs <<'NODE'
+          import { createHash } from "node:crypto";
+
+          const query = `
+            query ViewBuildsOnApp($appId: String!, $offset: Int!, $limit: Int!) {
+              app {
+                byId(appId: $appId) {
+                  id
+                  name
+                  slug
+                  ownerAccount { id name }
+                  builds(offset: $offset, limit: $limit) {
+                    id
+                    status
+                    platform
+                    artifacts {
+                      buildUrl
+                      applicationArchiveUrl
+                      buildArtifactsUrl
+                    }
+                    channel
+                    distribution
+                    buildProfile
+                    sdkVersion
+                    appVersion
+                    appBuildVersion
+                    runtimeVersion
+                    gitCommitHash
+                    createdAt
+                    completedAt
+                  }
+                }
+              }
+            }
+          `;
+
+          const response = await fetch("https://api.expo.dev/graphql", {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              query,
+              variables: {
+                appId: process.env.DEFECTRA_EAS_PROJECT_ID,
+                offset: 0,
+                limit: 50,
+              },
+            }),
+          });
+          const text = await response.text();
+          const digest = createHash("sha256").update(text).digest("hex");
+          let payload = null;
+          try { payload = text ? JSON.parse(text) : null; } catch {}
+          const builds = payload?.data?.app?.byId?.builds ?? [];
+          const report = {
+            schema: "defectra_eas_public_build_probe_v1",
+            httpStatus: response.status,
+            bodySha256: digest,
+            errors: Array.isArray(payload?.errors)
+              ? payload.errors.map((error) => ({ message: String(error?.message ?? "").slice(0, 300) }))
+              : [],
+            app: payload?.data?.app?.byId
+              ? {
+                  id: payload.data.app.byId.id,
+                  name: payload.data.app.byId.name,
+                  slug: payload.data.app.byId.slug,
+                  owner: payload.data.app.byId.ownerAccount?.name ?? null,
+                }
+              : null,
+            builds: builds.map((build) => ({
+              id: build.id,
+              status: build.status,
+              platform: build.platform,
+              channel: build.channel,
+              distribution: build.distribution,
+              buildProfile: build.buildProfile,
+              sdkVersion: build.sdkVersion,
+              appVersion: build.appVersion,
+              appBuildVersion: build.appBuildVersion,
+              runtimeVersion: build.runtimeVersion,
+              gitCommitHash: build.gitCommitHash,
+              createdAt: build.createdAt,
+              completedAt: build.completedAt,
+              artifacts: build.artifacts,
+            })),
+          };
+          console.log(`DEFECTRA_EAS_BUILD_PROBE=${Buffer.from(JSON.stringify(report), "utf8").toString("base64")}`);
+          console.log(JSON.stringify({
+            httpStatus: report.httpStatus,
+            errorCount: report.errors.length,
+            app: report.app,
+            buildCount: report.builds.length,
+          }, null, 2));
+          if (!response.ok || report.errors.length > 0 || !report.app) process.exitCode = 1;
+          NODE
+          node /tmp/eas-build-probe.mjs
