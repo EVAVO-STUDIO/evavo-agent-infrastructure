@@ -9,36 +9,41 @@ permissions:
   contents: read
 
 env:
-  DEFECTRA_FIREBASE_API_KEY: AIzaSyAPMEwjTr1Az0YU0YPKReiX5nYHe3Xt_rQ
+  DEFECTRA_FIREBASE_API_KEY: AIzaSyAPMEwjTr1Az0YU0YPKReiX5nYHK3Xt_rQ
   DEFECTRA_FIREBASE_PROJECT_ID: defectra-fa684
   DEFECTRA_FIREBASE_PROJECT_NUMBER: "784337791023"
   DEFECTRA_FIREBASE_AUTH_DOMAIN: defectra-fa684.firebaseapp.com
   DEFECTRA_FIREBASE_APP_ID: 1:784337791023:web:7e20b6c984aa9b9bba7eda
   DEFECTRA_FIREBASE_SENDER_ID: "784337791023"
+  DEFECTRA_EAS_PROJECT_ID: de9cd3cb-bf98-4cfa-aeb0-f21635b57378
+  EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
   PROBE_PUBLIC_KEY: |
     -----BEGIN PUBLIC KEY-----
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAm332XZnNKlNWv0JuCVho
-    vX1bN+sQEbQVMYZoqZj7YFKdtpPr/s/YnXEfVYMgcQPrdCs0ZXOKf/VkYMItrmMP
-    0Ndn8HqX7qTGqhldPvhKUvmo4ZQ4/Hve+nvu/G2Zi1y4Yc34IbNYb0Uqm+Q70750
-    kuoCHw8lN0nIEgRalThwJErjtbn4i89gil/0rcOLOPl4a7s61+PID8x1oTSTTY+h
-    RmaFYe/bLv9d/jxzslcpMsnqPYhFK2Ot1QeghZHw1C+L+UKZKQ/4Fq/xGP/+zzd4
-    MSTgBpiEI6Yxw0ZXglDZhf2tWLhHS4eUExjv4B+PJEAVZ6UpUoPtNsesvqsWlWrx
-    wwIDAQAB
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmVJQuJCipm+qLAPotYub
+    BWTEr3c7VigKMG3K9bm/jgr+2jXOq/y5wRFXLskXrOf2MPgnIT5Hbcdo+sxb2PlS
+    kUl2mu5E5xhDzOD95HQvpVDy6nPtXkUSpBkiGq9TzrrEYBkt5MbuZpno/Xpqqy6b
+    vtyw0B6NDu4phq7ZsUBk9GeZAVTmzhIU9tBhZwovr907/dWW9bGkGOYDTHSqE6fv
+    g4AMx8GEZvbsjWaAAlMoBodPgULHtHPBL6MDWOunWEC8j/8gCrO20rDW1C6JJVLV
+    wR8rBOXiXVFa8B3YiuDwS2ngZTTDw1I1EMrjknHDIijiMWqexQsWfqfnaok3VI5r
+    mwIDAQAB
     -----END PUBLIC KEY-----
 
 jobs:
   probe:
-    name: Probe official public configuration surfaces
+    name: Resolve and encrypt exact browser-public authority
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Probe exact Defectra Firebase web configuration
+      - name: Probe exact Defectra App Check authority
         shell: bash
         run: |
           set -euo pipefail
-          node <<'NODE'
-          const { createHash, constants, publicEncrypt } = require('node:trypto');
-          const { writeFileSync } = require('node:fs');
+          node --input-type=module <<'NODE'
+          import { createHash, constants, publicEncrypt } from 'node:crypto';
+          import { execFileSync } from 'node:child_process';
+          import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+          import { tmpdir } from 'node:os';
+          import { join } from 'node:path';
 
           const expected = Object.freeze({
             projectId: process.env.DEFECTRA_FIREBASE_PROJECT_ID,
@@ -47,44 +52,39 @@ jobs:
             appId: process.env.DEFECTRA_FIREBASE_APP_ID,
             messagingSenderId: process.env.DEFECTRA_FIREBASE_SENDER_ID,
             apiKey: process.env.DEFECTRA_FIREBASE_API_KEY,
+            easProjectId: process.env.DEFECTRA_EAS_PROJECT_ID,
           });
 
-          const app = encodeURIComponent(expected.appId);
-          const key = encodeURIComponent(expected.apiKey);
-          const endpoints = [
-            ['firebase-web-app-config', `https://firebase.googleapis.com/v1beta1/projects/-/webApps/${app}/config?key=${key}`],
-            ['firebase-hosting-init', `https://${expected.authDomain}/__/firebase/init.json`],
-            ['appcheck-v1-enterprise-query-key', `https://firebaseappcheck.googleapis.com/v1/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig?key=${key}`],
-            ['appcheck-v1beta-enterprise-query-key', `https://firebaseappcheck.googleapis.com/v1beta/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig?key=${key}`],
-            ['appcheck-v1-enterprise-header-key', `https://firebaseappcheck.googleapis.com/v1/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig`],
-            ['appcheck-v1beta-enterprise-header-key', `https://firebaseappcheck.googleapis.com/v1beta/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig`],
-            ['appcheck-v1-v3-query-key', `https://firebaseappcheck.googleapis.com/v1/projects/${expected.projectNumber}/apps/${app}/recaptchaV3Config?key=${key}`],
-            ['appcheck-v1beta-v3-query-key', `https://firebaseappcheck.googleapis.com/v1beta/projects/${expected.projectNumber}/apps/${app}/recaptchaV3Config?key=${key}`],
-            ['recaptcha-enterprise-list-query-key', `https://recaptchaenterprise.googleapis.com/v1/projects/${expected.projectId}/keys?pageSize=1000&key=${key}`],
-          ];
-
+          const siteKeyPattern = /^6L[0-9A-Za-z_-]{20,}$/u;
+          const placeholderPattern = /(?:example|synthetic|placeholder|replace|dummy|changeme|todo)/iu;
           const redact = (value) => String(value ?? '')
-            .replace(/AIza[0-9A-Za-z_-]{20,}/g, '[firebase-api-key]')
-            .replace(/6L[0-9A-Za-zz_-]{20,}/g, '[recaptcha-site-key]');
+            .replace(/AIza[0-9A-Za-z_-]{20,}/gu, '[firebase-api-key]')
+            .replace(/6L[0-9A-Za-z_-]{20,}/gu, '[recaptcha-site-key]')
+            .replace(/(?:expo_[0-9A-Za-z_-]+|eyJ[0-9A-Za-z._-]+)/gu, '[token]');
 
-          function collectSiteKeys(value, path = '$', found = []) {
+          function addCandidate(candidates, value, source) {
+            const normalized = typeof value === 'string' ? value.trim() : '';
+            if (!siteKeyPattern.test(normalized) || placeholderPattern.test(normalized)) return;
+            candidates.push({ value: normalized, source });
+          }
+
+          function collectSiteKeys(value, source, candidates, path = '$') {
             if (typeof value === 'string') {
-              const direct = value.trim();
-              if (/^6L[0-9A-Za-z-]{20,}$/.test(direct)) found.push({ path, value: direct });
-              const resource = direct.match(/(?:^|\\/)keys\\/(6L[0-9A-Za-z-]{20,})$/);
-              if (resource) found.push({ path, value: resource[1] });
-              return found;
+              addCandidate(candidates, value, `${source}:${path}`);
+              const marker = '/keys/';
+              const index = value.lastIndexOf(marker);
+              if (index >= 0) addCandidate(candidates, value.slice(index + marker.length), `${source}:${path}`);
+              return;
             }
             if (Array.isArray(value)) {
-              value.forEach((entry, index) => collectSiteKeys(entry, `${path}[${index}]`, found));
-              return found;
+              value.forEach((entry, index) => collectSiteKeys(entry, source, candidates, `${path}[${index}]`));
+              return;
             }
             if (value && typeof value === 'object') {
               for (const [name, entry] of Object.entries(value)) {
-                collectSiteKeys(entry, `${path}.${name}`, found);
+                collectSiteKeys(entry, source, candidates, `${path}.${name}`);
               }
             }
-            return found;
           }
 
           function identityCompatible(payload) {
@@ -101,19 +101,57 @@ jobs:
             if (typeof payload.name === 'string') {
               const decoded = decodeURIComponent(payload.name);
               if (decoded.includes('/apps/') && !decoded.includes(expected.appId)) return false;
-              if (decoded.includes('/projects/') && !decoded.includes(expected.projectNumber) && !decoded.includes(expected.projectId)) return false;
+              if (
+                decoded.includes('/projects/') &&
+                !decoded.includes(expected.projectNumber) &&
+                !decoded.includes(expected.projectId)
+              ) return false;
             }
             return true;
           }
 
+          function parseDotenv(text) {
+            const values = {};
+            for (const rawLine of String(text).split(/\r?\n/u)) {
+              const line = rawLine.trim();
+              if (!line || line.startsWith('#')) continue;
+              const equals = line.indexOf('=');
+              if (equals <= 0) continue;
+              const name = line.slice(0, equals).trim();
+              let value = line.slice(equals + 1).trim();
+              if (
+                (value.startsWith('"') && value.endsWith('"')) ||
+                (value.startsWith("'") && value.endsWith("'"))
+              ) value = value.slice(1, -1);
+              values[name] = value.replace(/\\n/gu, '\n');
+            }
+            return values;
+          }
+
+          const app = encodeURIComponent(expected.appId);
+          const apiKey = encodeURIComponent(expected.apiKey);
+          const endpoints = [
+            ['firebase-web-app-config', `https://firebase.googleapis.com/v1beta1/projects/-/webApps/${app}/config?key=${apiKey}`],
+            ['firebase-hosting-init', `https://${expected.authDomain}/__/firebase/init.json`],
+            ['appcheck-v1-enterprise-query-key', `https://firebaseappcheck.googleapis.com/v1/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig?key=${apiKey}`],
+            ['appcheck-v1beta-enterprise-query-key', `https://firebaseappcheck.googleapis.com/v1beta/projects/${expected.projectNumber}/apps/${app}/recaptchaEnterpriseConfig?key=${apiKey}`],
+            ['appcheck-v1-v3-query-key', `https://firebaseappcheck.googleapis.com/v1/projects/${expected.projectNumber}/apps/${app}/recaptchaV3Config?key=${apiKey}`],
+            ['appcheck-v1beta-v3-query-key', `https://firebaseappcheck.googleapis.com/v1beta/projects/${expected.projectNumber}/apps/${app}/recaptchaV3Config?key=${apiKey}`],
+            ['recaptcha-enterprise-list-query-key', `https://recaptchaenterprise.googleapis.com/v1/projects/${expected.projectId}/keys?pageSize=1000&key=${apiKey}`],
+          ];
+
           const diagnostics = [];
           const candidates = [];
           for (const [name, url] of endpoints) {
-            const headers = { Accept: 'application/json', 'x-goog-api-key': expected.apiKey };
             let response;
             let text = '';
             try {
-              response = await fetch(url, { method: 'GET', headers, cache: 'no-store', redirect: 'follow' });
+              response = await fetch(url, {
+                method: 'GET',
+                headers: { Accept: 'application/json', 'x-goog-api-key': expected.apiKey },
+                cache: 'no-store',
+                redirect: 'follow',
+              });
               text = await response.text();
             } catch (error) {
               diagnostics.push({ name, status: 'network-error', error: redact(error?.message).slice(0, 400) });
@@ -122,27 +160,96 @@ jobs:
 
             let payload = null;
             try { payload = text ? JSON.parse(text) : null; } catch {}
-            const fields = payload && typeof payload === 'object' ? Object.keys(payload).sort() : [];
-            const bodyDigest = createHash('sha256').update(text).digest('hex');
             diagnostics.push({
               name,
               status: response.status,
               ok: response.ok,
               contentType: response.headers.get('content-type'),
-              fields,
-              bodySha256: bodyDigest,
-              bodyPreview: response.ok ? undefined : redact(text).replace(/\\s+/g, ' ').slice(0, 500),
+              fields: payload && typeof payload === 'object' ? Object.keys(payload).sort() : [],
+              bodySha256: createHash('sha256').update(text).digest('hex'),
+              bodyPreview: response.ok ? undefined : redact(text).replace(/\s+/gu, ' ').slice(0, 400),
             });
+            if (response.ok && identityCompatible(payload)) collectSiteKeys(payload, name, candidates);
+          }
 
-            if (!response.ok || !identityCompatible(payload)) continue;
-            for (const candidate of collectSiteKeys(payload)) {
-              candidates.push({ endpoint: name, path: candidate.path, value: candidate.value });
+          if (candidates.length === 0 && process.env.EXPO_TOKEN?.trim()) {
+            const directory = mkdtempSync(join(tmpdir(), 'defectra-eas-authority-'));
+            try {
+              writeFileSync(join(directory, 'app.json'), `${JSON.stringify({
+                expo: {
+                  name: 'Defectra',
+                  slug: 'defectra',
+                  extra: { eas: { projectId: expected.easProjectId } },
+                },
+              }, null, 2)}\n`, { mode: 0o600 });
+              writeFileSync(join(directory, 'package.json'), '{"name":"defectra-authority-probe","private":true}\n', { mode: 0o600 });
+              const environmentPath = join(directory, '.env.production');
+              execFileSync(
+                'npx',
+                [
+                  '--yes',
+                  'eas-cli@21.0.2',
+                  'env:pull',
+                  '--environment',
+                  'production',
+                  '--path',
+                  environmentPath,
+                  '--non-interactive',
+                ],
+                {
+                  cwd: directory,
+                  env: { ...process.env, EXPO_NO_TELEMETRY: '1' },
+                  encoding: 'utf8',
+                  stdio: ['ignore', 'pipe', 'pipe'],
+                  timeout: 180000,
+                },
+              );
+              const values = parseDotenv(readFileSync(environmentPath, 'utf8'));
+              const identity = {
+                apiKey: values.EXPO_PUBLIC_FIREBASE_API_KEY,
+                authDomain: values.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+                projectId: values.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+                messagingSenderId: values.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+                appId: values.EXPO_PUBLIC_FIREBASE_APP_ID,
+              };
+              for (const [name, wanted] of Object.entries({
+                apiKey: expected.apiKey,
+                authDomain: expected.authDomain,
+                projectId: expected.projectId,
+                messagingSenderId: expected.messagingSenderId,
+                appId: expected.appId,
+              })) {
+                if (identity[name] !== wanted) throw new Error(`EAS production identity mismatch for ${name}.`);
+              }
+              addCandidate(candidates, values.EXPO_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY, 'eas-production');
+              diagnostics.push({
+                name: 'eas-production',
+                status: candidates.some((candidate) => candidate.source === 'eas-production') ? 'resolved' : 'missing-site-key',
+                ok: candidates.some((candidate) => candidate.source === 'eas-production'),
+                fields: Object.keys(values).filter((name) => name.startsWith('EXPO_PUBLIC_')).sort(),
+              });
+            } catch (error) {
+              diagnostics.push({
+                name: 'eas-production',
+                status: 'failed',
+                ok: false,
+                error: redact(error?.message).slice(0, 500),
+              });
+            } finally {
+              rmSync(directory, { recursive: true, force: true });
             }
+          } else if (candidates.length === 0) {
+            diagnostics.push({
+              name: 'eas-production',
+              status: 'not-authorised',
+              ok: false,
+              error: 'EXPO_TOKEN is not configured for the helper repository.',
+            });
           }
 
           const unique = [...new Map(candidates.map((candidate) => [candidate.value, candidate])).values()];
           const report = {
-            schema: 'defectra_app_check_public_config_probe_v2',
+            schema: 'defectra_app_check_public_config_probe_v3',
             projectId: expected.projectId,
             projectNumber: expected.projectNumber,
             appId: expected.appId,
@@ -159,24 +266,30 @@ jobs:
                 padding: constants.RSA_PKCS1_OAEP_PADDING,
                 oaepHash: 'sha256',
               },
-              Buffer.from(siteKey, 'utf8')
+              Buffer.from(siteKey, 'utf8'),
             ).toString('base64');
             report.siteKeySha256 = digest;
-            report.source = { endpoint: unique[0].endpoint, path: unique[0].path };
+            report.source = unique[0].source;
             report.ciphertext = ciphertext;
-            console.log(`Resolved one exact browser-public App Check identity (sha256 ${digest.slice(0, 12)}…).`);
-          } else if (unique.length > 1) {
-            report.failure = 'Multiple distinct registered-shaped site keys were returned by exact public surfaces.';
+            console.log(`DEFECTRA_APP_CHECK_SHA256=${digest}`);
+            console.log(`DEFECTRA_APP_CHECK_SOURCE=${unique[0].source}`);
+            console.log(`DEFECTRA_APP_CHECK_CIPHERTEXT=${ciphertext}`);
           } else {
-            report.failure = 'No registered-shaped site key was returned by the official public surfaces.';
+            report.failure = unique.length > 1
+              ? 'Multiple distinct registered-shaped site keys were returned.'
+              : 'No registered-shaped site key was returned by authorised sources.';
           }
 
-          writeFileSync('defectra-app-check-public-config-probe.json', `${JSON.stringify(report, null, 2)}\n`, { mode: 0o600 });
+          writeFileSync(
+            'defectra-app-check-public-config-probe.json',
+            `${JSON.stringify(report, null, 2)}\n`,
+            { mode: 0o600 },
+          );
           console.log(JSON.stringify({ candidateCount: unique.length, diagnostics }, null, 2));
           if (unique.length !== 1) process.exitCode = 1;
           NODE
 
-      - name: Upload bounded probe result
+      - name: Upload bounded encrypted probe result
         if: always()
         uses: actions/upload-artifact@v4
         with:
