@@ -1,0 +1,107 @@
+name: Defectra public App Check configuration probe
+
+on:
+  push:
+    branches:
+      - agent/defectra-app-check-public-config-probe-20260811
+
+permissions:
+  contents: read
+
+env:
+  DEFECTRA_FIREBASE_API_KEY: AIzaSyAPMEwjTr1Az0YU0YPKReiX5nYHK3Xt_rQ
+  DEFECTRA_FIREBASE_PROJECT_ID: defectra-fa684
+  DEFECTRA_FIREBASE_APP_ID: 1:784337791023:web:7e20b6c984aa9b9bba7eda
+  DEFECTRA_FIREBASE_SENDER_ID: "784337791023"
+  PROBE_PUBLIC_KEY: |
+    -----BEGIN PUBLIC KEY-----
+    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsZeYSgxFRqdZVlKWHR2v
+    UxCf0XBPBlx7kb7QCL2PmSd46quNJT2pffrLD+BJZtJpfX5wgbJ/q2OBcYGFZTYG
+    LATThWvpfrj1u35T+82KsT9w0nHaTAWujfgUKueLj9Dn9A0K34MuSAwfD9tc5fl/
+    ARX7k6M7184JN/994ZC7/d78VHQGjOTtlJ5QHzEgMVi+UrnE6fW6f4LWU2/Y1V2n
+    Dr9DYWrL6GZwSicDageCQUlXDPQC/l1bXKhvyzbysy1mJ9wmaya+qsO3001CjT7/
+    mAthoYbIHYKBihcLjeAPAsln1WJChdG1lw4oVFEl/XvXQD9BSno6B9g3yA7MKgr1
+    AQIDAQAB
+    -----END PUBLIC KEY-----
+
+jobs:
+  probe:
+    name: Fetch, validate and encrypt browser-public identity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Resolve exact Defectra Firebase web configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { createHash, constants, publicEncrypt } = require('node:crypto');
+          const { writeFileSync } = require('node:fs');
+
+          const expected = Object.freeze({
+            projectId: process.env.DEFECTRA_FIREBASE_PROJECT_ID,
+            appId: process.env.DEFECTRA_FIREBASE_APP_ID,
+            messagingSenderId: process.env.DEFECTRA_FIREBASE_SENDER_ID,
+            apiKey: process.env.DEFECTRA_FIREBASE_API_KEY,
+          });
+          const endpoint = new URL(
+            `https://firebase.googleapis.com/v1beta1/projects/-/webApps/${encodeURIComponent(expected.appId)}/config`
+          );
+          endpoint.searchParams.set('key', expected.apiKey);
+
+          const response = await fetch(endpoint, {
+            method: 'GET',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+          });
+          const text = await response.text();
+          if (!response.ok) {
+            throw new Error(`Firebase public configuration returned HTTP ${response.status}: ${text.slice(0, 240)}`);
+          }
+
+          const payload = JSON.parse(text);
+          for (const [name, value] of Object.entries(expected)) {
+            if (payload[name] !== value) {
+              throw new Error(`Firebase public configuration identity mismatch for ${name}.`);
+            }
+          }
+
+          const siteKey = typeof payload.recaptchaSiteKey === 'string'
+            ? payload.recaptchaSiteKey.trim()
+            : '';
+          if (!/^6L[0-9A-Za-z_-]{20,}$/.test(siteKey)) {
+            throw new Error('Firebase public configuration did not expose a registered-shaped reCAPTCHA Enterprise site key.');
+          }
+
+          const digest = createHash('sha256').update(siteKey).digest('hex');
+          const ciphertext = publicEncrypt(
+            {
+              key: process.env.PROBE_PUBLIC_KEY,
+              padding: constants.RSA_PKCS1_OAEP_PADDING,
+              oaepHash: 'sha256',
+            },
+            Buffer.from(siteKey, 'utf8')
+          ).toString('base64');
+
+          writeFileSync(
+            'defectra-app-check-public-config-encrypted.json',
+            `${JSON.stringify({
+              schema: 'defectra_app_check_public_config_probe_v1',
+              projectId: expected.projectId,
+              appId: expected.appId,
+              messagingSenderId: expected.messagingSenderId,
+              siteKeySha256: digest,
+              ciphertext,
+            }, null, 2)}\n`,
+            { mode: 0o600 }
+          );
+          console.log(`Validated exact Defectra browser-public App Check identity (sha256 ${digest.slice(0, 12)}…).`);
+          NODE
+
+      - name: Upload encrypted one-use result
+        uses: actions/upload-artifact@v4
+        with:
+          name: defectra-app-check-public-config-encrypted
+          path: defectra-app-check-public-config-encrypted.json
+          if-no-files-found: error
+          retention-days: 1
