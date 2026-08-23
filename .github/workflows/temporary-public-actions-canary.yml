@@ -1,0 +1,27 @@
+name: Temporary public hosted-runner canary
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    if: >-
+      github.event.pull_request.title == 'EVAVO public Actions allocation canary' &&
+      github.event.pull_request.user.login == 'EVAVO-STUDIO' &&
+      github.event.pull_request.base.ref == 'main' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      startsWith(github.event.pull_request.head.ref, 'automation/public-actions-canary-')
+    runs-on: ubuntu-slim
+    timeout-minutes: 2
+    steps:
+      - name: Prove public hosted allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'evavo-public-actions-allocation-canary-v1'
+          echo "runner_os=$RUNNER_OS"
+          echo "runner_arch=$RUNNER_ARCH"
