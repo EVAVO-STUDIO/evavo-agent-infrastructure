@@ -11,14 +11,16 @@ describe("EVAVO Local Agent MCP execution bridge", () => {
     expect(shim).toContain('import "../local-agent-mcp.mjs"');
   });
 
-  it("exposes real typed, file and operator tools", () => {
+  it("exposes the complete seven-tool typed, file and operator surface", () => {
     for (const marker of [
       'name:"evavo_local_agent_capabilities"',
       'name:"evavo_local_agent_action"',
+      'name:"evavo_local_file_read"',
+      'name:"evavo_local_file_write"',
       'name:"evavo_local_file_list"',
       'name:"evavo_local_file_copy"',
       'name:"evavo_local_operator_execute"',
-      '"powershell","python","bash","cmd"',
+      '"powershell","pwsh","python","bash","cmd"',
       'http://127.0.0.1:4329',
     ]) expect(runtime).toContain(marker);
   });
@@ -36,6 +38,8 @@ describe("EVAVO Local Agent MCP execution bridge", () => {
   it("keeps normal file authority preservation-first", () => {
     expect(runtime).toContain('const WRITE_ROOTS = Object.freeze(["downloads","beestation","temp"]');
     expect(runtime).not.toContain('WRITE_ROOTS = Object.freeze(["gitrepos"');
+    expect(runtime).toContain('/v1/files/read');
+    expect(runtime).toContain('/v1/files/write');
     expect(runtime).toContain('/v1/files/list');
     expect(runtime).toContain('/v1/files/copy');
     expect(runtime).toContain('doc.createOnly!==true');
@@ -54,6 +58,16 @@ describe("EVAVO Local Agent MCP execution bridge", () => {
       'execution outcome may be unknown and was not retried',
       'doc.operatorAuthority!==true',
       'doc.shellParameterUsed!==false',
+    ]) expect(runtime).toContain(marker);
+  });
+
+  it("adapts PowerShell 7 without interpolating user code into the launcher", () => {
+    for (const marker of [
+      'commandType!=="pwsh"',
+      'Buffer.from(command,"utf16le").toString("base64")',
+      'pwsh.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand',
+      'adapterMode:"encoded-pwsh-via-fixed-powershell-launcher"',
+      'pwshUserCodeEncoded:commandType==="pwsh"',
     ]) expect(runtime).toContain(marker);
   });
 
