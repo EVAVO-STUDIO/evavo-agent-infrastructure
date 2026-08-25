@@ -12,7 +12,7 @@ $Servers = @(
         file = 'mcp-server\android-app-mcp.mjs'
         name = 'evavo-android-app-mcp'
         version = '1.0.0'
-        tools = @('evavo_android_app_status','evavo_android_app_health','evavo_android_app_launch','evavo_android_app_stop','evavo_android_app_diagnostics','evavo_android_app_ui_snapshot','evavo_android_app_ui_action','evavo_android_game_input','evavo_android_app_grant_development_permissions','evavo_android_app_clear_data','evavo_android_app_uninstall')
+        tools = @('evavo_android_app_status','evavo_android_app_health','evavo_android_app_launch','evavo_android_app_stop','evavo_android_app_diagnostics','evavo_android_app_ui_snapshot','evavo_android_game_input','evavo_android_app_grant_development_permissions','evavo_android_app_clear_data','evavo_android_app_uninstall')
         readOnlyOnly = $false
     },
     [ordered]@{
@@ -32,7 +32,7 @@ $Servers = @(
     [ordered]@{
         file = 'mcp-server\glasses-tab-a-mcp.mjs'
         name = 'evavo-glasses-tab-a-mcp'
-        version = '1.0.0'
+        version = '1.1.0'
         tools = @('evavo_glasses_tab_a_acceptance')
         readOnlyOnly = $false
     },
