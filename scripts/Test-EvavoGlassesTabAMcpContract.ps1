@@ -11,6 +11,8 @@ $Source = Get-Content -LiteralPath $Runtime -Raw -Encoding UTF8
 
 $Required = @(
     'evavo_glasses_tab_a_acceptance',
+    'evavo_glasses_android_tab_a_install_v2',
+    'powershell5NativeStderrHardened: true',
     'C:\\GitRepos\\evavo-local-compute',
     'C:\\GitRepos\\evavo-glasses',
     'execute-prepared-local-request.py',
@@ -24,6 +26,7 @@ $Required = @(
     'arbitraryAdbShellAccepted: false',
     'bluetoothUsedAsAdbTransport: false',
     'physicalExecutionReceiptRequired',
+    'foregroundScreenshotReturned',
     'device-install',
     'device-launch',
     'device-observe',
@@ -39,6 +42,7 @@ foreach ($Token in $Required) {
 }
 
 $Forbidden = @(
+    'evavo_glasses_android_tab_a_install_v1',
     'shell: true',
     'exec(',
     'execSync(',
@@ -55,13 +59,15 @@ foreach ($Token in $Forbidden) {
 }
 
 [ordered]@{
-    schemaVersion = 1
-    kind = 'evavo-glasses-tab-a-mcp-static-contract-v1'
+    schemaVersion = 2
+    kind = 'evavo-glasses-tab-a-mcp-static-contract-v2'
     ok = $true
     runtime = 'mcp-server/glasses-tab-a-mcp.mjs'
     zeroArgumentTool = $true
     durableExecution = $true
     physicalDeviceExecution = $true
+    foregroundScreenshotReturned = $true
+    powershell5NativeStderrHardened = $true
     callerSuppliedTargetRefAccepted = $false
     callerSuppliedCommandAccepted = $false
     callerSuppliedPackageAccepted = $false
