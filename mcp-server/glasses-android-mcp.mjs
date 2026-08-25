@@ -19,7 +19,7 @@ const TOOLS = Object.freeze([
   },
   {
     name: "evavo_glasses_android_build",
-    description: "Build and AAPT2-verify the current native GODMODE Android debug APK from the governed evavo-glasses checkout. Does not install it on a device.",
+    description: "Build and AAPT2-verify the current native GODMODE Android debug APK from the governed evavo-glasses checkout. Does not install it on a device. Intended for warm builds that fit the bounded interactive route.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
@@ -34,13 +34,18 @@ const TOOLS = Object.freeze([
   },
   {
     name: "evavo_glasses_android_build_and_test",
-    description: "Run the clean-main GODMODE Android release check: build/unit-test/AAPT2 verification followed by install, launch, running-process verification and private evidence on one authorised target.",
+    description: "Admit and start the clean-main GODMODE Android build/install/launch acceptance through the physically accepted REST Executor v2. The long-running work is owned by a bounded same-user scheduled task; this call returns activation, not completion.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
       required: ["targetRef"],
       properties: { targetRef: { type: "string", pattern: "^android-[a-f0-9]{16}$" } },
     },
+  },
+  {
+    name: "evavo_glasses_android_acceptance_status",
+    description: "Read the current scheduled Glasses Android acceptance state and latest private acceptance receipt summary without starting new work.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
 ]);
 
@@ -92,7 +97,7 @@ async function postOperator(command, timeoutSeconds) {
   return {
     ...glasses,
     executor: {
-      schema: "evavo.glasses-android-mcp-executor.v1",
+      schema: "evavo.glasses-android-mcp-executor.v2",
       loopbackOnly: true,
       fixedCommandSurface: true,
       operatorCredentialSource: credential.source,
@@ -125,7 +130,10 @@ async function callTool(name, raw) {
   }
   if (name === "evavo_glasses_android_build_and_test") {
     const ref = target(args);
-    return postOperator(`powershell -NoProfile -ExecutionPolicy Bypass -File GODMODE-ANDROID.ps1 -Action ReleaseCheck -BridgeRoot ${BRIDGE_ROOT} -Target ${ref} -Confirm ${CONFIRMATION} -RequireOriginMain -Json`, 300);
+    return postOperator(`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\Invoke-EvavoGlassesAndroidRestExecutor.ps1 -Target ${ref}`, 180);
+  }
+  if (name === "evavo_glasses_android_acceptance_status") {
+    return postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\Get-EvavoGlassesAndroidAcceptanceStatus.ps1", 60);
   }
   throw new Error(`unknown tool: ${name}`);
 }
@@ -143,7 +151,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-android-mcp", version: "1.0.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-android-mcp", version: "1.1.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
