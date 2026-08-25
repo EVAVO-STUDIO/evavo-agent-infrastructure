@@ -1,7 +1,7 @@
 {
   "name": "@evavo/agent-mcp",
-  "version": "1.0.0",
-  "description": "Claude/MCP integration for EVAVO agent infrastructure",
+  "version": "1.4.0",
+  "description": "Canonical MCP integration for EVAVO local execution, ChatGPT and coding agents",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
