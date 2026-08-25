@@ -11,6 +11,11 @@ const BRIDGE_CWD_RELATIVE = "evavo-android-device-bridge";
 
 const TOOLS = Object.freeze([
   {
+    name: "evavo_android_setup_host",
+    description: "Provision or reuse the reviewed Android Platform Tools/AAPT2 host tooling for EVAVO Android development. This may download official pinned tooling into the bridge's ignored local data directory but does not touch an Android device.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
     name: "evavo_android_doctor",
     description: "Run the fixed EVAVO Android Device Bridge doctor on the local Windows workstation. Read-only; does not install, launch or interact with an Android app.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
@@ -103,6 +108,7 @@ async function postOperator(command, timeoutSeconds = 30) {
 
 async function callTool(name, raw) {
   const args = raw === undefined ? {} : asObject(raw);
+  if (name === "evavo_android_setup_host") return postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\setup-host-tools.ps1 -Json", 180);
   if (name === "evavo_android_doctor") return postOperator("node src\\cli.mjs doctor --json", 30);
   if (name === "evavo_android_devices") return postOperator("node src\\cli.mjs devices --json", 45);
   if (name === "evavo_android_profile") {
@@ -126,7 +132,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.0.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.1.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
