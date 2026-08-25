@@ -25,6 +25,12 @@ $Servers = @(
         name = 'evavo-glasses-tab-a-mcp'
         version = '1.0.0'
         tools = @('evavo_glasses_tab_a_acceptance')
+    },
+    [ordered]@{
+        file = 'mcp-server\godot-android-physical-mcp.mjs'
+        name = 'evavo-godot-android-physical-mcp'
+        version = '1.0.0'
+        tools = @('evavo_godot_android_physical_journey')
     }
 )
 
