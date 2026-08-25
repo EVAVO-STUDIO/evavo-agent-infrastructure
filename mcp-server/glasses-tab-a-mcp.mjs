@@ -15,7 +15,7 @@ const TIMEOUT_MS = 55 * 60 * 1000;
 const TOOLS = Object.freeze([
   {
     name: "evavo_glasses_tab_a_acceptance",
-    description: "Run the durable clean-main EVAVO Glasses Android 0.6.4 physical acceptance on exactly one authorised connected Android device: build/unit-test/AAPT2 verify, install/update, launch, evidence and crash/ANR health gate. The reviewed script additionally requires API 26+, BLE and the Android Bridge glasses compatibility gate.",
+    description: "Run the durable clean-main EVAVO Glasses Android 0.6.4 physical acceptance on exactly one authorised connected Android device: build/unit-test/AAPT2 verify, install/update, launch, crash/ANR gate, and privacy-safe package memory/display/orientation health evidence. The reviewed script additionally requires API 26+, BLE and the Android Bridge glasses compatibility gate.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
 ]);
@@ -121,6 +121,13 @@ async function runDurableAcceptance() {
   }
   if (acceptance.runtimeDiagnostics?.analysis?.crashedOrAnrObserved === true || acceptance.runtimeDiagnostics?.running !== true) {
     throw new Error("Galaxy Tab A acceptance did not finish with a healthy running app");
+  }
+  const health = asObject(acceptance.runtimeHealth);
+  if (acceptance.runtimeHealthObserved !== true || acceptance.memoryThresholdApplied !== false || health.operation !== "app.health" || health.healthSchema !== "evavo_android_app_health_v1" || health.running !== true) {
+    throw new Error("Galaxy Tab A acceptance did not retain the required package-scoped runtime health evidence");
+  }
+  if (health.arbitraryShellAccepted !== false || health.rawShellOutputReturned !== false || health.rawPidReturned !== false || health.mutationPerformed !== false) {
+    throw new Error("Galaxy Tab A runtime health authority/privacy contract mismatch");
   }
   return {
     ...value,
