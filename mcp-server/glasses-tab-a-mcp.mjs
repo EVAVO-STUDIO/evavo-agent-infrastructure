@@ -15,7 +15,7 @@ const TIMEOUT_MS = 55 * 60 * 1000;
 const TOOLS = Object.freeze([
   {
     name: "evavo_glasses_tab_a_acceptance",
-    description: "Run the durable clean-main EVAVO Glasses Android 0.6.4 physical acceptance on exactly one authorised connected Android device: build/unit-test/AAPT2 verify, install/update, launch, crash/ANR gate, and privacy-safe package memory/display/orientation health evidence. The reviewed script additionally requires API 26+, BLE and the Android Bridge glasses compatibility gate.",
+    description: "Bootstrap the reviewed Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet. No caller-supplied target, package, APK or command is accepted.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: {
       readOnlyHint: false,
@@ -24,7 +24,7 @@ const TOOLS = Object.freeze([
       openWorldHint: false,
     },
     _meta: {
-      "io.evavo/effects": ["execute", "write", "device-install", "device-launch", "device-observe"],
+      "io.evavo/effects": ["execute", "network", "write", "device-install", "device-launch", "device-observe"],
       "io.evavo/effectContract": "evavo_brain_tool_effects_v1",
       "io.evavo/arbitraryCommandTextAccepted": false,
       "io.evavo/callerSuppliedTargetRefAccepted": false,
@@ -126,35 +126,53 @@ async function runDurableAcceptance() {
   if (value.kind !== "evavo-prepared-local-execution-run-v1" || value.receiptPathsReturned !== false || value.runtimePathsReturned !== false || value.rawProcessOutputReturned !== false) {
     throw new Error("durable local execution receipt privacy contract mismatch");
   }
-  const acceptance = asObject(value.acceptance);
+
+  const install = asObject(value.acceptance);
+  if (install.schema !== "evavo_glasses_android_tab_a_install_v1" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) {
+    throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
+  }
+  if (install.hostBootstrapCompleted !== true || install.bridgeToolingBootstrapped !== true || install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0") {
+    throw new Error("Galaxy Tab A host toolchain bootstrap did not complete");
+  }
+  if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) {
+    throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
+  }
+  if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true) {
+    throw new Error("EVAVO Glasses was not proven installed, launched and healthy");
+  }
+
+  const acceptance = asObject(install.physicalAcceptance);
   if (acceptance.schema !== "evavo_glasses_android_tab_a_acceptance_v1" || acceptance.ok !== true || acceptance.physicalDeviceExecutionClaimed !== true) {
-    throw new Error("Galaxy Tab A acceptance identity or physical-execution truth mismatch");
+    throw new Error("Galaxy Tab A physical acceptance identity or execution truth mismatch");
   }
   if (acceptance.systemPackageMutationAllowed !== false || acceptance.arbitraryAdbShellUsed !== false || acceptance.bluetoothUsedAsAdbTransport !== false) {
-    throw new Error("Galaxy Tab A acceptance authority boundary mismatch");
+    throw new Error("Galaxy Tab A physical acceptance authority boundary mismatch");
   }
   if (acceptance.runtimeDiagnostics?.analysis?.crashedOrAnrObserved === true || acceptance.runtimeDiagnostics?.running !== true) {
     throw new Error("Galaxy Tab A acceptance did not finish with a healthy running app");
   }
   const health = asObject(acceptance.runtimeHealth);
   if (acceptance.runtimeHealthObserved !== true || acceptance.memoryThresholdApplied !== false || health.operation !== "app.health" || health.healthSchema !== "evavo_android_app_health_v1" || health.running !== true) {
-    throw new Error("Galaxy Tab A acceptance did not retain the required package-scoped runtime health evidence");
+    throw new Error("Galaxy Tab A acceptance did not retain required package-scoped runtime health evidence");
   }
   if (health.arbitraryShellAccepted !== false || health.rawShellOutputReturned !== false || health.rawPidReturned !== false || health.mutationPerformed !== false) {
     throw new Error("Galaxy Tab A runtime health authority/privacy contract mismatch");
   }
+
   return {
     ...value,
     stderrBytes,
     executor: {
-      schema: "evavo.glasses-tab-a-durable-mcp.v1",
+      schema: "evavo.glasses-tab-a-durable-mcp.v2",
       durableLocalExecution: true,
       reviewedTemplateSha256: templateSha256,
+      hostToolchainBootstrapIncluded: true,
       exactSingleAuthorisedDeviceRequired: true,
       callerSuppliedTargetRefAccepted: false,
       callerSuppliedCommandAccepted: false,
       callerSuppliedPackageAccepted: false,
       callerSuppliedApkAccepted: false,
+      androidLicensesAutoAccepted: false,
       systemPackageMutationAllowed: false,
       arbitraryAdbShellAccepted: false,
       bluetoothUsedAsAdbTransport: false,
@@ -183,7 +201,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.0.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.1.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
