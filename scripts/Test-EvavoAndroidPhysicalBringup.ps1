@@ -83,7 +83,7 @@ try {
         fixedCommandSurface = $true
         commandTextAcceptedFromCaller = $false
         credentialValuesReturned = $false
-        rawDeviceIdentifiersPrinted = [bool](-not $Bringup.truth.rawDeviceIdentifiersPrinted)
+        rawDeviceIdentifiersPrinted = [bool]$Bringup.truth.rawDeviceIdentifiersPrinted
         appInstalledClaimed = [bool]$Bringup.truth.appInstalledClaimed
         gameplayClaimed = [bool]$Bringup.truth.gameplayClaimed
     } | ConvertTo-Json -Depth 16
