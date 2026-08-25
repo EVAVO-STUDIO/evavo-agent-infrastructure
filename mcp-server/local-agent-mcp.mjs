@@ -1,11 +1,15 @@
+import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { lstat, readFile } from "node:fs/promises";
+import { createConnection } from "node:net";
 import { join } from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline";
 
 const REST_BASE = "http://127.0.0.1:4329";
 const LOCAL_APP_DATA = (process.env.LOCALAPPDATA ?? "").trim();
+const LOCAL_STORAGE_REPO = (process.env.EVAVO_LOCAL_STORAGE_REPO ?? "C:\\GitRepos\\evavo-local-storage").trim();
+const LOCAL_STORAGE_NODE_MANAGER = join(LOCAL_STORAGE_REPO,"scripts","manage-autonomous-node.ps1");
 const TYPED_ACTIONS = Object.freeze([
   "local-first-status","local-execution-readiness","local-execution-self-test",
   "secondary-recovery-status","repository-estate-audit","repository-estate-safe-sync",
@@ -15,6 +19,7 @@ const READ_ROOTS = Object.freeze(["gitrepos","downloads","beestation","temp"]);
 const WRITE_ROOTS = Object.freeze(["downloads","beestation","temp"]);
 const OPERATOR_TYPES = Object.freeze(["powershell","pwsh","python","bash","cmd"]);
 const MAX_SMALL_FILE_BYTES = 1_048_576;
+let recoveryPromise = null;
 
 const TOOLS = Object.freeze([
   { name:"evavo_local_agent_capabilities", description:"Read the self-hash-bound Local Agent capability projection. Performs no execution or external network activity.", inputSchema:{type:"object",additionalProperties:false,properties:{}} },
@@ -36,6 +41,35 @@ function adaptOperatorCommand(commandType,command){
   const encoded=Buffer.from(command,"utf16le").toString("base64");
   return{gatewayCommandType:"powershell",gatewayCommand:`& pwsh.exe -NoLogo -NoProfile -NonInteractive -EncodedCommand ${encoded}`,adapterMode:"encoded-pwsh-via-fixed-powershell-launcher"};
 }
+function wait(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+function loopbackReady(timeoutMs=650){
+  return new Promise(resolve=>{
+    const socket=createConnection({host:"127.0.0.1",port:4329});let settled=false;
+    const finish=value=>{if(settled)return;settled=true;socket.destroy();resolve(value);};
+    socket.setTimeout(timeoutMs);socket.once("connect",()=>finish(true));socket.once("timeout",()=>finish(false));socket.once("error",()=>finish(false));
+  });
+}
+function runFixedNodeManager(action,timeoutMs){
+  if(!["repair","restart"].includes(action))return Promise.reject(new Error("invalid fixed recovery action"));
+  return new Promise((resolve,reject)=>{
+    execFile("powershell.exe",["-NoProfile","-ExecutionPolicy","Bypass","-File",LOCAL_STORAGE_NODE_MANAGER,"-Action",action],{windowsHide:true,timeout:timeoutMs,maxBuffer:2_097_152},(err,stdout,stderr)=>{
+      if(err){reject(new Error(`Local Storage ${action} failed: ${String(stderr||stdout||err.message).trim().slice(0,800)}`));return;}resolve();
+    });
+  });
+}
+async function recoverLoopback(){
+  if(recoveryPromise)return recoveryPromise;
+  recoveryPromise=(async()=>{
+    const script=await lstat(LOCAL_STORAGE_NODE_MANAGER);if(!script.isFile()||script.isSymbolicLink())throw new Error("Local Storage recovery script failed path admission");
+    await runFixedNodeManager("repair",120000);
+    await runFixedNodeManager("restart",60000);
+    const deadline=Date.now()+45000;
+    while(Date.now()<deadline){if(await loopbackReady())return;await wait(750);}
+    throw new Error("Local Agent REST did not become ready after fixed Local Storage recovery");
+  })();
+  try{return await recoveryPromise;}finally{recoveryPromise=null;}
+}
+async function ensureLoopbackReady(){if(await loopbackReady())return false;await recoverLoopback();if(!(await loopbackReady()))throw new Error("Local Agent REST is unavailable after recovery");return true;}
 
 async function loadTypedToken(){
   if(!LOCAL_APP_DATA)throw new Error("LOCALAPPDATA is required");
@@ -51,9 +85,9 @@ async function loadCapabilities(){
   if(!LOCAL_APP_DATA)throw new Error("LOCALAPPDATA is required");const projection=await readJsonFile(join(LOCAL_APP_DATA,"EVAVO","LocalAgentRest043","capabilities.json"),2,262144);const manifestText=typeof projection.manifestText==="string"?projection.manifestText:"";const manifestTextSha256=typeof projection.manifestTextSha256==="string"?projection.manifestTextSha256:"";
   if(projection.schemaVersion!==1||projection.kind!=="evavo-local-agent-capability-projection-043-v1"||!/^[a-f0-9]{64}$/.test(String(projection.sourceSha256??""))||!/^[a-f0-9]{64}$/.test(manifestTextSha256)||!manifestText||sha256Text(manifestText)!==manifestTextSha256)throw new Error("Local Agent capability projection integrity failed");
   const manifest=asObject(JSON.parse(manifestText)),normal=asObject(manifest.normalAutomation),files=asObject(manifest.fileAuthority),safety=asObject(manifest.safety);if(manifest.schemaVersion!==1||manifest.kind!=="evavo-local-agent-capabilities-043-v1"||manifest.mode!=="local-worker-first"||normal.arbitraryShellAuthority!==false||normal.providerMutationAuthority!==false||files.gitReposWriteAllowed!==false||files.permanentDeleteAllowed!==false||safety.githubActionsRequired!==false||safety.forcePush!==false||safety.resetHard!==false||safety.gitClean!==false||safety.permanentDelete!==false)throw new Error("Local Agent capability projection authority admission failed");
-  return{schemaVersion:1,kind:"evavo-agent-infrastructure-local-capabilities-v1",ok:true,mode:manifest.mode,typedActions:normal.actions,transports:normal.transports,mcpExecution:manifest.mcpExecution,fileAuthority:files,operatorExecution:manifest.operatorExecution,bootstrap:manifest.bootstrap,projectionSelfHashVerified:true,externalNetworkPerformed:false,credentialValuesReturned:false,physicalPathsReturned:false};
+  return{schemaVersion:1,kind:"evavo-agent-infrastructure-local-capabilities-v1",ok:true,mode:manifest.mode,typedActions:normal.actions,transports:normal.transports,mcpExecution:manifest.mcpExecution,fileAuthority:files,operatorExecution:manifest.operatorExecution,bootstrap:manifest.bootstrap,projectionSelfHashVerified:true,externalNetworkPerformed:false,credentialValuesReturned:false,physicalPathsReturned:false,selfHealingPreflight:true};
 }
-async function postJson(path,payload,token,timeoutMs){let response;try{response=await fetch(`${REST_BASE}${path}`,{method:"POST",headers:{"Content-Type":"application/json","X-EVAVO-Local-Agent-Token":token},body:JSON.stringify(payload),signal:AbortSignal.timeout(timeoutMs),cache:"no-store"});}catch{throw new Error("Local Agent REST request did not return; execution outcome may be unknown and was not retried");}let body;try{body=await response.json();}catch{throw new Error("Local Agent REST returned invalid JSON; request was not retried");}const doc=asObject(body);if(!response.ok)throw new Error(`Local Agent REST rejected the request (${response.status}): ${String(doc.error??"unknown error")}`);return doc;}
+async function postJson(path,payload,token,timeoutMs){const recovered=await ensureLoopbackReady();let response;try{response=await fetch(`${REST_BASE}${path}`,{method:"POST",headers:{"Content-Type":"application/json","X-EVAVO-Local-Agent-Token":token},body:JSON.stringify(payload),signal:AbortSignal.timeout(timeoutMs),cache:"no-store"});}catch{throw new Error("Local Agent REST request did not return; execution outcome may be unknown and was not retried");}let body;try{body=await response.json();}catch{throw new Error("Local Agent REST returned invalid JSON; request was not retried");}const doc=asObject(body);if(!response.ok)throw new Error(`Local Agent REST rejected the request (${response.status}): ${String(doc.error??"unknown error")}`);return{...doc,mcpPreflightRecovered:recovered};}
 
 async function callTool(name,raw){
   const args=raw===undefined?{}:asObject(raw);
@@ -80,4 +114,4 @@ async function callTool(name,raw){
 }
 
 const result=(id,value)=>({jsonrpc:"2.0",id:id??null,result:value}),error=(id,code,message)=>({jsonrpc:"2.0",id:id??null,error:{code,message}});const input=createInterface({input:process.stdin,crlfDelay:Infinity}),write=(value)=>process.stdout.write(`${JSON.stringify(value)}\n`);
-for await(const line of input){if(!line.trim())continue;let request;try{request=JSON.parse(line);}catch{write(error(null,-32700,"Parse error"));continue;}if(request.jsonrpc!=="2.0"||typeof request.method!=="string"){write(error(request.id,-32600,"Invalid request"));continue;}try{if(request.method==="notifications/initialized")continue;if(request.method==="ping")write(result(request.id,{}));else if(request.method==="initialize")write(result(request.id,{protocolVersion:"2024-11-05",capabilities:{tools:{listChanged:false}},serverInfo:{name:"evavo-agent-mcp",version:"1.3.0"}}));else if(request.method==="tools/list")write(result(request.id,{tools:TOOLS}));else if(request.method==="tools/call"){const params=asObject(request.params),value=await callTool(String(params.name??""),params.arguments);write(result(request.id,{content:[{type:"text",text:JSON.stringify(value,null,2)}],isError:false}));}else write(error(request.id,-32601,"Method not found"));}catch(caught){const message=caught instanceof Error?caught.message:"Unknown error";write(result(request.id,{content:[{type:"text",text:JSON.stringify({ok:false,error:message,credentialValuesReturned:false,physicalPathsReturned:false})}],isError:true}));}}
+for await(const line of input){if(!line.trim())continue;let request;try{request=JSON.parse(line);}catch{write(error(null,-32700,"Parse error"));continue;}if(request.jsonrpc!=="2.0"||typeof request.method!=="string"){write(error(request.id,-32600,"Invalid request"));continue;}try{if(request.method==="notifications/initialized")continue;if(request.method==="ping")write(result(request.id,{}));else if(request.method==="initialize")write(result(request.id,{protocolVersion:"2024-11-05",capabilities:{tools:{listChanged:false}},serverInfo:{name:"evavo-agent-mcp",version:"1.4.0"}}));else if(request.method==="tools/list")write(result(request.id,{tools:TOOLS}));else if(request.method==="tools/call"){const params=asObject(request.params),value=await callTool(String(params.name??""),params.arguments);write(result(request.id,{content:[{type:"text",text:JSON.stringify(value,null,2)}],isError:false}));}else write(error(request.id,-32601,"Method not found"));}catch(caught){const message=caught instanceof Error?caught.message:"Unknown error";write(result(request.id,{content:[{type:"text",text:JSON.stringify({ok:false,error:message,credentialValuesReturned:false,physicalPathsReturned:false})}],isError:true}));}}
