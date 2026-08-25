@@ -82,9 +82,7 @@ async function captureForegroundScreenshot(targetRef) {
     if (result.error || result.status !== 0) throw new Error("foreground EVAVO Glasses screenshot capture failed");
     let receipt;
     try { receipt = asObject(JSON.parse(String(result.stdout ?? "").trim())); } catch { throw new Error("foreground screenshot receipt was invalid JSON"); }
-    if (receipt.operation !== "evidence.package-screenshot" || receipt.foregroundPackageVerified !== true || receipt.packageRunningVerified !== true || receipt.mutationPerformed !== false) {
-      throw new Error("foreground screenshot package-bound truth contract mismatch");
-    }
+    if (receipt.operation !== "evidence.package-screenshot" || receipt.foregroundPackageVerified !== true || receipt.packageRunningVerified !== true || receipt.mutationPerformed !== false) throw new Error("foreground screenshot package-bound truth contract mismatch");
     const bytes = await readFile(absolute);
     if (bytes.length < 8 || bytes.length > MAX_SCREENSHOT_BYTES) throw new Error("foreground screenshot failed size admission");
     const signature = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
@@ -147,8 +145,8 @@ async function runDurableAcceptance() {
   if (value.kind !== "evavo-prepared-local-execution-run-v1" || value.receiptPathsReturned !== false || value.runtimePathsReturned !== false || value.rawProcessOutputReturned !== false) throw new Error("durable local execution receipt privacy contract mismatch");
 
   const install = asObject(value.acceptance);
-  if (install.schema !== "evavo_glasses_android_tab_a_install_v1" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
-  if (install.hostBootstrapCompleted !== true || install.bridgeToolingBootstrapped !== true || install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0") throw new Error("Galaxy Tab A host toolchain bootstrap did not complete");
+  if (install.schema !== "evavo_glasses_android_tab_a_install_v2" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
+  if (install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0" || install.bridgeContractsPassed !== true || install.repositoryContractsRun !== true) throw new Error("Galaxy Tab A host toolchain/contracts did not complete");
   if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
   if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true) throw new Error("EVAVO Glasses was not proven installed, launched and healthy");
 
@@ -167,10 +165,11 @@ async function runDurableAcceptance() {
       stderrBytes,
       foregroundScreenshot: screenshot.metadata,
       executor: {
-        schema: "evavo.glasses-tab-a-durable-mcp.v3",
+        schema: "evavo.glasses-tab-a-durable-mcp.v4",
         durableLocalExecution: true,
         reviewedTemplateSha256: templateSha256,
         hostToolchainBootstrapIncluded: true,
+        powershell5NativeStderrHardened: true,
         foregroundScreenshotReturned: true,
         exactSingleAuthorisedDeviceRequired: true,
         callerSuppliedTargetRefAccepted: false,
@@ -208,7 +207,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.2.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.3.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
