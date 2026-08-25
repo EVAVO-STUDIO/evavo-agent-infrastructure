@@ -24,6 +24,13 @@
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
     },
+    "evavo-android-observer": {
+      "command": "node",
+      "args": ["./mcp-server/android-observer-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "android-read-only-observer"
+      }
+    },
     "evavo-glasses-android": {
       "command": "node",
       "args": ["./mcp-server/glasses-android-mcp.mjs"],
