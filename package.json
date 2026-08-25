@@ -12,7 +12,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:android-mcps": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoAndroidDeviceMcp.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoAndroidSpecialistMcps.ps1",
+    "test:android-mcps": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoAndroidDeviceMcp.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoAndroidSpecialistMcps.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoGlassesTabAMcpContract.ps1",
     "test:physical-device-contract": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoPhysicalDeviceAgentAccessContract.ps1",
     "test:chatgpt-android-observer-contract": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoChatGPTAndroidObserverTunnelContract.ps1",
     "test:android-physical": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoAndroidPhysicalBringup.ps1",
@@ -33,7 +33,6 @@
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
-    "@typescript-eslint/parser": "^7.0.0",
     "eslint": "^9.0.0",
     "prettier": "^3.2.0",
     "typescript": "^5.5.0",
