@@ -12,7 +12,7 @@ const BRIDGE_CWD_RELATIVE = "evavo-android-device-bridge";
 const TOOLS = Object.freeze([
   {
     name: "evavo_android_setup_host",
-    description: "Provision or reuse the reviewed Android Platform Tools/AAPT2 host tooling for EVAVO Android development. This may download official pinned tooling into the bridge's ignored local data directory but does not touch an Android device.",
+    description: "Provision or reuse reviewed official Android Platform Tools/AAPT2 host tooling for EVAVO Android development. This may download tooling into the bridge's ignored local data directory but does not touch an Android device.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
@@ -68,6 +68,18 @@ async function loadOperatorToken() {
   return { token, source: "process-environment" };
 }
 
+function executorReceipt(credentialSource) {
+  return {
+    schema: "evavo.android-mcp-executor.v1",
+    loopbackOnly: true,
+    fixedCommandSurface: true,
+    operatorCredentialSource: credentialSource,
+    credentialValuesReturned: false,
+    physicalWorkstationPathReturned: false,
+    commandTextAcceptedFromCaller: false,
+  };
+}
+
 async function postOperator(command, timeoutSeconds = 30) {
   const credential = await loadOperatorToken();
   let response;
@@ -97,30 +109,40 @@ async function postOperator(command, timeoutSeconds = 30) {
   if (body.ok !== true) throw new Error("Android bridge command failed on the workstation");
   let bridge;
   try { bridge = asObject(JSON.parse(String(body.stdout ?? "").trim())); } catch { throw new Error("Android bridge returned invalid JSON"); }
+  return { bridge, executor: executorReceipt(credential.source) };
+}
+
+function sanitizeSetupReceipt(value) {
+  const { adbPath: _adbPath, aapt2Path: _aapt2Path, ...safe } = value;
   return {
-    ...bridge,
-    executor: {
-      schema: "evavo.android-mcp-executor.v1",
-      loopbackOnly: true,
-      fixedCommandSurface: true,
-      operatorCredentialSource: credential.source,
-      credentialValuesReturned: false,
-      physicalWorkstationPathReturned: false,
-      commandTextAcceptedFromCaller: false,
-    },
+    ...safe,
+    toolingPathsReturned: false,
   };
 }
 
 async function callTool(name, raw) {
   const args = raw === undefined ? {} : asObject(raw);
-  if (name === "evavo_android_setup_host") return postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\setup-host-tools.ps1 -Json", 180);
-  if (name === "evavo_android_bringup") return postOperator("node src\\bringup-cli.mjs --json", 60);
-  if (name === "evavo_android_doctor") return postOperator("node src\\cli.mjs doctor --json", 30);
-  if (name === "evavo_android_devices") return postOperator("node src\\cli.mjs devices --json", 45);
+  if (name === "evavo_android_setup_host") {
+    const result = await postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\setup-host-tools.ps1 -Json", 180);
+    return { ...sanitizeSetupReceipt(result.bridge), executor: result.executor };
+  }
+  if (name === "evavo_android_bringup") {
+    const result = await postOperator("node src\\bringup-cli.mjs --json", 60);
+    return { ...result.bridge, executor: result.executor };
+  }
+  if (name === "evavo_android_doctor") {
+    const result = await postOperator("node src\\cli.mjs doctor --json", 30);
+    return { ...result.bridge, executor: result.executor };
+  }
+  if (name === "evavo_android_devices") {
+    const result = await postOperator("node src\\cli.mjs devices --json", 45);
+    return { ...result.bridge, executor: result.executor };
+  }
   if (name === "evavo_android_profile") {
     const targetRef = String(args.targetRef ?? "").trim();
     if (!TARGET_REF.test(targetRef)) throw new Error("targetRef must be a privacy-safe Android target reference");
-    return postOperator(`node src\\device-profile-cli.mjs --target ${targetRef} --json`, 45);
+    const result = await postOperator(`node src\\device-profile-cli.mjs --target ${targetRef} --json`, 45);
+    return { ...result.bridge, executor: result.executor };
   }
   throw new Error(`unknown tool: ${name}`);
 }
@@ -138,7 +160,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.2.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.2.1" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
