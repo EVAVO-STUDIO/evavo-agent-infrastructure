@@ -32,7 +32,7 @@ $Servers = @(
     [ordered]@{
         file = 'mcp-server\glasses-tab-a-mcp.mjs'
         name = 'evavo-glasses-tab-a-mcp'
-        version = '1.1.0'
+        version = '1.3.0'
         tools = @('evavo_glasses_tab_a_acceptance')
         readOnlyOnly = $false
     },
