@@ -15,6 +15,14 @@
         "EVAVO_LOCAL_AGENT_MCP_ROLE": "android-device-specialist",
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
+    },
+    "evavo-glasses-android": {
+      "command": "node",
+      "args": ["./mcp-server/glasses-android-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "glasses-android-specialist",
+        "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
+      }
     }
   }
 }
