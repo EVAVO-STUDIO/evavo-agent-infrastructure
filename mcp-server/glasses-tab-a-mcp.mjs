@@ -15,23 +15,21 @@ const MAX_OUTPUT = 1024 * 1024;
 const MAX_SCREENSHOT_BYTES = 16 * 1024 * 1024;
 const TIMEOUT_MS = 55 * 60 * 1000;
 
-const TOOLS = Object.freeze([
-  {
-    name: "evavo_glasses_tab_a_acceptance",
-    description: "Bootstrap the reviewed current Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet, and return a foreground-package-verified screenshot for visual review. No caller-supplied target, package, APK or command is accepted.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {} },
-    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
-    _meta: {
-      "io.evavo/effects": ["execute", "network", "write", "device-install", "device-launch", "device-observe"],
-      "io.evavo/effectContract": "evavo_brain_tool_effects_v1",
-      "io.evavo/arbitraryCommandTextAccepted": false,
-      "io.evavo/callerSuppliedTargetRefAccepted": false,
-      "io.evavo/systemPackageMutationAllowed": false,
-      "io.evavo/physicalExecutionReceiptRequired": true,
-      "io.evavo/foregroundScreenshotReturned": true,
-    },
+const TOOLS = Object.freeze([{
+  name: "evavo_glasses_tab_a_acceptance",
+  description: "Bootstrap the reviewed Windows Android toolchain, discover the actual API 37 SDK platform package, build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet, and return a foreground-package-verified screenshot. No caller-supplied target, package, APK or command is accepted.",
+  inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  _meta: {
+    "io.evavo/effects": ["execute", "network", "write", "device-install", "device-launch", "device-observe"],
+    "io.evavo/effectContract": "evavo_brain_tool_effects_v1",
+    "io.evavo/arbitraryCommandTextAccepted": false,
+    "io.evavo/callerSuppliedTargetRefAccepted": false,
+    "io.evavo/systemPackageMutationAllowed": false,
+    "io.evavo/physicalExecutionReceiptRequired": true,
+    "io.evavo/foregroundScreenshotReturned": true,
   },
-]);
+}]);
 
 function asObject(value) {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("arguments must be an object");
@@ -146,7 +144,7 @@ async function runDurableAcceptance() {
 
   const install = asObject(value.acceptance);
   if (install.schema !== "evavo_glasses_android_tab_a_install_v3" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
-  if (install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0" || install.androidBuildToolsVersion !== "36.0.0" || install.androidSdkProvisioningCli !== "android-cli" || install.bridgeContractsPassed !== true || install.repositoryContractsRun !== true) throw new Error("Galaxy Tab A current Android host toolchain/contracts did not complete");
+  if (install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0" || install.androidBuildToolsVersion !== "36.0.0" || install.androidSdkPackageManager !== "sdkmanager" || install.androidSdkProvisioningCli !== "sdkmanager" || !["platforms;android-37.0", "platforms;android-37"].includes(install.androidPlatformPackage) || install.bridgeContractsPassed !== true || install.repositoryContractsRun !== true) throw new Error("Galaxy Tab A Android host toolchain/contracts did not complete");
   if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
   if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true || install.foregroundVisualProofObserved !== true) throw new Error("EVAVO Glasses was not proven installed, launched, healthy and foreground-visible");
 
@@ -165,11 +163,12 @@ async function runDurableAcceptance() {
       stderrBytes,
       foregroundScreenshot: screenshot.metadata,
       executor: {
-        schema: "evavo.glasses-tab-a-durable-mcp.v5",
+        schema: "evavo.glasses-tab-a-durable-mcp.v6",
         durableLocalExecution: true,
         reviewedTemplateSha256: templateSha256,
         hostToolchainBootstrapIncluded: true,
-        currentAndroidCliRequired: true,
+        standaloneSdkmanagerRequired: true,
+        android37PackageDiscoveredFromCatalog: true,
         androidBuildToolsVersion: "36.0.0",
         powershell5NativeStderrHardened: true,
         foregroundScreenshotReturned: true,
@@ -209,7 +208,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.4.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.5.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
