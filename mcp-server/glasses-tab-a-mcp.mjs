@@ -17,6 +17,20 @@ const TOOLS = Object.freeze([
     name: "evavo_glasses_tab_a_acceptance",
     description: "Run the durable clean-main EVAVO Glasses Android 0.6.4 physical acceptance on exactly one authorised connected Android device: build/unit-test/AAPT2 verify, install/update, launch, crash/ANR gate, and privacy-safe package memory/display/orientation health evidence. The reviewed script additionally requires API 26+, BLE and the Android Bridge glasses compatibility gate.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+    _meta: {
+      "io.evavo/effects": ["execute", "write", "device-install", "device-launch", "device-observe"],
+      "io.evavo/effectContract": "evavo_brain_tool_effects_v1",
+      "io.evavo/arbitraryCommandTextAccepted": false,
+      "io.evavo/callerSuppliedTargetRefAccepted": false,
+      "io.evavo/systemPackageMutationAllowed": false,
+      "io.evavo/physicalExecutionReceiptRequired": true,
+    },
   },
 ]);
 
