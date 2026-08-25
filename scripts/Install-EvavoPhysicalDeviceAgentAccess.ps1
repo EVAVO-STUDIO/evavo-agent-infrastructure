@@ -3,6 +3,7 @@ param(
     [string]$GitRoot = 'C:\GitRepos',
     [switch]$SkipAndroidHostSetup,
     [switch]$SkipClaudeCode,
+    [switch]$SkipCodex,
     [switch]$SkipLiveProbe,
     [switch]$Json
 )
@@ -79,6 +80,17 @@ function Invoke-JsonProcess {
     }
 }
 
+$servers = @(
+    [ordered]@{ name='evavo-android-device'; file=(Join-Path $AgentRoot 'mcp-server\android-device-mcp.mjs'); long=$false },
+    [ordered]@{ name='evavo-android-app'; file=(Join-Path $AgentRoot 'mcp-server\android-app-mcp.mjs'); long=$false },
+    [ordered]@{ name='evavo-glasses-android'; file=(Join-Path $AgentRoot 'mcp-server\glasses-android-mcp.mjs'); long=$false },
+    [ordered]@{ name='evavo-glasses-tab-a'; file=(Join-Path $AgentRoot 'mcp-server\glasses-tab-a-mcp.mjs'); long=$true },
+    [ordered]@{ name='evavo-godot-android-physical'; file=(Join-Path $AgentRoot 'mcp-server\godot-android-physical-mcp.mjs'); long=$true }
+)
+foreach ($Server in $servers) {
+    if (-not (Test-Path -LiteralPath $Server.file -PathType Leaf)) { throw "MCP runtime missing: $($Server.file)" }
+}
+
 # 1. Persist the authenticated loopback execution service with the reviewed one-hour operator ceiling.
 $gatewayRaw = (& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $GatewayInstaller -StartNow -EnableOperatorExec | Out-String).Trim()
 if (-not $gatewayRaw) { throw 'Local Agent REST gateway installer returned no receipt.' }
@@ -95,23 +107,11 @@ if (-not $SkipAndroidHostSetup) {
     if (-not $hostSetupReceipt -or $hostSetupReceipt.ok -ne $true) { throw 'Android host tooling setup did not report success.' }
 }
 
-# 3. Register narrow physical-device MCPs globally for Claude Code and allow those MCP servers without per-call prompts.
+# 3. Claude Code user-scope registration and narrow MCP auto-allow rules.
 $claude = Get-Command claude.exe,claude -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
 $claudeConfigured = $false
-$claudeServers = @(
-    [ordered]@{ name='evavo-android-device'; file=(Join-Path $AgentRoot 'mcp-server\android-device-mcp.mjs') },
-    [ordered]@{ name='evavo-android-app'; file=(Join-Path $AgentRoot 'mcp-server\android-app-mcp.mjs') },
-    [ordered]@{ name='evavo-glasses-android'; file=(Join-Path $AgentRoot 'mcp-server\glasses-android-mcp.mjs') },
-    [ordered]@{ name='evavo-glasses-tab-a'; file=(Join-Path $AgentRoot 'mcp-server\glasses-tab-a-mcp.mjs') },
-    [ordered]@{ name='evavo-godot-android-physical'; file=(Join-Path $AgentRoot 'mcp-server\godot-android-physical-mcp.mjs') }
-)
-foreach ($Server in $claudeServers) {
-    if (-not (Test-Path -LiteralPath $Server.file -PathType Leaf)) { throw "MCP runtime missing: $($Server.file)" }
-}
-
 if (-not $SkipClaudeCode -and $claude) {
-    foreach ($Server in $claudeServers) {
-        # Remove only the user-scoped EVAVO registration; ignore absence so installation stays idempotent.
+    foreach ($Server in $servers) {
         & $claude.Source mcp remove $Server.name --scope user *> $null
         $definition = [ordered]@{ type='stdio'; command='node'; args=@($Server.file); env=@{} } | ConvertTo-Json -Compress -Depth 6
         $add = & $claude.Source mcp add-json --scope user $Server.name $definition 2>&1 | Out-String
@@ -119,7 +119,6 @@ if (-not $SkipClaudeCode -and $claude) {
         $get = & $claude.Source mcp get $Server.name 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0 -or $get -notmatch [regex]::Escape($Server.name)) { throw "Claude Code did not verify MCP registration $($Server.name)." }
     }
-
     $ClaudeSettingsRoot = Join-Path $env:USERPROFILE '.claude'
     $ClaudeSettings = Join-Path $ClaudeSettingsRoot 'settings.json'
     New-Item -ItemType Directory -Force -Path $ClaudeSettingsRoot | Out-Null
@@ -130,9 +129,8 @@ if (-not $SkipClaudeCode -and $claude) {
     }
     if (-not $settings.Contains('permissions') -or $settings.permissions -isnot [System.Collections.IDictionary]) { $settings.permissions = [ordered]@{} }
     $permissions = $settings.permissions
-    $existingAllow = @()
-    if ($permissions.Contains('allow')) { $existingAllow = @($permissions.allow | ForEach-Object { [string]$_ }) }
-    $managedAllow = @($claudeServers | ForEach-Object { "mcp__$($_.name)" })
+    $existingAllow = if ($permissions.Contains('allow')) { @($permissions.allow | ForEach-Object { [string]$_ }) } else { @() }
+    $managedAllow = @($servers | ForEach-Object { "mcp__$($_.name)" })
     $permissions.allow = @($existingAllow + $managedAllow | Where-Object { $_ } | Sort-Object -Unique)
     $temp = "$ClaudeSettings.$PID.tmp"
     try {
@@ -142,22 +140,59 @@ if (-not $SkipClaudeCode -and $claude) {
     $claudeConfigured = $true
 }
 
-# 4. Persist a client-neutral managed MCP bundle that any stdio-MCP agent can consume directly.
+# 4. Codex CLI/IDE registration. Codex CLI and IDE share ~/.codex/config.toml.
+$codex = Get-Command codex.exe,codex -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+$codexConfigured = $false
+if (-not $SkipCodex -and $codex) {
+    foreach ($Server in $servers) {
+        & $codex.Source mcp remove $Server.name *> $null
+        $add = & $codex.Source mcp add $Server.name -- node $Server.file 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { throw "Codex failed to register MCP $($Server.name): $add" }
+    }
+    $list = & $codex.Source mcp list 2>&1 | Out-String
+    if ($LASTEXITCODE -ne 0) { throw 'Codex MCP listing failed after registration.' }
+    foreach ($Server in $servers) { if ($list -notmatch [regex]::Escape($Server.name)) { throw "Codex did not list MCP $($Server.name)." } }
+
+    $CodexRoot = Join-Path $env:USERPROFILE '.codex'
+    $CodexConfig = Join-Path $CodexRoot 'config.toml'
+    if (-not (Test-Path -LiteralPath $CodexConfig -PathType Leaf)) { throw 'Codex registered MCPs but ~/.codex/config.toml was not created.' }
+    $toml = Get-Content -LiteralPath $CodexConfig -Raw -Encoding UTF8
+    foreach ($Server in $servers) {
+        $escaped = [regex]::Escape($Server.name)
+        $pattern = "(?ms)(^\[mcp_servers\.$escaped\]\s*\r?\n)(.*?)(?=^\[|\z)"
+        $match = [regex]::Match($toml,$pattern)
+        if (-not $match.Success) { throw "Codex MCP config section missing for $($Server.name)." }
+        $body = $match.Groups[2].Value
+        if ($body -match '(?m)^default_tools_approval_mode\s*=') { $body = [regex]::Replace($body,'(?m)^default_tools_approval_mode\s*=.*$','default_tools_approval_mode = "auto"') }
+        else { $body += "default_tools_approval_mode = `"auto`"`r`n" }
+        $timeout = if ($Server.long) { 3600 } else { 180 }
+        if ($body -match '(?m)^tool_timeout_sec\s*=') { $body = [regex]::Replace($body,'(?m)^tool_timeout_sec\s*=.*$',"tool_timeout_sec = $timeout") }
+        else { $body += "tool_timeout_sec = $timeout`r`n" }
+        $replacement = $match.Groups[1].Value + $body
+        $toml = $toml.Substring(0,$match.Index) + $replacement + $toml.Substring($match.Index + $match.Length)
+    }
+    $tempCodex = "$CodexConfig.$PID.tmp"
+    try {
+        [IO.File]::WriteAllText($tempCodex,$toml,(New-Object Text.UTF8Encoding($false)))
+        Move-Item -LiteralPath $tempCodex -Destination $CodexConfig -Force
+    } finally { Remove-Item -LiteralPath $tempCodex -Force -ErrorAction SilentlyContinue }
+    $codexConfigured = $true
+}
+
+# 5. Persist a client-neutral managed MCP bundle for any stdio-MCP agent host.
 $managedRoot = Join-Path $env:LOCALAPPDATA 'EVAVO\AgentClients'
 New-Item -ItemType Directory -Force -Path $managedRoot | Out-Null
 $managedConfigPath = Join-Path $managedRoot 'physical-android.mcp.json'
-$servers = [ordered]@{}
-foreach ($Server in $claudeServers) {
-    $servers[$Server.name] = [ordered]@{ command='node'; args=@($Server.file); env=@{} }
-}
-$managedConfig = [ordered]@{ schemaVersion=1; kind='evavo-physical-android-mcp-bundle-v1'; mcpServers=$servers }
+$managedServers = [ordered]@{}
+foreach ($Server in $servers) { $managedServers[$Server.name] = [ordered]@{ command='node'; args=@($Server.file); env=@{} } }
+$managedConfig = [ordered]@{ schemaVersion=1; kind='evavo-physical-android-mcp-bundle-v1'; mcpServers=$managedServers }
 $tempManaged = "$managedConfigPath.$PID.tmp"
 try {
     [IO.File]::WriteAllText($tempManaged,(($managedConfig | ConvertTo-Json -Depth 12)+[Environment]::NewLine),(New-Object Text.UTF8Encoding($false)))
     Move-Item -LiteralPath $tempManaged -Destination $managedConfigPath -Force
 } finally { Remove-Item -LiteralPath $tempManaged -Force -ErrorAction SilentlyContinue }
 
-# 5. Read-only live visibility probe: Windows USB/PnP plus ADB bring-up. No app/device mutation occurs here.
+# 6. Read-only live visibility probe: Windows USB/PnP plus ADB bring-up. No app/device mutation occurs here.
 $usb = $null; $bringup = $null
 if (-not $SkipLiveProbe) {
     $usbResult = Invoke-JsonProcess -FilePath 'powershell.exe' -Arguments @('-NoProfile','-ExecutionPolicy','Bypass','-File',$UsbDiagnostics,'-Json') -WorkingDirectory $BridgeRoot -TimeoutSeconds 90 -AllowFailure
@@ -171,21 +206,17 @@ $result = [ordered]@{
     schemaVersion = 1
     kind = 'evavo-physical-device-agent-access-installation-v1'
     ok = $true
-    gateway045 = [ordered]@{
-        installed = $true
-        healthy = [bool]$gateway.healthReady
-        operatorExecutionEnabled = [bool]$gateway.operatorExecEnabled
-        operatorTimeoutMaxSeconds = [int]$gateway.operatorTimeoutMaxSeconds
-        loopbackOnly = $true
-    }
+    gateway045 = [ordered]@{ installed=$true; healthy=[bool]$gateway.healthReady; operatorExecutionEnabled=[bool]$gateway.operatorExecEnabled; operatorTimeoutMaxSeconds=[int]$gateway.operatorTimeoutMaxSeconds; loopbackOnly=$true }
     androidHostSetupRequested = -not [bool]$SkipAndroidHostSetup
     androidHostReady = if ($hostSetupReceipt) { [bool]$hostSetupReceipt.ok } else { $null }
     claudeCodeAvailable = [bool]$claude
     claudeCodeConfigured = $claudeConfigured
-    claudeCodeAutoAllowedSpecialistServers = if ($claudeConfigured) { @($claudeServers.name) } else { @() }
+    codexAvailable = [bool]$codex
+    codexConfigured = $codexConfigured
+    autoAllowedSpecialistServers = @($servers.name)
     broadArbitraryShellAutoAllowed = $false
     managedMcpBundleWritten = $true
-    managedMcpServerCount = $claudeServers.Count
+    managedMcpServerCount = $servers.Count
     liveProbeRequested = -not [bool]$SkipLiveProbe
     windowsUsb = $usb
     androidBringup = $bringup
@@ -197,5 +228,4 @@ $result = [ordered]@{
     credentialsReturned = $false
     destructiveSystemPackageAuthorityGranted = $false
 }
-
 $result | ConvertTo-Json -Depth 20
