@@ -7,6 +7,14 @@
         "EVAVO_LOCAL_AGENT_MCP_ROLE": "agent-infrastructure-authority",
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
+    },
+    "evavo-android-device": {
+      "command": "node",
+      "args": ["./mcp-server/android-device-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "android-device-specialist",
+        "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
+      }
     }
   }
 }
