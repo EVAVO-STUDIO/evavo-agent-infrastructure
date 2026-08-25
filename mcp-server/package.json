@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest && npm run check:local-runtimes",
-    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check android-device-mcp.mjs",
+    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check android-device-mcp.mjs && node --check glasses-android-mcp.mjs",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
