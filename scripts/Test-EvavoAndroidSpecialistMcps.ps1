@@ -18,8 +18,8 @@ $Servers = @(
     [ordered]@{
         file = 'mcp-server\android-observer-mcp.mjs'
         name = 'evavo-android-observer-mcp'
-        version = '1.0.0'
-        tools = @('evavo_android_observer_usb','evavo_android_observer_bringup','evavo_android_observer_profile','evavo_android_observer_app_status','evavo_android_observer_app_health','evavo_android_observer_app_diagnostics')
+        version = '1.1.0'
+        tools = @('evavo_android_observer_usb','evavo_android_observer_bringup','evavo_android_observer_profile','evavo_android_observer_app_status','evavo_android_observer_app_health','evavo_android_observer_app_diagnostics','evavo_android_observer_app_screenshot')
         readOnlyOnly = $true
     },
     [ordered]@{
