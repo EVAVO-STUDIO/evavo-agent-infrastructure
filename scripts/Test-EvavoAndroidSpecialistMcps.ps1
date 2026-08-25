@@ -25,8 +25,8 @@ $Servers = @(
     [ordered]@{
         file = 'mcp-server\glasses-android-mcp.mjs'
         name = 'evavo-glasses-android-mcp'
-        version = '1.0.0'
-        tools = @('evavo_glasses_android_doctor','evavo_glasses_android_build','evavo_glasses_android_test_device','evavo_glasses_android_build_and_test')
+        version = '1.1.0'
+        tools = @('evavo_glasses_android_doctor','evavo_glasses_android_build','evavo_glasses_android_test_device','evavo_glasses_android_build_and_test','evavo_glasses_android_acceptance_status')
         readOnlyOnly = $false
     },
     [ordered]@{
