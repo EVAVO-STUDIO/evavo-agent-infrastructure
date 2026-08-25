@@ -31,6 +31,25 @@ foreach ($Path in @($GatewayInstaller,$HostSetup,$BringupCli,$UsbDiagnostics)) {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Required EVAVO physical-device runtime is unavailable: $Path" }
 }
 
+function ConvertTo-OrderedMap {
+    param([object]$Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [System.Management.Automation.PSCustomObject]) {
+        $map = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) { $map[$property.Name] = ConvertTo-OrderedMap $property.Value }
+        return $map
+    }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $map = [ordered]@{}
+        foreach ($key in $Value.Keys) { $map[[string]$key] = ConvertTo-OrderedMap $Value[$key] }
+        return $map
+    }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        return @($Value | ForEach-Object { ConvertTo-OrderedMap $_ })
+    }
+    return $Value
+}
+
 function Invoke-JsonProcess {
     param(
         [Parameter(Mandatory=$true)][string]$FilePath,
@@ -95,7 +114,7 @@ if (-not $SkipClaudeCode -and $claude) {
         # Remove only the user-scoped EVAVO registration; ignore absence so installation stays idempotent.
         & $claude.Source mcp remove $Server.name --scope user *> $null
         $definition = [ordered]@{ type='stdio'; command='node'; args=@($Server.file); env=@{} } | ConvertTo-Json -Compress -Depth 6
-        $add = & $claude.Source mcp add-json $Server.name $definition --scope user 2>&1 | Out-String
+        $add = & $claude.Source mcp add-json --scope user $Server.name $definition 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0) { throw "Claude Code failed to register user MCP $($Server.name): $add" }
         $get = & $claude.Source mcp get $Server.name 2>&1 | Out-String
         if ($LASTEXITCODE -ne 0 -or $get -notmatch [regex]::Escape($Server.name)) { throw "Claude Code did not verify MCP registration $($Server.name)." }
@@ -106,7 +125,7 @@ if (-not $SkipClaudeCode -and $claude) {
     New-Item -ItemType Directory -Force -Path $ClaudeSettingsRoot | Out-Null
     $settings = [ordered]@{}
     if (Test-Path -LiteralPath $ClaudeSettings -PathType Leaf) {
-        try { $existing = Get-Content -LiteralPath $ClaudeSettings -Raw -Encoding UTF8 | ConvertFrom-Json -AsHashtable -ErrorAction Stop; foreach ($key in $existing.Keys) { $settings[$key]=$existing[$key] } }
+        try { $settings = ConvertTo-OrderedMap (Get-Content -LiteralPath $ClaudeSettings -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop) }
         catch { throw 'Existing Claude Code settings.json is not valid JSON; refusing to overwrite it.' }
     }
     if (-not $settings.Contains('permissions') -or $settings.permissions -isnot [System.Collections.IDictionary]) { $settings.permissions = [ordered]@{} }
@@ -179,4 +198,4 @@ $result = [ordered]@{
     destructiveSystemPackageAuthorityGranted = $false
 }
 
-if ($Json) { $result | ConvertTo-Json -Depth 20 } else { $result | ConvertTo-Json -Depth 20 }
+$result | ConvertTo-Json -Depth 20
