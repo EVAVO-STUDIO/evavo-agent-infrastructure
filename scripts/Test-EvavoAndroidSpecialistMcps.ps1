@@ -19,6 +19,12 @@ $Servers = @(
         name = 'evavo-glasses-android-mcp'
         version = '1.0.0'
         tools = @('evavo_glasses_android_doctor','evavo_glasses_android_build','evavo_glasses_android_test_device','evavo_glasses_android_build_and_test')
+    },
+    [ordered]@{
+        file = 'mcp-server\glasses-tab-a-mcp.mjs'
+        name = 'evavo-glasses-tab-a-mcp'
+        version = '1.0.0'
+        tools = @('evavo_glasses_tab_a_acceptance')
     }
 )
 
@@ -44,7 +50,7 @@ foreach ($Server in $Servers) {
         $List = $Responses | Where-Object {$_.id -eq 2} | Select-Object -First 1
         $Observed = @($List.result.tools | ForEach-Object {[string]$_.name})
         foreach ($Tool in $Server.tools) { if ($Observed -notcontains $Tool) { throw "$($Server.name) missing tool $Tool" } }
-        $Results += [ordered]@{server=$Server.name;version=$Server.version;toolCount=$Observed.Count;requiredTools=$Server.tools;tabletContacted=$false;operatorExecutionInvoked=$false}
+        $Results += [ordered]@{server=$Server.name;version=$Server.version;toolCount=$Observed.Count;requiredTools=$Server.tools;tabletContacted=$false;operatorExecutionInvoked=$false;durableExecutionInvoked=$false}
     } finally {
         Remove-Item -LiteralPath $Input,$Output,$ErrorFile -Force -ErrorAction SilentlyContinue
     }
@@ -57,5 +63,6 @@ foreach ($Server in $Servers) {
     servers=$Results
     tabletContacted=$false
     operatorExecutionInvoked=$false
+    durableExecutionInvoked=$false
     externalNetworkRequired=$false
 }|ConvertTo-Json -Depth 12
