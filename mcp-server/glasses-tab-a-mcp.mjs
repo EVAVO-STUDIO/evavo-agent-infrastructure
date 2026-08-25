@@ -18,7 +18,7 @@ const TIMEOUT_MS = 55 * 60 * 1000;
 const TOOLS = Object.freeze([
   {
     name: "evavo_glasses_tab_a_acceptance",
-    description: "Bootstrap the reviewed Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet, and return a foreground-package-verified screenshot for visual review. No caller-supplied target, package, APK or command is accepted.",
+    description: "Bootstrap the reviewed current Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet, and return a foreground-package-verified screenshot for visual review. No caller-supplied target, package, APK or command is accepted.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     _meta: {
@@ -145,13 +145,13 @@ async function runDurableAcceptance() {
   if (value.kind !== "evavo-prepared-local-execution-run-v1" || value.receiptPathsReturned !== false || value.runtimePathsReturned !== false || value.rawProcessOutputReturned !== false) throw new Error("durable local execution receipt privacy contract mismatch");
 
   const install = asObject(value.acceptance);
-  if (install.schema !== "evavo_glasses_android_tab_a_install_v2" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
-  if (install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0" || install.bridgeContractsPassed !== true || install.repositoryContractsRun !== true) throw new Error("Galaxy Tab A host toolchain/contracts did not complete");
+  if (install.schema !== "evavo_glasses_android_tab_a_install_v3" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
+  if (install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0" || install.androidBuildToolsVersion !== "36.0.0" || install.androidSdkProvisioningCli !== "android-cli" || install.bridgeContractsPassed !== true || install.repositoryContractsRun !== true) throw new Error("Galaxy Tab A current Android host toolchain/contracts did not complete");
   if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
-  if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true) throw new Error("EVAVO Glasses was not proven installed, launched and healthy");
+  if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true || install.foregroundVisualProofObserved !== true) throw new Error("EVAVO Glasses was not proven installed, launched, healthy and foreground-visible");
 
   const acceptance = asObject(install.physicalAcceptance);
-  if (acceptance.schema !== "evavo_glasses_android_tab_a_acceptance_v1" || acceptance.ok !== true || acceptance.physicalDeviceExecutionClaimed !== true) throw new Error("Galaxy Tab A physical acceptance identity or execution truth mismatch");
+  if (acceptance.schema !== "evavo_glasses_android_tab_a_acceptance_v1" || acceptance.ok !== true || acceptance.physicalDeviceExecutionClaimed !== true || acceptance.foregroundVisualProofObserved !== true) throw new Error("Galaxy Tab A physical acceptance identity or execution truth mismatch");
   if (acceptance.systemPackageMutationAllowed !== false || acceptance.arbitraryAdbShellUsed !== false || acceptance.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A physical acceptance authority boundary mismatch");
   if (acceptance.runtimeDiagnostics?.analysis?.crashedOrAnrObserved === true || acceptance.runtimeDiagnostics?.running !== true) throw new Error("Galaxy Tab A acceptance did not finish with a healthy running app");
   const health = asObject(acceptance.runtimeHealth);
@@ -165,10 +165,12 @@ async function runDurableAcceptance() {
       stderrBytes,
       foregroundScreenshot: screenshot.metadata,
       executor: {
-        schema: "evavo.glasses-tab-a-durable-mcp.v4",
+        schema: "evavo.glasses-tab-a-durable-mcp.v5",
         durableLocalExecution: true,
         reviewedTemplateSha256: templateSha256,
         hostToolchainBootstrapIncluded: true,
+        currentAndroidCliRequired: true,
+        androidBuildToolsVersion: "36.0.0",
         powershell5NativeStderrHardened: true,
         foregroundScreenshotReturned: true,
         exactSingleAuthorisedDeviceRequired: true,
@@ -207,7 +209,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.3.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.4.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
