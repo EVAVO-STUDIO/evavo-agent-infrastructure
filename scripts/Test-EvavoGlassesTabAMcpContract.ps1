@@ -12,12 +12,19 @@ $Source = Get-Content -LiteralPath $Runtime -Raw -Encoding UTF8
 $Required = @(
     'evavo_glasses_tab_a_acceptance',
     'evavo_glasses_android_tab_a_install_v3',
-    'standaloneSdkmanagerRequired: true',
+    'deterministicSdkProvisionerRequired: true',
+    'sdkPackageRegistrationVerified: true',
+    'sdkRequiredFilesVerified: true',
+    'gradleSdkBindingVerified: true',
     'android37PlatformMetadataVerified: true',
     'androidBuildToolsVersion: "36.0.0"',
-    'androidSdkPackageManager !== "sdkmanager"',
+    'install.androidSdkPackageManager !== "sdkmanager"',
+    'install.androidSdkProvisioningCli !== "tested-node-provisioner"',
+    'install.androidSdkProvisionReceiptSchema !== "evavo_android_sdk_provision_v1"',
+    'install.androidSdkPackageRegistrationVerified !== true',
+    'install.androidSdkRequiredFilesVerified !== true',
+    'install.androidGradleSdkBindingWritten !== true',
     'Number(install.androidPlatformApiLevel) !== 37',
-    'androidPlatformDirectory',
     'foregroundVisualProofObserved !== true',
     'powershell5NativeStderrHardened: true',
     'execute-prepared-local-request.py',
@@ -33,7 +40,7 @@ $Required = @(
     'runtimeHealthObserved !== true',
     'healthSchema !== "evavo_android_app_health_v1"',
     'does not accept caller-supplied arguments',
-    'version: "1.6.0"'
+    'version: "1.7.0"'
 )
 foreach ($Token in $Required) {
     if (-not $Source.Contains($Token)) { throw "Tab A MCP contract is missing token: $Token" }
@@ -45,7 +52,6 @@ $Forbidden = @(
     'currentAndroidCliRequired: true',
     'androidSdkProvisioningCli !== "android-cli"',
     'android37PackageDiscoveredFromCatalog: true',
-    '!["platforms;android-37.0", "platforms;android-37"].includes',
     'shell: true',
     'exec(',
     'execSync(',
@@ -59,15 +65,18 @@ foreach ($Token in $Forbidden) {
 }
 
 [ordered]@{
-    schemaVersion = 5
-    kind = 'evavo-glasses-tab-a-mcp-static-contract-v5'
+    schemaVersion = 6
+    kind = 'evavo-glasses-tab-a-mcp-static-contract-v6'
     ok = $true
     runtime = 'mcp-server/glasses-tab-a-mcp.mjs'
-    version = '1.6.0'
+    version = '1.7.0'
     zeroArgumentTool = $true
     durableExecution = $true
     physicalDeviceExecution = $true
-    standaloneSdkmanagerRequired = $true
+    deterministicSdkProvisionerRequired = $true
+    sdkPackageRegistrationVerified = $true
+    sdkRequiredFilesVerified = $true
+    gradleSdkBindingVerified = $true
     android37PlatformMetadataVerified = $true
     androidBuildToolsVersion = '36.0.0'
     foregroundScreenshotReturned = $true
