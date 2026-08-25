@@ -7,7 +7,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest && npm run check:local-runtimes",
     "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check android-device-mcp.mjs",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
