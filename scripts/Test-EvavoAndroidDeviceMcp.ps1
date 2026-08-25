@@ -44,7 +44,7 @@ try {
     }
     $Init = $Responses | Where-Object { $_.id -eq 1 } | Select-Object -First 1
     if ([string]$Init.result.serverInfo.name -ne 'evavo-android-device-mcp') { throw 'Android Device MCP server identity mismatch.' }
-    if ([string]$Init.result.serverInfo.version -ne '1.2.0') { throw 'Android Device MCP version mismatch.' }
+    if ([string]$Init.result.serverInfo.version -ne '1.2.1') { throw 'Android Device MCP version mismatch.' }
 
     $List = $Responses | Where-Object { $_.id -eq 2 } | Select-Object -First 1
     $Observed = @($List.result.tools | ForEach-Object { [string]$_.name })
@@ -59,7 +59,7 @@ try {
         kind = 'evavo-android-device-mcp-handshake-v1'
         ok = $true
         serverName = 'evavo-android-device-mcp'
-        serverVersion = '1.2.0'
+        serverVersion = '1.2.1'
         requiredTools = $Expected
         observedToolCount = $Observed.Count
         tabletContacted = $false
