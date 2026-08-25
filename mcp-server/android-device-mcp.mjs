@@ -108,7 +108,7 @@ async function callTool(name, raw) {
   if (name === "evavo_android_profile") {
     const targetRef = String(args.targetRef ?? "").trim();
     if (!TARGET_REF.test(targetRef)) throw new Error("targetRef must be a privacy-safe Android target reference");
-    return postOperator(`node src\\cli.mjs profile --target ${targetRef} --json`, 45);
+    return postOperator(`node src\\device-profile-cli.mjs --target ${targetRef} --json`, 45);
   }
   throw new Error(`unknown tool: ${name}`);
 }
