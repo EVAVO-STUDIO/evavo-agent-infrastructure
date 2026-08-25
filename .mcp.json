@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "evavo-local-agent-executor": {
+      "command": "node",
+      "args": ["./mcp-server/local-agent-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "agent-infrastructure-authority",
+        "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
+      }
+    }
+  }
+}
