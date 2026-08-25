@@ -25,9 +25,12 @@ $TunnelClient = Get-Command tunnel-client.exe,tunnel-client -CommandType Applica
 if (-not $TunnelClient) { throw 'OpenAI tunnel-client is required. Install the supported Secure MCP Tunnel client first.' }
 $TunnelExe=[string]$TunnelClient.Source
 
-if (-not $TunnelId) { $TunnelId = [string]([Environment]::GetEnvironmentVariable('CONTROL_PLANE_TUNNEL_ID','User') ?? $env:CONTROL_PLANE_TUNNEL_ID) }
-if (-not $WorkspaceId) { $WorkspaceId = [string]($env:OPENAI_WORKSPACE_ID ?? '') }
-if (-not $OrganizationId) { $OrganizationId = [string]($env:OPENAI_ORGANIZATION_ID ?? '') }
+if (-not $TunnelId) {
+    $TunnelId = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_TUNNEL_ID','User')
+    if ([string]::IsNullOrWhiteSpace($TunnelId)) { $TunnelId = [string]$env:CONTROL_PLANE_TUNNEL_ID }
+}
+if (-not $WorkspaceId) { $WorkspaceId = [string]$env:OPENAI_WORKSPACE_ID }
+if (-not $OrganizationId) { $OrganizationId = [string]$env:OPENAI_ORGANIZATION_ID }
 $runtimeKey = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_API_KEY','User')
 if ([string]::IsNullOrWhiteSpace($runtimeKey)) { $runtimeKey = $env:CONTROL_PLANE_API_KEY }
 if ([string]::IsNullOrWhiteSpace($runtimeKey)) { $runtimeKey = [Environment]::GetEnvironmentVariable('OPENAI_API_KEY','User') }
@@ -47,7 +50,9 @@ if ([string]::IsNullOrWhiteSpace($TunnelId)) {
     $raw=& $TunnelExe @args 2>&1|Out-String
     if($LASTEXITCODE -ne 0){throw 'OpenAI tunnel creation failed.'}
     try{$doc=$raw.Trim()|ConvertFrom-Json -ErrorAction Stop}catch{throw 'Tunnel creation returned invalid JSON.'}
-    $candidate=[string]($doc.tunnel_id ?? $doc.id ?? '')
+    $candidate=''
+    if($doc.PSObject.Properties.Name -contains 'tunnel_id'){$candidate=[string]$doc.tunnel_id}
+    elseif($doc.PSObject.Properties.Name -contains 'id'){$candidate=[string]$doc.id}
     if($candidate -notmatch '^tunnel_[0-9a-f]{32}$'){throw 'Tunnel creation did not return a valid tunnel id.'}
     $TunnelId=$candidate;$created=$true
     [Environment]::SetEnvironmentVariable('CONTROL_PLANE_TUNNEL_ID',$TunnelId,'User')
