@@ -16,6 +16,11 @@ const TOOLS = Object.freeze([
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
+    name: "evavo_android_usb_diagnostics",
+    description: "Inspect Windows Plug and Play state for Samsung/Android/ADB/MTP interfaces without returning USB instance IDs or serials. Read-only.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
     name: "evavo_android_bringup",
     description: "Run the combined EVAVO Android workstation/device bring-up report: host readiness, privacy-safe device inventory and per-device development classification. Read-only against the Android device.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
@@ -114,10 +119,7 @@ async function postOperator(command, timeoutSeconds = 30) {
 
 function sanitizeSetupReceipt(value) {
   const { adbPath: _adbPath, aapt2Path: _aapt2Path, ...safe } = value;
-  return {
-    ...safe,
-    toolingPathsReturned: false,
-  };
+  return { ...safe, toolingPathsReturned: false };
 }
 
 async function callTool(name, raw) {
@@ -125,6 +127,10 @@ async function callTool(name, raw) {
   if (name === "evavo_android_setup_host") {
     const result = await postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\setup-host-tools.ps1 -Json", 180);
     return { ...sanitizeSetupReceipt(result.bridge), executor: result.executor };
+  }
+  if (name === "evavo_android_usb_diagnostics") {
+    const result = await postOperator("powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\diagnose-windows-usb.ps1 -Json", 45);
+    return { ...result.bridge, executor: result.executor };
   }
   if (name === "evavo_android_bringup") {
     const result = await postOperator("node src\\bringup-cli.mjs --json", 60);
@@ -160,7 +166,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.2.1" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-android-device-mcp", version: "1.3.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
