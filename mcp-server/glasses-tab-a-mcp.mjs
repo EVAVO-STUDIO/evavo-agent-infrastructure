@@ -1,28 +1,26 @@
-import { createHash } from "node:crypto";
-import { spawn } from "node:child_process";
-import { lstat, readFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { spawn, spawnSync } from "node:child_process";
+import { lstat, readFile, unlink } from "node:fs/promises";
 import process from "node:process";
 import { createInterface } from "node:readline";
 
 const COMPUTE_ROOT = "C:\\GitRepos\\evavo-local-compute";
 const GLASSES_ROOT = "C:\\GitRepos\\evavo-glasses";
+const BRIDGE_ROOT = "C:\\GitRepos\\evavo-android-device-bridge";
 const PYTHON = `${COMPUTE_ROOT}\\.venv\\Scripts\\python.exe`;
 const HELPER = `${COMPUTE_ROOT}\\scripts\\execute-prepared-local-request.py`;
 const TEMPLATE = `${GLASSES_ROOT}\\config\\local-execution\\godmode-android-tab-a.prepare.json`;
+const PACKAGE_SCREENSHOT_CLI = `${BRIDGE_ROOT}\\src\\package-screenshot-cli.mjs`;
 const MAX_OUTPUT = 1024 * 1024;
+const MAX_SCREENSHOT_BYTES = 16 * 1024 * 1024;
 const TIMEOUT_MS = 55 * 60 * 1000;
 
 const TOOLS = Object.freeze([
   {
     name: "evavo_glasses_tab_a_acceptance",
-    description: "Bootstrap the reviewed Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet. No caller-supplied target, package, APK or command is accepted.",
+    description: "Bootstrap the reviewed Windows Android toolchain as needed, then build, AAPT2-verify, install/update, launch and health-check EVAVO Glasses Android 0.6.4 on exactly one authorised connected physical Android tablet, and return a foreground-package-verified screenshot for visual review. No caller-supplied target, package, APK or command is accepted.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
-    annotations: {
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-      openWorldHint: false,
-    },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     _meta: {
       "io.evavo/effects": ["execute", "network", "write", "device-install", "device-launch", "device-observe"],
       "io.evavo/effectContract": "evavo_brain_tool_effects_v1",
@@ -30,6 +28,7 @@ const TOOLS = Object.freeze([
       "io.evavo/callerSuppliedTargetRefAccepted": false,
       "io.evavo/systemPackageMutationAllowed": false,
       "io.evavo/physicalExecutionReceiptRequired": true,
+      "io.evavo/foregroundScreenshotReturned": true,
     },
   },
 ]);
@@ -41,9 +40,7 @@ function asObject(value) {
 
 async function requireFile(path, maximumBytes = 1024 * 1024) {
   const stat = await lstat(path);
-  if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2 || stat.size > maximumBytes) {
-    throw new Error("reviewed durable execution file failed admission");
-  }
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2 || stat.size > maximumBytes) throw new Error("reviewed durable execution file failed admission");
   return stat;
 }
 
@@ -68,6 +65,49 @@ function localExecutionEnvironment() {
   return env;
 }
 
+async function captureForegroundScreenshot(targetRef) {
+  await requireFile(PACKAGE_SCREENSHOT_CLI);
+  const relative = `evidence\\private\\agent-tab-a\\${randomUUID()}.png`;
+  const absolute = `${BRIDGE_ROOT}\\${relative}`;
+  try {
+    const result = spawnSync(process.execPath, [PACKAGE_SCREENSHOT_CLI, "--target", targetRef, "--package", "au.com.evavo.glasses", "--output", relative, "--json"], {
+      cwd: BRIDGE_ROOT,
+      env: process.env,
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 120_000,
+      maxBuffer: MAX_OUTPUT,
+    });
+    if (result.error || result.status !== 0) throw new Error("foreground EVAVO Glasses screenshot capture failed");
+    let receipt;
+    try { receipt = asObject(JSON.parse(String(result.stdout ?? "").trim())); } catch { throw new Error("foreground screenshot receipt was invalid JSON"); }
+    if (receipt.operation !== "evidence.package-screenshot" || receipt.foregroundPackageVerified !== true || receipt.packageRunningVerified !== true || receipt.mutationPerformed !== false) {
+      throw new Error("foreground screenshot package-bound truth contract mismatch");
+    }
+    const bytes = await readFile(absolute);
+    if (bytes.length < 8 || bytes.length > MAX_SCREENSHOT_BYTES) throw new Error("foreground screenshot failed size admission");
+    const signature = Buffer.from([0x89,0x50,0x4e,0x47,0x0d,0x0a,0x1a,0x0a]);
+    if (!bytes.subarray(0, 8).equals(signature)) throw new Error("foreground screenshot was not a PNG");
+    return {
+      metadata: {
+        schema: "evavo.glasses-tab-a-foreground-screenshot.v1",
+        ok: true,
+        packageName: "au.com.evavo.glasses",
+        foregroundPackageVerified: true,
+        packageRunningVerified: true,
+        sizeBytes: bytes.length,
+        sha256: receipt.sha256,
+        transientLocalFileDeleted: true,
+        mutationPerformed: false,
+      },
+      data: bytes.toString("base64"),
+    };
+  } finally {
+    await unlink(absolute).catch(() => {});
+  }
+}
+
 async function runDurableAcceptance() {
   if (process.platform !== "win32") throw new Error("Galaxy Tab A physical acceptance requires Windows");
   await Promise.all([requireFile(PYTHON, 64 * 1024 * 1024), requireFile(HELPER), requireFile(TEMPLATE)]);
@@ -87,97 +127,64 @@ async function runDurableAcceptance() {
   const append = (chunk, kind) => {
     const text = Buffer.isBuffer(chunk) ? chunk.toString("utf8") : String(chunk);
     const bytes = Buffer.byteLength(text);
-    if (kind === "stdout") {
-      stdoutBytes += bytes;
-      if (stdoutBytes <= MAX_OUTPUT) stdout += text;
-    } else {
-      stderrBytes += bytes;
-    }
+    if (kind === "stdout") { stdoutBytes += bytes; if (stdoutBytes <= MAX_OUTPUT) stdout += text; }
+    else stderrBytes += bytes;
   };
   child.stdout.on("data", (chunk) => append(chunk, "stdout"));
   child.stderr.on("data", (chunk) => append(chunk, "stderr"));
 
   const outcome = await new Promise((resolve, reject) => {
     let settled = false;
-    const timer = setTimeout(() => {
-      if (settled) return;
-      settled = true;
-      try { child.kill(); } catch {}
-      reject(new Error("durable Galaxy Tab A acceptance exceeded the reviewed 55-minute outer bound"));
-    }, TIMEOUT_MS);
-    child.once("error", (error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      reject(error);
-    });
-    child.once("close", (code, signal) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ code, signal });
-    });
+    const timer = setTimeout(() => { if (settled) return; settled = true; try { child.kill(); } catch {} reject(new Error("durable Galaxy Tab A acceptance exceeded the reviewed 55-minute outer bound")); }, TIMEOUT_MS);
+    child.once("error", (error) => { if (settled) return; settled = true; clearTimeout(timer); reject(error); });
+    child.once("close", (code, signal) => { if (settled) return; settled = true; clearTimeout(timer); resolve({ code, signal }); });
   });
 
   if (stdoutBytes > MAX_OUTPUT) throw new Error("durable Galaxy Tab A acceptance output exceeded the reviewed MCP bound");
   let value;
   try { value = asObject(JSON.parse(stdout.trim())); } catch { throw new Error("durable Galaxy Tab A acceptance returned invalid JSON"); }
   if (outcome.code !== 0 || value.ok !== true) throw new Error("durable Galaxy Tab A acceptance failed on the workstation");
-  if (value.kind !== "evavo-prepared-local-execution-run-v1" || value.receiptPathsReturned !== false || value.runtimePathsReturned !== false || value.rawProcessOutputReturned !== false) {
-    throw new Error("durable local execution receipt privacy contract mismatch");
-  }
+  if (value.kind !== "evavo-prepared-local-execution-run-v1" || value.receiptPathsReturned !== false || value.runtimePathsReturned !== false || value.rawProcessOutputReturned !== false) throw new Error("durable local execution receipt privacy contract mismatch");
 
   const install = asObject(value.acceptance);
-  if (install.schema !== "evavo_glasses_android_tab_a_install_v1" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) {
-    throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
-  }
-  if (install.hostBootstrapCompleted !== true || install.bridgeToolingBootstrapped !== true || install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0") {
-    throw new Error("Galaxy Tab A host toolchain bootstrap did not complete");
-  }
-  if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) {
-    throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
-  }
-  if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true) {
-    throw new Error("EVAVO Glasses was not proven installed, launched and healthy");
-  }
+  if (install.schema !== "evavo_glasses_android_tab_a_install_v1" || install.ok !== true || install.packageName !== "au.com.evavo.glasses" || install.versionName !== "0.6.4" || install.versionCode !== 4) throw new Error("Galaxy Tab A bootstrap/install identity mismatch");
+  if (install.hostBootstrapCompleted !== true || install.bridgeToolingBootstrapped !== true || install.androidSdkRootDetected !== true || Number(install.javaMajor) < 17 || install.managedGradleVersion !== "9.5.0") throw new Error("Galaxy Tab A host toolchain bootstrap did not complete");
+  if (install.androidLicensesAutoAccepted !== false || install.systemPackageMutationAllowed !== false || install.arbitraryAdbShellUsed !== false || install.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A bootstrap/install authority boundary mismatch");
+  if (install.installed !== true || install.launched !== true || install.runtimeHealthObserved !== true) throw new Error("EVAVO Glasses was not proven installed, launched and healthy");
 
   const acceptance = asObject(install.physicalAcceptance);
-  if (acceptance.schema !== "evavo_glasses_android_tab_a_acceptance_v1" || acceptance.ok !== true || acceptance.physicalDeviceExecutionClaimed !== true) {
-    throw new Error("Galaxy Tab A physical acceptance identity or execution truth mismatch");
-  }
-  if (acceptance.systemPackageMutationAllowed !== false || acceptance.arbitraryAdbShellUsed !== false || acceptance.bluetoothUsedAsAdbTransport !== false) {
-    throw new Error("Galaxy Tab A physical acceptance authority boundary mismatch");
-  }
-  if (acceptance.runtimeDiagnostics?.analysis?.crashedOrAnrObserved === true || acceptance.runtimeDiagnostics?.running !== true) {
-    throw new Error("Galaxy Tab A acceptance did not finish with a healthy running app");
-  }
+  if (acceptance.schema !== "evavo_glasses_android_tab_a_acceptance_v1" || acceptance.ok !== true || acceptance.physicalDeviceExecutionClaimed !== true) throw new Error("Galaxy Tab A physical acceptance identity or execution truth mismatch");
+  if (acceptance.systemPackageMutationAllowed !== false || acceptance.arbitraryAdbShellUsed !== false || acceptance.bluetoothUsedAsAdbTransport !== false) throw new Error("Galaxy Tab A physical acceptance authority boundary mismatch");
+  if (acceptance.runtimeDiagnostics?.analysis?.crashedOrAnrObserved === true || acceptance.runtimeDiagnostics?.running !== true) throw new Error("Galaxy Tab A acceptance did not finish with a healthy running app");
   const health = asObject(acceptance.runtimeHealth);
-  if (acceptance.runtimeHealthObserved !== true || acceptance.memoryThresholdApplied !== false || health.operation !== "app.health" || health.healthSchema !== "evavo_android_app_health_v1" || health.running !== true) {
-    throw new Error("Galaxy Tab A acceptance did not retain required package-scoped runtime health evidence");
-  }
-  if (health.arbitraryShellAccepted !== false || health.rawShellOutputReturned !== false || health.rawPidReturned !== false || health.mutationPerformed !== false) {
-    throw new Error("Galaxy Tab A runtime health authority/privacy contract mismatch");
-  }
+  if (acceptance.runtimeHealthObserved !== true || acceptance.memoryThresholdApplied !== false || health.operation !== "app.health" || health.healthSchema !== "evavo_android_app_health_v1" || health.running !== true) throw new Error("Galaxy Tab A acceptance did not retain required package-scoped runtime health evidence");
+  if (health.arbitraryShellAccepted !== false || health.rawShellOutputReturned !== false || health.rawPidReturned !== false || health.mutationPerformed !== false) throw new Error("Galaxy Tab A runtime health authority/privacy contract mismatch");
 
+  const screenshot = await captureForegroundScreenshot(String(acceptance.targetRef));
   return {
-    ...value,
-    stderrBytes,
-    executor: {
-      schema: "evavo.glasses-tab-a-durable-mcp.v2",
-      durableLocalExecution: true,
-      reviewedTemplateSha256: templateSha256,
-      hostToolchainBootstrapIncluded: true,
-      exactSingleAuthorisedDeviceRequired: true,
-      callerSuppliedTargetRefAccepted: false,
-      callerSuppliedCommandAccepted: false,
-      callerSuppliedPackageAccepted: false,
-      callerSuppliedApkAccepted: false,
-      androidLicensesAutoAccepted: false,
-      systemPackageMutationAllowed: false,
-      arbitraryAdbShellAccepted: false,
-      bluetoothUsedAsAdbTransport: false,
-      physicalWorkstationPathsReturned: false,
+    metadata: {
+      ...value,
+      stderrBytes,
+      foregroundScreenshot: screenshot.metadata,
+      executor: {
+        schema: "evavo.glasses-tab-a-durable-mcp.v3",
+        durableLocalExecution: true,
+        reviewedTemplateSha256: templateSha256,
+        hostToolchainBootstrapIncluded: true,
+        foregroundScreenshotReturned: true,
+        exactSingleAuthorisedDeviceRequired: true,
+        callerSuppliedTargetRefAccepted: false,
+        callerSuppliedCommandAccepted: false,
+        callerSuppliedPackageAccepted: false,
+        callerSuppliedApkAccepted: false,
+        androidLicensesAutoAccepted: false,
+        systemPackageMutationAllowed: false,
+        arbitraryAdbShellAccepted: false,
+        bluetoothUsedAsAdbTransport: false,
+        physicalWorkstationPathsReturned: false,
+      },
     },
+    imageData: screenshot.data,
   };
 }
 
@@ -201,12 +208,12 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.1.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-tab-a-mcp", version: "1.2.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
       const value = await callTool(String(params.name ?? ""), params.arguments);
-      write(result(request.id, { content: [{ type: "text", text: JSON.stringify(value, null, 2) }], isError: false }));
+      write(result(request.id, { content: [{ type: "text", text: JSON.stringify(value.metadata, null, 2) }, { type: "image", data: value.imageData, mimeType: "image/png" }], isError: false }));
     } else write(error(request.id, -32601, "Method not found"));
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "Unknown error";
