@@ -38,6 +38,14 @@
       "env": {
         "EVAVO_LOCAL_AGENT_MCP_ROLE": "glasses-tab-a-durable-acceptance"
       }
+    },
+    "evavo-godot-android-physical": {
+      "command": "node",
+      "args": ["./mcp-server/godot-android-physical-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "godot-android-physical-qa",
+        "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
+      }
     }
   }
 }
