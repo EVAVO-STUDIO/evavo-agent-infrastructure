@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-physical-android-agent-surfaces-v1",
+  "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "workstation": {
+    "platform": "windows",
+    "gatewayOrigin": "http://127.0.0.1:4329",
+    "gatewayContractVersion": 2,
+    "minimumOperatorTimeoutSeconds": 3300,
+    "preferredOperatorTimeoutSeconds": 3600,
+    "loopbackOnly": true
+  },
+  "surfaces": [
+    {
+      "id": "evavo-android-device",
+      "runtime": "mcp-server/android-device-mcp.mjs",
+      "mode": "effectful-specialist",
+      "autoApprovalRecommended": true,
+      "canMutateAndroidDevice": false,
+      "purpose": "host setup, USB diagnostics, ADB discovery and privacy-safe device profiling"
+    },
+    {
+      "id": "evavo-android-app",
+      "runtime": "mcp-server/android-app-mcp.mjs",
+      "mode": "effectful-specialist",
+      "autoApprovalRecommended": true,
+      "canMutateAndroidDevice": true,
+      "systemPackageDestructionAllowed": false,
+      "purpose": "package runtime control, bounded UI/game interaction, diagnostics, user-app reset and uninstall"
+    },
+    {
+      "id": "evavo-glasses-android",
+      "runtime": "mcp-server/glasses-android-mcp.mjs",
+      "mode": "effectful-specialist",
+      "autoApprovalRecommended": true,
+      "canMutateAndroidDevice": true,
+      "purpose": "EVAVO Glasses Android build, install, launch and evidence"
+    },
+    {
+      "id": "evavo-glasses-tab-a",
+      "runtime": "mcp-server/glasses-tab-a-mcp.mjs",
+      "mode": "effectful-specialist-long-running",
+      "autoApprovalRecommended": true,
+      "toolTimeoutSeconds": 3600,
+      "canMutateAndroidDevice": true,
+      "purpose": "durable physical Galaxy Tab A EVAVO Glasses acceptance"
+    },
+    {
+      "id": "evavo-godot-android-physical",
+      "runtime": "mcp-server/godot-android-physical-mcp.mjs",
+      "mode": "effectful-specialist-long-running",
+      "autoApprovalRecommended": true,
+      "toolTimeoutSeconds": 3600,
+      "canMutateAndroidDevice": true,
+      "purpose": "physical Godot Android deployment and semantic gameplay journeys with state assertions"
+    },
+    {
+      "id": "evavo-android-observer",
+      "runtime": "mcp-server/android-observer-mcp.mjs",
+      "mode": "read-only-observer",
+      "autoApprovalRecommended": true,
+      "canMutateAndroidDevice": false,
+      "remoteTunnelEligible": true,
+      "purpose": "read-only USB, ADB, device profile, app status, health and crash diagnostics"
+    },
+    {
+      "id": "evavo-local-agent-executor",
+      "runtime": "mcp-server/local-agent-mcp.mjs",
+      "mode": "broad-operator-escape-hatch",
+      "autoApprovalRecommended": false,
+      "canMutateAndroidDevice": "indirectly",
+      "remoteTunnelEligible": false,
+      "purpose": "general workstation development escape hatch; not the normal physical-device authority"
+    }
+  ],
+  "invariants": {
+    "androidBridgeOwnsAdb": true,
+    "bluetoothIsAdbTransport": false,
+    "rawAdbSerialsReturned": false,
+    "effectfulRemoteTunnelRecommended": false,
+    "broadShellAutoApprovalRecommended": false,
+    "firstUsbDebuggingRsaTrustCanBeBypassed": false,
+    "afterExistingRsaTrustNormalDevelopmentRequiresRepeatedDeviceClicks": false
+  }
+}
