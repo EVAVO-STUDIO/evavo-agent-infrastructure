@@ -8,41 +8,11 @@ $Node = (Get-Command node.exe,node -CommandType Application -ErrorAction Silentl
 if (-not $Node) { throw 'Node.js is required.' }
 
 $Servers = @(
-    [ordered]@{
-        file = 'mcp-server\android-app-mcp.mjs'
-        name = 'evavo-android-app-mcp'
-        version = '1.0.0'
-        tools = @('evavo_android_app_status','evavo_android_app_health','evavo_android_app_launch','evavo_android_app_stop','evavo_android_app_diagnostics','evavo_android_app_ui_snapshot','evavo_android_game_input','evavo_android_app_grant_development_permissions','evavo_android_app_clear_data','evavo_android_app_uninstall')
-        readOnlyOnly = $false
-    },
-    [ordered]@{
-        file = 'mcp-server\android-observer-mcp.mjs'
-        name = 'evavo-android-observer-mcp'
-        version = '1.1.0'
-        tools = @('evavo_android_observer_usb','evavo_android_observer_bringup','evavo_android_observer_profile','evavo_android_observer_app_status','evavo_android_observer_app_health','evavo_android_observer_app_diagnostics','evavo_android_observer_app_screenshot')
-        readOnlyOnly = $true
-    },
-    [ordered]@{
-        file = 'mcp-server\glasses-android-mcp.mjs'
-        name = 'evavo-glasses-android-mcp'
-        version = '1.1.0'
-        tools = @('evavo_glasses_android_doctor','evavo_glasses_android_build','evavo_glasses_android_test_device','evavo_glasses_android_build_and_test','evavo_glasses_android_acceptance_status')
-        readOnlyOnly = $false
-    },
-    [ordered]@{
-        file = 'mcp-server\glasses-tab-a-mcp.mjs'
-        name = 'evavo-glasses-tab-a-mcp'
-        version = '1.4.0'
-        tools = @('evavo_glasses_tab_a_acceptance')
-        readOnlyOnly = $false
-    },
-    [ordered]@{
-        file = 'mcp-server\godot-android-physical-mcp.mjs'
-        name = 'evavo-godot-android-physical-mcp'
-        version = '1.0.0'
-        tools = @('evavo_godot_android_physical_journey')
-        readOnlyOnly = $false
-    }
+    [ordered]@{ file='mcp-server\android-app-mcp.mjs'; name='evavo-android-app-mcp'; version='1.0.0'; tools=@('evavo_android_app_status','evavo_android_app_health','evavo_android_app_launch','evavo_android_app_stop','evavo_android_app_diagnostics','evavo_android_app_ui_snapshot','evavo_android_game_input','evavo_android_app_grant_development_permissions','evavo_android_app_clear_data','evavo_android_app_uninstall'); readOnlyOnly=$false },
+    [ordered]@{ file='mcp-server\android-observer-mcp.mjs'; name='evavo-android-observer-mcp'; version='1.1.0'; tools=@('evavo_android_observer_usb','evavo_android_observer_bringup','evavo_android_observer_profile','evavo_android_observer_app_status','evavo_android_observer_app_health','evavo_android_observer_app_diagnostics','evavo_android_observer_app_screenshot'); readOnlyOnly=$true },
+    [ordered]@{ file='mcp-server\glasses-android-mcp.mjs'; name='evavo-glasses-android-mcp'; version='1.1.0'; tools=@('evavo_glasses_android_doctor','evavo_glasses_android_build','evavo_glasses_android_test_device','evavo_glasses_android_build_and_test','evavo_glasses_android_acceptance_status'); readOnlyOnly=$false },
+    [ordered]@{ file='mcp-server\glasses-tab-a-mcp.mjs'; name='evavo-glasses-tab-a-mcp'; version='1.5.0'; tools=@('evavo_glasses_tab_a_acceptance'); readOnlyOnly=$false },
+    [ordered]@{ file='mcp-server\godot-android-physical-mcp.mjs'; name='evavo-godot-android-physical-mcp'; version='1.0.0'; tools=@('evavo_godot_android_physical_journey'); readOnlyOnly=$false }
 )
 
 $Results = @()
@@ -78,13 +48,4 @@ foreach ($Server in $Servers) {
     }
 }
 
-[ordered]@{
-    schemaVersion=1
-    kind='evavo-android-specialist-mcp-handshake-v1'
-    ok=$true
-    servers=$Results
-    tabletContacted=$false
-    operatorExecutionInvoked=$false
-    durableExecutionInvoked=$false
-    externalNetworkRequired=$false
-}|ConvertTo-Json -Depth 12
+[ordered]@{ schemaVersion=1; kind='evavo-android-specialist-mcp-handshake-v1'; ok=$true; servers=$Results; tabletContacted=$false; operatorExecutionInvoked=$false; durableExecutionInvoked=$false; externalNetworkRequired=$false } | ConvertTo-Json -Depth 12
