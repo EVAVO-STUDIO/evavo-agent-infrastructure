@@ -27,6 +27,8 @@
     "chatgpt:workstation-observer-tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1 -StartNow -Json",
     "chatgpt:workstation-observer-tunnel-v1": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWorkstationObserverTunnel.ps1 -StartNow -Json",
     "chatgpt:workstation-observer-status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1",
+    "remote-access:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1",
+    "remote-access:doctor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1 -ProbeOpenAiTunnelDoctor -ProbeRestHealth",
     "remote-mcp-relay:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Deploy-EvavoRemoteMcpRelay.ps1",
     "check": "pnpm test && pnpm test:android-mcps && pnpm test:physical-device-contract && pnpm test:chatgpt-android-observer-contract && pnpm test:chatgpt-workstation-observer-contract && pnpm test:remote-mcp-relay-contract",
     "lint": "pnpm -r lint",
