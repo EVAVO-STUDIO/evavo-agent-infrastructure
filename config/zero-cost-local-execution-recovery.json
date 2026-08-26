@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "evavo-zero-cost-local-execution-recovery",
   "canonical": true,
   "workstationRecoveryOwner": "EVAVO-STUDIO/evavo-local-storage",
@@ -7,6 +7,14 @@
   "workstationAutomationBootstrap": "INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.cmd",
   "controlTransport": "github-issues-https",
   "computePlane": "windows-scheduled-tasks",
+  "preferredLiveExecutionPlane": "accepted-loopback-rest-executor-v5",
+  "restExecutorRecoveryFacade": "scripts/Invoke-EvavoZeroCostAutomationRestRecovery.ps1",
+  "authorityOrder": [
+    "accepted-rest-executor-v5-live-loopback",
+    "local-agent-rest-and-local-compute-persistence",
+    "zero-cost-windows-scheduled-task-recovery",
+    "github-issues-worker-fabric-fallback"
+  ],
   "mcpOwner": "EVAVO-STUDIO/evavo-agent-infrastructure",
   "mcpEntrypoint": "mcp-server/local-agent-zero-cost-mcp.mjs",
   "mcpImplementation": "mcp-server/local-agent-mcp.mjs",
@@ -21,11 +29,26 @@
     "developmentCheckoutCompatibilityFallback": "C:/GitRepos/evavo-local-storage",
     "fallbackIsCanonicalAfterEstablishment": false
   },
+  "restExecutor": {
+    "version": "5.0.0",
+    "apiRevisionMinimum": 2,
+    "acceptedRuntimeGitBlobSha": "ccded7de01f973187eff3f533bba94cc23b03bf2",
+    "loopbackOnly": true,
+    "freshHealthRequired": true,
+    "fixedPurposeRecoveryOnly": true,
+    "callerCommandAcceptedForRecovery": false,
+    "mailboxRequired": false,
+    "historicallyPhysicallyAccepted": true,
+    "historicalAcceptanceIsCurrentReachability": false
+  },
   "automation": {
     "recoveryTask": "EVAVO Zero Cost Worker Recovery",
     "updaterTask": "EVAVO Zero Cost Trusted Updater",
+    "restExecutorTask": "EVAVO REST Executor v5",
     "mutualRecovery": true,
     "eitherManagedPeerMaySupplyManagementReceiver": true,
+    "managementReceiverMayUseAcceptedRestExecutorFallback": true,
+    "restBootstrapMustBeFollowedByWorkerRecoveryReceipt": true,
     "developmentCheckoutRequiredAfterEstablishment": false,
     "githubActionsRequired": false,
     "selfHostedActionsRunnerRequired": false,
@@ -35,6 +58,7 @@
   "authority": {
     "mcpMayReimplementWorkerRecovery": false,
     "mcpMayUseFixedLocalStorageManagementReceiver": true,
+    "mcpMayExposeGenericRestExecutorCommandAsNormalRecovery": false,
     "operatorExecutionRequiresSeparateCredential": true,
     "arbitraryShellIsNormalAutomation": false,
     "forcePush": false,
@@ -45,6 +69,8 @@
   "truthBoundary": {
     "mcpToolPresenceMeansWorkstationReachable": false,
     "loopbackPortPresenceMeansMailboxReachable": false,
+    "restHistoricalAcceptanceMeansCurrentHealth": false,
+    "restBootstrapMeansMailboxRecovered": false,
     "machineReceiptRequiredForPhysicalWork": true
   }
 }
