@@ -14,6 +14,8 @@
   "authorityOrder": [
     "HKCU-Run-logon-guardian-reestablishes-local-automation",
     "accepted-rest-executor-v5-live-loopback",
+    "openai-secure-mcp-tunnel-read-only-workstation-observer",
+    "cloudflare-remote-mcp-relay-independent-read-and-typed-dispatch-plane",
     "local-agent-rest-and-local-compute-persistence",
     "zero-cost-windows-scheduled-task-recovery",
     "github-issues-worker-fabric-fallback"
@@ -44,6 +46,25 @@
     "mailboxRequired": false,
     "historicallyPhysicallyAccepted": true,
     "historicalAcceptanceIsCurrentReachability": false
+  },
+  "remoteAccess": {
+    "currentChatGptReadPath": "openai-secure-mcp-tunnel",
+    "chatGptObserverInstaller": "scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1",
+    "chatGptObserverStatus": "scripts/Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1",
+    "chatGptObserverRepositoryIndependent": true,
+    "chatGptObserverImmutableBundle": true,
+    "chatGptObserverDevelopmentCheckoutRequiredAfterInstallation": false,
+    "chatGptObserverReadOnly": true,
+    "chatGptObserverEffectfulToolsExposed": false,
+    "cloudflareRelayPackage": "packages/remote-mcp-relay",
+    "cloudflareRelayMcpReadOnly": true,
+    "cloudflareRelayDispatchSeparateFromMcp": true,
+    "cloudflareRelayRawShellExposed": false,
+    "cloudflareRelayWorkstationOutboundOnly": true,
+    "cloudflareRelayDpapiClientOwner": "EVAVO-STUDIO/evavo-local-storage",
+    "cloudflareRelayRequiredForRoutineRecovery": false,
+    "githubActionsRequiredForRemoteAccess": false,
+    "vercelRequiredForRemoteAccess": false
   },
   "automation": {
     "recoveryTask": "EVAVO Zero Cost Worker Recovery",
@@ -79,6 +100,9 @@
     "restHistoricalAcceptanceMeansCurrentHealth": false,
     "restBootstrapMeansMailboxRecovered": false,
     "logonGuardianInstalledMeansMailboxRecovered": false,
+    "secureMcpTunnelInstalledMeansChatGptConnectorRegistered": false,
+    "cloudflareRelaySourcePresentMeansRelayDeployed": false,
+    "remoteObserverStatusMeansEffectfulExecutionAvailable": false,
     "machineReceiptRequiredForPhysicalWork": true
   }
 }
