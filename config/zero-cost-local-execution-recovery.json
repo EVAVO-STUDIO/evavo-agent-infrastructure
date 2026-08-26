@@ -1,0 +1,46 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-zero-cost-local-execution-recovery",
+  "canonical": true,
+  "workstationRecoveryOwner": "EVAVO-STUDIO/evavo-local-storage",
+  "workstationRecoveryPolicy": "config/zero-cost-worker-recovery.json",
+  "workstationAutomationBootstrap": "INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.cmd",
+  "controlTransport": "github-issues-https",
+  "computePlane": "windows-scheduled-tasks",
+  "mcpOwner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "mcpEntrypoint": "mcp-server/local-agent-zero-cost-mcp.mjs",
+  "mcpImplementation": "mcp-server/local-agent-mcp.mjs",
+  "structuredExecutionOwner": "EVAVO-STUDIO/evavo-local-compute",
+  "developmentConsumer": "EVAVO-STUDIO/evavo-development-studio",
+  "recoverySelection": {
+    "preferManagedLocalStorageCheckout": true,
+    "managedCheckout": "%LOCALAPPDATA%/EVAVO/WorkerControlPlane/zero-cost-updater/runtime/evavo-local-storage",
+    "developmentCheckoutCompatibilityFallback": "C:/GitRepos/evavo-local-storage",
+    "fallbackIsCanonicalAfterEstablishment": false
+  },
+  "automation": {
+    "recoveryTask": "EVAVO Zero Cost Worker Recovery",
+    "updaterTask": "EVAVO Zero Cost Trusted Updater",
+    "mutualRecovery": true,
+    "developmentCheckoutRequiredAfterEstablishment": false,
+    "githubActionsRequired": false,
+    "selfHostedActionsRunnerRequired": false,
+    "vercelRequired": false,
+    "netlifyRequired": false
+  },
+  "authority": {
+    "mcpMayReimplementWorkerRecovery": false,
+    "mcpMayUseFixedLocalStorageManagementReceiver": true,
+    "operatorExecutionRequiresSeparateCredential": true,
+    "arbitraryShellIsNormalAutomation": false,
+    "forcePush": false,
+    "resetHard": false,
+    "gitClean": false,
+    "permanentDelete": false
+  },
+  "truthBoundary": {
+    "mcpToolPresenceMeansWorkstationReachable": false,
+    "loopbackPortPresenceMeansMailboxReachable": false,
+    "machineReceiptRequiredForPhysicalWork": true
+  }
+}
