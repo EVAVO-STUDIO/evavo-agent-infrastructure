@@ -4,16 +4,27 @@ import process from "node:process";
 
 const localAppData = (process.env.LOCALAPPDATA ?? "").trim();
 const configured = (process.env.EVAVO_LOCAL_STORAGE_REPO ?? "").trim();
-const managed = localAppData
+const updaterManaged = localAppData
   ? join(localAppData, "EVAVO", "WorkerControlPlane", "zero-cost-updater", "runtime", "evavo-local-storage")
+  : "";
+const recoveryManaged = localAppData
+  ? join(localAppData, "EVAVO", "WorkerControlPlane", "zero-cost-recovery", "runtime", "evavo-local-storage")
   : "";
 const development = "C:\\GitRepos\\evavo-local-storage";
 
+function usable(root) {
+  return Boolean(root) && existsSync(join(root, "scripts", "manage-autonomous-node.ps1"));
+}
+
 let selected = configured;
 let source = configured ? "explicit-environment" : "";
-if (!selected && managed && existsSync(join(managed, "scripts", "manage-autonomous-node.ps1"))) {
-  selected = managed;
-  source = "zero-cost-managed-checkout";
+if (!selected && usable(updaterManaged)) {
+  selected = updaterManaged;
+  source = "zero-cost-updater-managed-checkout";
+}
+if (!selected && usable(recoveryManaged)) {
+  selected = recoveryManaged;
+  source = "zero-cost-recovery-managed-checkout";
 }
 if (!selected) {
   selected = development;
