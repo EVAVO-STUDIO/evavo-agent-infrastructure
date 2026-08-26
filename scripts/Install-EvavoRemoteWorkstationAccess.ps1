@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [switch]$ProvisionCloudflareRelay,
+    [switch]$EnableWindowsExecution,
     [switch]$StartNow,
     [switch]$Json
 )
@@ -14,9 +15,10 @@ if(-not$env:LOCALAPPDATA){throw'EVAVO_REMOTE_ACCESS_INSTALL_LOCALAPPDATA_REQUIRE
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $PowerShell=(Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
 $TunnelV3=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1'
+$ExecutionTunnelInstaller=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWindowsExecutionTunnel.ps1'
 $RelayDeploy=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelayV2.ps1'
-foreach($Path in @($TunnelV3,$RelayDeploy)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_INSTALL_SOURCE_MISSING:$Path"}}
-foreach($Path in @($TunnelV3,$RelayDeploy)){$t=$null;$e=$null;[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$t,[ref]$e)|Out-Null;if(@($e).Count-gt0){throw "EVAVO_REMOTE_ACCESS_INSTALL_PARSE_FAILED:$Path"}}
+foreach($Path in @($TunnelV3,$ExecutionTunnelInstaller,$RelayDeploy)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_INSTALL_SOURCE_MISSING:$Path"}}
+foreach($Path in @($TunnelV3,$ExecutionTunnelInstaller,$RelayDeploy)){$t=$null;$e=$null;[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$t,[ref]$e)|Out-Null;if(@($e).Count-gt0){throw "EVAVO_REMOTE_ACCESS_INSTALL_PARSE_FAILED:$Path"}}
 
 $GitRoot=if($env:EVAVO_GIT_ROOT){$env:EVAVO_GIT_ROOT}else{'C:\GitRepos'}
 $LocalStorageCandidates=@(
@@ -37,7 +39,7 @@ function Invoke-JsonPowerShell {
 }
 
 $Started=[DateTimeOffset]::UtcNow
-$Bootstrap=$null;$Tunnel=$null;$Cloudflare=$null;$TunnelSkip=$null;$CloudflareSkip=$null
+$Bootstrap=$null;$Tunnel=$null;$ExecutionTunnel=$null;$Cloudflare=$null;$TunnelSkip=$null;$ExecutionTunnelSkip=$null;$CloudflareSkip=$null
 
 $BootstrapScript=Join-Path $LocalStorage 'INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.ps1'
 $Bootstrap=Invoke-JsonPowerShell -Script $BootstrapScript -Named @{Repository='EVAVO-STUDIO/evavo-local-storage';StartNow=$StartNow}
@@ -46,6 +48,8 @@ if([string]$Bootstrap.kind-ne'evavo-zero-cost-worker-automation-bootstrap'-or$Bo
 $TunnelClient=Get-Command tunnel-client.exe,tunnel-client -CommandType Application -ErrorAction SilentlyContinue|Select-Object -First 1
 $TunnelId=[Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','User')
 if([string]::IsNullOrWhiteSpace($TunnelId)){$TunnelId=[string]$env:EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID}
+$ExecutionTunnelId=[Environment]::GetEnvironmentVariable('EVAVO_WINDOWS_EXECUTION_TUNNEL_ID','User')
+if([string]::IsNullOrWhiteSpace($ExecutionTunnelId)){$ExecutionTunnelId=[string]$env:EVAVO_WINDOWS_EXECUTION_TUNNEL_ID}
 $RuntimeKey=[Environment]::GetEnvironmentVariable('CONTROL_PLANE_API_KEY','User')
 if([string]::IsNullOrWhiteSpace($RuntimeKey)){$RuntimeKey=[string]$env:CONTROL_PLANE_API_KEY}
 if([string]::IsNullOrWhiteSpace($RuntimeKey)){$RuntimeKey=[Environment]::GetEnvironmentVariable('OPENAI_API_KEY','User')}
@@ -53,14 +57,24 @@ if([string]::IsNullOrWhiteSpace($RuntimeKey)){$RuntimeKey=[string]$env:OPENAI_AP
 $Admin=[Environment]::GetEnvironmentVariable('OPENAI_ADMIN_KEY','User')
 if([string]::IsNullOrWhiteSpace($Admin)){$Admin=[string]$env:OPENAI_ADMIN_KEY}
 $Workspace=[string]$env:OPENAI_WORKSPACE_ID;$Organization=[string]$env:OPENAI_ORGANIZATION_ID
-$CanUseExistingTunnel=[bool]($TunnelClient-and$RuntimeKey-and$TunnelId-match'^tunnel_[0-9a-f]{32}$')
 $CanCreateTunnel=[bool]($TunnelClient-and$RuntimeKey-and$Admin-and($Workspace-or$Organization))
+
+$CanUseExistingTunnel=[bool]($TunnelClient-and$RuntimeKey-and$TunnelId-match'^tunnel_[0-9a-f]{32}$')
 if($CanUseExistingTunnel-or$CanCreateTunnel){
   $TunnelArgs=@{StartNow=$StartNow;Json=$true}
   if($CanCreateTunnel-and-not$CanUseExistingTunnel){$TunnelArgs.CreateTunnelIfMissing=$true;if($Workspace){$TunnelArgs.WorkspaceId=$Workspace};if($Organization){$TunnelArgs.OrganizationId=$Organization}}
   $Tunnel=Invoke-JsonPowerShell -Script $TunnelV3 -Named $TunnelArgs
-  if([string]$Tunnel.kind-ne'evavo-chatgpt-workstation-observer-tunnel-installation-v3'-or$Tunnel.ok-ne$true-or$Tunnel.backgroundTaskAuthenticationReady-ne$true-or$Tunnel.repositoryIndependentObserver-ne$true){throw'EVAVO_REMOTE_ACCESS_INSTALL_TUNNEL_NOT_ACCEPTED'}
+  if([string]$Tunnel.kind-ne'evavo-chatgpt-workstation-observer-tunnel-installation-v3'-or$Tunnel.ok-ne$true-or$Tunnel.backgroundTaskAuthenticationReady-ne$true-or$Tunnel.repositoryIndependentObserver-ne$true-or$Tunnel.effectfulWorkstationToolsExposed-ne$false){throw'EVAVO_REMOTE_ACCESS_INSTALL_TUNNEL_NOT_ACCEPTED'}
 }else{$TunnelSkip=if(-not$TunnelClient){'tunnel-client-unavailable'}elseif(-not$RuntimeKey){'runtime-key-unavailable'}else{'tunnel-id-or-admin-scope-unavailable'}}
+
+if($EnableWindowsExecution){
+  $CanUseExistingExecutionTunnel=[bool]($TunnelClient-and$RuntimeKey-and$ExecutionTunnelId-match'^tunnel_[0-9a-f]{32}$')
+  if(-not$CanUseExistingExecutionTunnel-and-not$CanCreateTunnel){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_TUNNEL_UNAVAILABLE'}
+  $ExecutionArgs=@{StartNow=$StartNow;Json=$true}
+  if($CanCreateTunnel-and-not$CanUseExistingExecutionTunnel){$ExecutionArgs.CreateTunnelIfMissing=$true;if($Workspace){$ExecutionArgs.WorkspaceId=$Workspace};if($Organization){$ExecutionArgs.OrganizationId=$Organization}}
+  $ExecutionTunnel=Invoke-JsonPowerShell -Script $ExecutionTunnelInstaller -Named $ExecutionArgs
+  if([string]$ExecutionTunnel.kind-ne'evavo-chatgpt-windows-execution-tunnel-installation-v1'-or$ExecutionTunnel.ok-ne$true-or$ExecutionTunnel.scheduledTaskExact-ne$true-or$ExecutionTunnel.effectfulWorkstationToolsExposed-ne$true-or$ExecutionTunnel.arbitraryCommandTextAccepted-ne$true-or$ExecutionTunnel.currentWindowsUserAuthority-ne$true-or$ExecutionTunnel.acceptedRestExecutorAttestationRequired-ne$true){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_TUNNEL_NOT_ACCEPTED'}
+}else{$ExecutionTunnelSkip='not-requested'}
 
 if($ProvisionCloudflareRelay){
   $Cloudflare=Invoke-JsonPowerShell -Script $RelayDeploy
@@ -68,17 +82,25 @@ if($ProvisionCloudflareRelay){
 }else{$CloudflareSkip='not-requested'}
 
 $Receipt=[ordered]@{
-  schemaVersion=3
+  schemaVersion=4
   kind='evavo-remote-workstation-access-installation'
   ok=$true
   startedAt=$Started.ToString('o')
   completedAt=[DateTimeOffset]::UtcNow.ToString('o')
   localStorageBootstrap=$Bootstrap
   minimumLocalRecoveryPlanesInstalled=[int]$Bootstrap.minimumRecoveryPlanesInstalled
-  openAiSecureMcpTunnel=$Tunnel
-  openAiSecureMcpTunnelSkippedReason=$TunnelSkip
-  openAiTunnelTaskStarted=if($Tunnel){[bool]$Tunnel.started}else{$false}
-  openAiTunnelStartIsPhysicalReachabilityProof=$false
+  openAiSecureMcpObserverTunnel=$Tunnel
+  openAiSecureMcpObserverTunnelSkippedReason=$TunnelSkip
+  openAiObserverTunnelTaskStarted=if($Tunnel){[bool]$Tunnel.started}else{$false}
+  openAiSecureMcpWindowsExecutionTunnel=$ExecutionTunnel
+  openAiSecureMcpWindowsExecutionTunnelSkippedReason=$ExecutionTunnelSkip
+  windowsExecutionExplicitlyRequested=[bool]$EnableWindowsExecution
+  windowsExecutionEstablished=[bool]($ExecutionTunnel-and$ExecutionTunnel.ok)
+  effectfulWorkstationToolsExposed=[bool]($ExecutionTunnel-and$ExecutionTunnel.effectfulWorkstationToolsExposed)
+  arbitraryCommandTextAccepted=[bool]($ExecutionTunnel-and$ExecutionTunnel.arbitraryCommandTextAccepted)
+  currentWindowsUserAuthority=[bool]($ExecutionTunnel-and$ExecutionTunnel.currentWindowsUserAuthority)
+  supportedExecutionShells=if($ExecutionTunnel){@($ExecutionTunnel.supportedShells)}else{@()}
+  acceptedRestExecutorAttestationRequired=if($ExecutionTunnel){[bool]$ExecutionTunnel.acceptedRestExecutorAttestationRequired}else{$false}
   cloudflareRelay=$Cloudflare
   cloudflareRelaySkippedReason=$CloudflareSkip
   cloudflareProvisionExplicitlyRequested=[bool]$ProvisionCloudflareRelay
@@ -88,7 +110,8 @@ $Receipt=[ordered]@{
   openAiCredentialValuesReturned=$false
   cloudflareCredentialValuesReturned=$false
   cloudflareAccountIdReturned=$false
-  arbitraryShellExposed=$false
+  observerArbitraryShellExposed=$false
+  executionShellSeparatedFromObserver=$true
   githubActionsRequired=$false
   vercelRequired=$false
   developmentCheckoutRequiredAfterEstablishment=$false
