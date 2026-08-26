@@ -1,6 +1,6 @@
 {
   "name": "@evavo/agent-mcp",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Canonical MCP integration for EVAVO local execution, ChatGPT and coding agents",
   "type": "module",
   "main": "./dist/index.js",
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest && npm run check:local-runtimes",
-    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check android-device-mcp.mjs && node --check android-app-mcp.mjs && node --check android-observer-mcp.mjs && node --check glasses-android-mcp.mjs && node --check glasses-tab-a-mcp.mjs && node --check godot-android-physical-mcp.mjs",
+    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check windows-chat-execution-mcp.mjs && node --check android-device-mcp.mjs && node --check android-app-mcp.mjs && node --check android-observer-mcp.mjs && node --check glasses-android-mcp.mjs && node --check glasses-tab-a-mcp.mjs && node --check godot-android-physical-mcp.mjs",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
