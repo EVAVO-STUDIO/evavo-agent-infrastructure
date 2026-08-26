@@ -13,6 +13,12 @@ const CONFIRMATION = "TEST_EVAVO_GLASSES_ON_ANDROID_DEVICE";
 
 const TOOLS = Object.freeze([
   {
+    name: "evavo_glasses_android_preflight",
+    description: "Run the read-only EVAVO Glasses Android install preflight. Reports app identity, managed JDK/SDK readiness, repairable host-tool gaps, and physical USB/RSA/device compatibility without installing or mutating the tablet.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
     name: "evavo_glasses_android_doctor",
     description: "Inspect the checked-in GODMODE Android build/toolchain contract without building or touching an Android device.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
@@ -118,6 +124,10 @@ function target(args) {
 
 async function callTool(name, raw) {
   const args = raw === undefined ? {} : asObject(raw);
+  if (name === "evavo_glasses_android_preflight") {
+    if (Object.keys(args).length) throw new Error("preflight does not accept arguments");
+    return postOperator(`powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\Diagnose-EvavoGlassesAndroid.ps1 -BridgeRoot ${BRIDGE_ROOT} -Json & exit /b 0`, 180);
+  }
   if (name === "evavo_glasses_android_doctor") {
     return postOperator(`powershell -NoProfile -ExecutionPolicy Bypass -File GODMODE-ANDROID.ps1 -Action Status -BridgeRoot ${BRIDGE_ROOT} -Json`, 120);
   }
@@ -151,7 +161,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-android-mcp", version: "1.1.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: "2024-11-05", capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-glasses-android-mcp", version: "1.2.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params);
