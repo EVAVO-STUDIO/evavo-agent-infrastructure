@@ -19,6 +19,13 @@
         "EVAVO_SERVICE_CONTROL_PLANE_ROOT": "C:\\GitRepos\\evavo-service-control-plane"
       }
     },
+    "evavo-storage-governance": {
+      "command": "node",
+      "args": ["./mcp-server/windows-storage-governance-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage"
+      }
+    },
     "evavo-android-device": {
       "command": "node",
       "args": ["./mcp-server/android-device-mcp.mjs"],
