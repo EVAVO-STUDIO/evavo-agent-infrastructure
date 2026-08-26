@@ -5,11 +5,13 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-storage-governance-mcp";
-const SERVER_VERSION = "1.0.1";
+const SERVER_VERSION = "1.1.0";
 const STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT || "C:\\GitRepos\\evavo-local-storage";
+const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const STATUS = path.join(STORAGE_ROOT, "scripts", "Get-EvavoStorageEstateStatus.ps1");
 const ESTATE_ACTIVATE = path.join(STORAGE_ROOT, "scripts", "Invoke-EvavoStorageEstateRestExecutor.ps1");
 const GOOGLE_TASK_INSTALL = path.join(STORAGE_ROOT, "scripts", "Install-GoogleStoragePressureTaskCurrent.ps1");
+const STORAGE_RECOVERY_CURRENT = path.join(LOCAL_COMPUTE_ROOT, "RECOVER-EVAVO-STORAGE-CURRENT.ps1");
 
 const TOOLS = Object.freeze([
   {
@@ -30,15 +32,22 @@ const TOOLS = Object.freeze([
     _meta: { "io.evavo/effects": ["read"], "io.evavo/arbitraryCommandTextAccepted": false },
   },
   {
+    name: "evavo_storage_recovery_current",
+    description: "Run the authoritative serialized current storage recovery: repair current local execution persistence, run one governed Google 85/90/75 cycle, then one V5 storage-estate cycle, and require fresh retained receipts. Accepts no caller-selected paths, commands, credentials or thresholds.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
+    _meta: { "io.evavo/effects": ["execute", "write", "network", "provider-mutation", "device-control"], "io.evavo/arbitraryCommandTextAccepted": false },
+  },
+  {
     name: "evavo_storage_estate_activate",
-    description: "Use the accepted REST Executor v5 facade to install and start the V5 storage-estate scheduled runtime. The long scan/reclaim remains owned by Task Scheduler.",
+    description: "Use the accepted REST Executor v5 facade to install and start the V5 storage-estate scheduled runtime. Prefer evavo_storage_recovery_current for end-to-end recovery because it serializes Google then estate and proves fresh receipts.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     _meta: { "io.evavo/effects": ["execute", "write", "device-control"], "io.evavo/arbitraryCommandTextAccepted": false },
   },
   {
     name: "evavo_google_storage_pressure_activate",
-    description: "Install and start the fixed 85/90/75 Google storage-pressure CycleOnly task. Provider work runs asynchronously under the governed six-hour task budget.",
+    description: "Install and start the fixed 85/90/75 Google storage-pressure CycleOnly task. Prefer evavo_storage_recovery_current for end-to-end recovery because it serializes Google then estate and proves fresh receipts.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     _meta: { "io.evavo/effects": ["execute", "write", "network", "provider-mutation"], "io.evavo/arbitraryCommandTextAccepted": false },
@@ -86,13 +95,14 @@ function runPowerShell(script, args = [], timeout = 180_000) {
 }
 
 function doctor() {
-  const scripts = [STATUS, ESTATE_ACTIVATE, GOOGLE_TASK_INSTALL];
+  const scripts = [STATUS, ESTATE_ACTIVATE, GOOGLE_TASK_INSTALL, STORAGE_RECOVERY_CURRENT];
   return {
-    schema: "evavo.windows-storage-governance.doctor.v1",
+    schema: "evavo.windows-storage-governance.doctor.v2",
     ok: scripts.every((item) => existsSync(item)),
     server: SERVER_NAME,
     version: SERVER_VERSION,
     fixedHelpersPresent: scripts.every((item) => existsSync(item)),
+    preferredRecoveryTool: "evavo_storage_recovery_current",
     tools: TOOLS.map((tool) => tool.name),
     googleCapacityBytes: 15_000_000_000,
     googlePrepareAtBasisPoints: 8500,
@@ -124,12 +134,52 @@ function status(args) {
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
 
+function recoverCurrent() {
+  const receipt = runPowerShell(STORAGE_RECOVERY_CURRENT, ["-FleetRoot", "C:\\GitRepos", "-Unattended"], 7_500_000);
+  if (
+    receipt.kind !== "evavo-storage-current-recovery-v5" ||
+    Number(receipt.schemaVersion) !== 5 ||
+    receipt.ok !== true ||
+    receipt.unattended !== true ||
+    receipt.guardianInstallationPerformed !== false ||
+    receipt.localCommandQueueRequired !== true ||
+    receipt.storageRecoveryCurrentOperationRequired !== true ||
+    receipt.currentMainFabricAcceptancePassed !== true ||
+    receipt.singleImmediateStorageCycleOwner !== true ||
+    receipt.googleCycleCompletedBeforeEstateCycle !== true ||
+    receipt.duplicateForceCyclesPerformed !== false ||
+    receipt.estateFreshReceiptProven !== true ||
+    receipt.googleFreshReceiptProven !== true ||
+    receipt.completeQuotaMeasurementRequiredForTargetClaim !== true ||
+    receipt.driveLowerBoundMayTriggerReclaim !== true ||
+    receipt.driveLowerBoundMayCertifyWholeAccountTarget !== false ||
+    Number(receipt.googleCapacityBytes) !== 15_000_000_000 ||
+    Number(receipt.downloadsCapacityBytes) !== 150_000_000_000 ||
+    Number(receipt.gitReposPlanningCeilingBytes) !== 400_000_000_000 ||
+    Number(receipt.beeStationNominalCapacityBytes) !== 4_000_000_000_000 ||
+    Number(receipt.beeStationOperationalFullBytes) !== 3_500_000_000_000 ||
+    receipt.githubActionsRequired !== false ||
+    receipt.vercelRequired !== false ||
+    receipt.mailboxRequired !== false
+  ) {
+    throw new Error("serialized current storage recovery receipt failed admission");
+  }
+  return {
+    ...receipt,
+    invokedThrough: SERVER_NAME,
+    preferredRecoveryPath: true,
+    arbitraryCommandTextAccepted: false,
+    callerSelectedPathAccepted: false,
+    credentialValuesReturned: false,
+  };
+}
+
 function activateEstate() {
   const receipt = runPowerShell(ESTATE_ACTIVATE, [], 180_000);
   if (receipt.kind !== "evavo-storage-estate-rest-executor-activation-v2" || receipt.ok !== true || receipt.taskInstalled !== true || receipt.taskStarted !== true || receipt.scheduledRuntime !== "v5") {
     throw new Error("storage-estate activation receipt failed admission");
   }
-  return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
+  return { ...receipt, invokedThrough: SERVER_NAME, preferredRecoveryPath: false, arbitraryCommandTextAccepted: false };
 }
 
 function activateGoogle() {
@@ -154,7 +204,7 @@ function activateGoogle() {
   ) {
     throw new Error("Google storage-pressure activation receipt failed admission");
   }
-  return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
+  return { ...receipt, invokedThrough: SERVER_NAME, preferredRecoveryPath: false, arbitraryCommandTextAccepted: false };
 }
 
 async function callTool(name, raw) {
@@ -164,6 +214,10 @@ async function callTool(name, raw) {
     return doctor();
   }
   if (name === "evavo_storage_governance_status") return status(args);
+  if (name === "evavo_storage_recovery_current") {
+    if (Object.keys(args).length) throw new Error("current storage recovery does not accept arguments");
+    return recoverCurrent();
+  }
   if (name === "evavo_storage_estate_activate") {
     if (Object.keys(args).length) throw new Error("estate activation does not accept arguments");
     return activateEstate();
