@@ -14,7 +14,7 @@ if(-not$env:LOCALAPPDATA){throw'EVAVO_REMOTE_ACCESS_INSTALL_LOCALAPPDATA_REQUIRE
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $PowerShell=(Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
 $TunnelV3=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1'
-$RelayDeploy=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelay.ps1'
+$RelayDeploy=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelayV2.ps1'
 foreach($Path in @($TunnelV3,$RelayDeploy)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_INSTALL_SOURCE_MISSING:$Path"}}
 foreach($Path in @($TunnelV3,$RelayDeploy)){$t=$null;$e=$null;[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$t,[ref]$e)|Out-Null;if(@($e).Count-gt0){throw "EVAVO_REMOTE_ACCESS_INSTALL_PARSE_FAILED:$Path"}}
 
@@ -64,11 +64,11 @@ if($CanUseExistingTunnel-or$CanCreateTunnel){
 
 if($ProvisionCloudflareRelay){
   $Cloudflare=Invoke-JsonPowerShell -Script $RelayDeploy
-  if([string]$Cloudflare.kind-ne'evavo-remote-mcp-relay-deployment'-or$Cloudflare.ok-ne$true){throw'EVAVO_REMOTE_ACCESS_INSTALL_CLOUDFLARE_NOT_ACCEPTED'}
+  if([string]$Cloudflare.kind-ne'evavo-remote-mcp-relay-deployment-v2'-or$Cloudflare.ok-ne$true-or$Cloudflare.cloudflareCredentialValueReturned-ne$false-or$Cloudflare.existingProviderCredentialReused-ne$true){throw'EVAVO_REMOTE_ACCESS_INSTALL_CLOUDFLARE_NOT_ACCEPTED'}
 }else{$CloudflareSkip='not-requested'}
 
 $Receipt=[ordered]@{
-  schemaVersion=2
+  schemaVersion=3
   kind='evavo-remote-workstation-access-installation'
   ok=$true
   startedAt=$Started.ToString('o')
@@ -82,8 +82,12 @@ $Receipt=[ordered]@{
   cloudflareRelay=$Cloudflare
   cloudflareRelaySkippedReason=$CloudflareSkip
   cloudflareProvisionExplicitlyRequested=[bool]$ProvisionCloudflareRelay
+  cloudflareExistingCredentialSourceReused=if($Cloudflare){[bool]$Cloudflare.existingProviderCredentialReused}else{$false}
+  cloudflareCredentialSourceCategory=if($Cloudflare){[string]$Cloudflare.credentialSourceCategory}else{$null}
+  cloudflareAccountSourceCategory=if($Cloudflare){[string]$Cloudflare.accountSourceCategory}else{$null}
   openAiCredentialValuesReturned=$false
   cloudflareCredentialValuesReturned=$false
+  cloudflareAccountIdReturned=$false
   arbitraryShellExposed=$false
   githubActionsRequired=$false
   vercelRequired=$false
@@ -91,4 +95,4 @@ $Receipt=[ordered]@{
   physicalRemoteReachabilityClaimed=[bool]($Cloudflare-and$Cloudflare.physicalWorkstationConnectionProven)
 }
 $RuntimeKey=$null;$Admin=$null
-$Receipt|ConvertTo-Json -Depth 18
+$Receipt|ConvertTo-Json -Depth 20
