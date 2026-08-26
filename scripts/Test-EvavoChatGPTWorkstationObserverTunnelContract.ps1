@@ -3,25 +3,30 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
-$Installer=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1'
+$Installer=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1'
+$InstallerV2=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1'
 $LegacyInstaller=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnel.ps1'
 $Status=Join-Path $PSScriptRoot 'Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1'
 $Observer=Join-Path $Root 'mcp-server\workstation-observer-mcp.mjs'
-foreach($Path in @($Installer,$LegacyInstaller,$Status,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "Required ChatGPT workstation observer component missing: $Path"}}
-foreach($PowerShellPath in @($Installer,$LegacyInstaller,$Status)){
+foreach($Path in @($Installer,$InstallerV2,$LegacyInstaller,$Status,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "Required ChatGPT workstation observer component missing: $Path"}}
+foreach($PowerShellPath in @($Installer,$InstallerV2,$LegacyInstaller,$Status)){
   $tokens=$null;$errors=$null
   [Management.Automation.Language.Parser]::ParseFile($PowerShellPath,[ref]$tokens,[ref]$errors)|Out-Null
   if(@($errors).Count -gt 0){throw "ChatGPT workstation observer PowerShell parse error in $PowerShellPath: $(@($errors)[0].Message)"}
 }
 $installerSource=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
+$v2Source=Get-Content -LiteralPath $InstallerV2 -Raw -Encoding UTF8
 $statusSource=Get-Content -LiteralPath $Status -Raw -Encoding UTF8
 $observerSource=Get-Content -LiteralPath $Observer -Raw -Encoding UTF8
 foreach($needle in @(
- 'tunnel-client','EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','CONTROL_PLANE_API_KEY','sample_mcp_stdio_local',
- 'workstation-observer-mcp.mjs','repositoryIndependentObserver=$true','developmentCheckoutRequiredAfterInstallation=$false',
- 'immutableObserverBundle=$true','observerReadOnly=$true','effectfulWorkstationToolsExposed=$false',
- 'chatGptProductSideConnectorSetupStillRequired=$true','proWriteActionsClaimed=$false'
-)){if(-not$installerSource.Contains($needle)){throw "ChatGPT workstation observer v2 contract missing: $needle"}}
+ 'Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1','CONTROL_PLANE_API_KEY','OPENAI_API_KEY',
+ 'SetEnvironmentVariable','runtimeCredentialPersistedForBackgroundTask=$true','runtimeCredentialInTaskArguments=$false',
+ 'runtimeCredentialValueReturned=$false','backgroundTaskAuthenticationReady=$true','repositoryIndependentObserver=$true',
+ 'immutableObserverBundle=$true','developmentCheckoutRequiredAfterInstallation=$false','effectfulWorkstationToolsExposed=$false'
+)){if(-not$installerSource.Contains($needle)){throw "ChatGPT workstation observer v3 contract missing: $needle"}}
+foreach($needle in @('tunnel-client','sample_mcp_stdio_local','workstation-observer-mcp.mjs','repositoryIndependentObserver=$true','immutableObserverBundle=$true','chatGptProductSideConnectorSetupStillRequired=$true')){
+ if(-not$v2Source.Contains($needle)){throw "ChatGPT workstation observer v2 compatibility contract missing: $needle"}
+}
 foreach($needle in @('manage-autonomous-node.ps1 -Action repair','INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.ps1 -StartNow','Invoke-Expression','powershell.command','shell.command')){
  if($installerSource.Contains($needle)){throw "ChatGPT workstation observer installer exposes effectful surface: $needle"}
 }
@@ -41,8 +46,9 @@ foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','SetEnvironm
  if($statusSource.Contains($needle)){throw "Workstation tunnel status contains mutation path: $needle"}
 }
 [ordered]@{
- schemaVersion=3;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v3';ok=$true;powershellSyntaxValid=$true
- canonicalInstaller='Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1';legacyInstallerRetained=$true
+ schemaVersion=4;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v4';ok=$true;powershellSyntaxValid=$true
+ canonicalInstaller='Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1';v2CompatibilityInstallerRetained=$true;legacyInstallerRetained=$true
+ backgroundTaskRuntimeCredentialPersisted=$true;runtimeCredentialInTaskArguments=$false;runtimeCredentialValueExposed=$false
  repositoryIndependentObserver=$true;immutableObserverBundle=$true;developmentCheckoutRequiredAfterInstallation=$false
  outboundTunnelOnly=$true;observerReadOnly=$true;effectfulWorkstationToolsExposed=$false;credentialValuesExposed=$false
  readOnlyStatusSurface=$true;doctorProbeIsExplicit=$true;chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
