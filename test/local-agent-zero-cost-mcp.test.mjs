@@ -4,11 +4,13 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../mcp-server/local-agent-zero-cost-mcp.mjs", import.meta.url), "utf8");
 
-test("zero-cost launcher prefers the managed Local Storage checkout", () => {
+test("zero-cost launcher prefers either managed Local Storage checkout before the development fallback", () => {
   assert.match(source, /zero-cost-updater/);
+  assert.match(source, /zero-cost-recovery/);
   assert.match(source, /WorkerControlPlane/);
   assert.match(source, /manage-autonomous-node\.ps1/);
-  assert.match(source, /zero-cost-managed-checkout/);
+  assert.match(source, /zero-cost-updater-managed-checkout/);
+  assert.match(source, /zero-cost-recovery-managed-checkout/);
   assert.match(source, /development-checkout-compatibility-fallback/);
 });
 
