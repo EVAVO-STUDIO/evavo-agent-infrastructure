@@ -95,7 +95,6 @@ New-Item -ItemType Directory -Path $DryRun -Force | Out-Null
 try { Invoke-NativeChecked -File $Npx -Arguments @('wrangler','deploy','--dry-run','--outdir',$DryRun) | Out-Null }
 finally { Remove-Item -LiteralPath $DryRun -Recurse -Force -ErrorAction SilentlyContinue }
 
-# First deployment creates/reconciles the Worker and SQLite Durable Object namespace.
 $InitialRaw = Invoke-NativeChecked -File $Npx -Arguments @('wrangler','deploy','--json')
 try { $Initial = $InitialRaw | ConvertFrom-Json -ErrorAction Stop } catch { throw 'EVAVO_REMOTE_MCP_RELAY_DEPLOY_INITIAL_JSON_INVALID' }
 
@@ -121,6 +120,7 @@ try {
 
     $ClientInstalled = $false
     $ClientReceipt = $null
+    $ConnectionProven = $false
     if (-not $SkipWorkstationClientInstall) {
         if ([string]::IsNullOrWhiteSpace($LocalStorageRoot)) {
             $Candidates = @(
@@ -139,17 +139,28 @@ try {
         $Wss = [UriBuilder]$RelayBaseUrl
         $Wss.Scheme='wss'; $Wss.Port=-1; $Wss.Path='/connect'
         $Secure = ConvertTo-SecureString -String $WorkstationSecret -AsPlainText -Force
-        $PowerShell = (Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
-        # Invoke in-process so SecureString never appears in child-process command arguments.
-        $InstallResult = & $Installer -Endpoint $Wss.Uri -WorkstationToken $Secure -StartNow | Out-String
-        if ($LASTEXITCODE -ne 0 -or -not $InstallResult.Trim()) { throw 'EVAVO_REMOTE_MCP_RELAY_DEPLOY_CLIENT_INSTALL_FAILED' }
-        $ClientReceipt = $InstallResult.Trim() | ConvertFrom-Json -ErrorAction Stop
+        try {
+            $InstallResult = (& $Installer -Endpoint $Wss.Uri -WorkstationToken $Secure -StartNow | Out-String).Trim()
+        }
+        catch { throw "EVAVO_REMOTE_MCP_RELAY_DEPLOY_CLIENT_INSTALL_FAILED:$($_.Exception.Message)" }
+        if (-not $InstallResult) { throw 'EVAVO_REMOTE_MCP_RELAY_DEPLOY_CLIENT_INSTALL_NO_RECEIPT' }
+        $ClientReceipt = $InstallResult | ConvertFrom-Json -ErrorAction Stop
         if ($ClientReceipt.ok -ne $true -or $ClientReceipt.tokenProtectedWithDpapiCurrentUser -ne $true -or $ClientReceipt.outboundOnly -ne $true) { throw 'EVAVO_REMOTE_MCP_RELAY_DEPLOY_CLIENT_RECEIPT_INVALID' }
         $ClientInstalled = $true
+
+        $Deadline = [DateTimeOffset]::UtcNow.AddSeconds(45)
+        do {
+            Start-Sleep -Milliseconds 750
+            try {
+                $Live = Invoke-RestMethod -Method GET -Uri "$RelayBaseUrl/health" -TimeoutSec 10 -ErrorAction Stop
+                $ConnectionProven = [bool]($Live.ok -eq $true -and $Live.workstationOnline -eq $true)
+            } catch { $ConnectionProven = $false }
+        } while (-not $ConnectionProven -and [DateTimeOffset]::UtcNow -lt $Deadline)
+        if (-not $ConnectionProven) { throw 'EVAVO_REMOTE_MCP_RELAY_DEPLOY_WORKSTATION_DID_NOT_CONNECT' }
     }
 
     [ordered]@{
-        schemaVersion=1
+        schemaVersion=2
         kind='evavo-remote-mcp-relay-deployment'
         ok=$true
         relayBaseUrl=$RelayBaseUrl
@@ -161,6 +172,8 @@ try {
         requiredSecretsProvisioned=$true
         workstationSecretReturned=$false
         dispatchSecretReturned=$false
+        dispatchCallerCredentialProvisioned=$false
+        effectfulDispatchReadyForExternalCaller=$false
         workstationClientInstalled=$ClientInstalled
         workstationClient=if($ClientReceipt){$ClientReceipt}else{$null}
         currentChatGptProMcpSurface='read-only-status-capabilities-request-status'
@@ -168,7 +181,7 @@ try {
         githubActionsRequired=$false
         vercelRequired=$false
         paidRelayRequired=$false
-        physicalWorkstationConnectionProven=$false
+        physicalWorkstationConnectionProven=$ConnectionProven
     } | ConvertTo-Json -Depth 12
 }
 finally {
