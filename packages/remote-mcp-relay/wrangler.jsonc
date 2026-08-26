@@ -1,7 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "evavo-workstation-mcp-relay",
-  "main": "src/index.ts",
+  "main": "src/worker.ts",
   "compatibility_date": "2026-08-26",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
