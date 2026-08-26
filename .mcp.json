@@ -8,6 +8,17 @@
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
     },
+    "evavo-windows-chat-execution": {
+      "command": "node",
+      "args": ["./mcp-server/windows-chat-execution-mcp.mjs"],
+      "env": {
+        "EVAVO_WINDOWS_CHAT_EXECUTION_ENABLED": "enabled",
+        "EVAVO_WINDOWS_CHAT_EXECUTION_AUTO_RECOVER": "enabled",
+        "EVAVO_WINDOWS_CHAT_ALLOWED_ROOTS": "C:\\GitRepos;%LOCALAPPDATA%\\EVAVO;%USERPROFILE%\\Downloads",
+        "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage",
+        "EVAVO_SERVICE_CONTROL_PLANE_ROOT": "C:\\GitRepos\\evavo-service-control-plane"
+      }
+    },
     "evavo-android-device": {
       "command": "node",
       "args": ["./mcp-server/android-device-mcp.mjs"],
