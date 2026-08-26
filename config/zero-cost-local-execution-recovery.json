@@ -14,7 +14,10 @@
   "developmentConsumer": "EVAVO-STUDIO/evavo-development-studio",
   "recoverySelection": {
     "preferManagedLocalStorageCheckout": true,
-    "managedCheckout": "%LOCALAPPDATA%/EVAVO/WorkerControlPlane/zero-cost-updater/runtime/evavo-local-storage",
+    "managedCheckoutOrder": [
+      "%LOCALAPPDATA%/EVAVO/WorkerControlPlane/zero-cost-updater/runtime/evavo-local-storage",
+      "%LOCALAPPDATA%/EVAVO/WorkerControlPlane/zero-cost-recovery/runtime/evavo-local-storage"
+    ],
     "developmentCheckoutCompatibilityFallback": "C:/GitRepos/evavo-local-storage",
     "fallbackIsCanonicalAfterEstablishment": false
   },
@@ -22,6 +25,7 @@
     "recoveryTask": "EVAVO Zero Cost Worker Recovery",
     "updaterTask": "EVAVO Zero Cost Trusted Updater",
     "mutualRecovery": true,
+    "eitherManagedPeerMaySupplyManagementReceiver": true,
     "developmentCheckoutRequiredAfterEstablishment": false,
     "githubActionsRequired": false,
     "selfHostedActionsRunnerRequired": false,
