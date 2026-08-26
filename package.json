@@ -35,7 +35,7 @@
     "remote-access:install": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoRemoteWorkstationAccess.ps1 -StartNow -Json",
     "remote-access:install-with-cloudflare": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoRemoteWorkstationAccess.ps1 -StartNow -ProvisionCloudflareRelay -Json",
     "remote-access:status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1",
-    "remote-access:doctor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1 -ProbeOpenAiTunnelDoctor -ProbeRestHealth",
+    "remote-access:doctor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1 -ProbeOpenAiTunnelDoctor -ProbeRestHealth -ProbeProviderCliAuth",
     "remote-mcp-relay:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Deploy-EvavoRemoteMcpRelayV2.ps1",
     "remote-mcp-relay:deploy-v1": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Deploy-EvavoRemoteMcpRelay.ps1",
     "check": "pnpm test && pnpm test:android-mcps && pnpm test:physical-device-contract && pnpm test:chatgpt-android-observer-contract && pnpm test:chatgpt-workstation-observer-contract && pnpm test:remote-access-install-contract && pnpm test:remote-mcp-relay-contract && pnpm test:provider-credential-readiness",
