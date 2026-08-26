@@ -5,7 +5,7 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-storage-governance-mcp";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.0.1";
 const STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT || "C:\\GitRepos\\evavo-local-storage";
 const STATUS = path.join(STORAGE_ROOT, "scripts", "Get-EvavoStorageEstateStatus.ps1");
 const ESTATE_ACTIVATE = path.join(STORAGE_ROOT, "scripts", "Invoke-EvavoStorageEstateRestExecutor.ps1");
@@ -134,7 +134,24 @@ function activateEstate() {
 
 function activateGoogle() {
   const receipt = runPowerShell(GOOGLE_TASK_INSTALL, ["-StartNow"], 90_000);
-  if (receipt.kind !== "evavo-google-storage-pressure-current-installation-v1" || receipt.ok !== true || receipt.taskExact !== true || receipt.started !== true || receipt.cycleOnlyScheduled !== true || Number(receipt.triggerAtBasisPoints) !== 9000 || Number(receipt.targetAtBasisPoints) !== 7500) {
+  if (
+    receipt.kind !== "evavo-google-storage-pressure-current-installation-v1" ||
+    receipt.ok !== true ||
+    receipt.taskExact !== true ||
+    receipt.started !== true ||
+    receipt.cycleOnlyScheduled !== true ||
+    Number(receipt.prepareAtBasisPoints) !== 8500 ||
+    Number(receipt.triggerAtBasisPoints) !== 9000 ||
+    Number(receipt.targetBasisPoints) !== 7500 ||
+    Number(receipt.fallbackQuotaLimitBytes) !== 15_000_000_000 ||
+    receipt.overQuotaTriggersReclaim !== true ||
+    receipt.archiveBeforeReclaimRequired !== true ||
+    receipt.exactAcquisitionRequired !== true ||
+    receipt.deepLocalVerificationRequired !== true ||
+    receipt.offsiteReplicaRequired !== true ||
+    receipt.providerMetadataRereadRequired !== true ||
+    receipt.githubActionsRequired !== false
+  ) {
     throw new Error("Google storage-pressure activation receipt failed admission");
   }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
