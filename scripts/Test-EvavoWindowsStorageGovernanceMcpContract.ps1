@@ -12,9 +12,17 @@ if ($Item.PSIsContainer -or ($Item.Attributes -band [IO.FileAttributes]::Reparse
 $Text = Get-Content -LiteralPath $Server -Raw -Encoding UTF8
 
 $Required = @(
-    'const SERVER_VERSION = "1.1.0"',
+    'const SERVER_VERSION = "1.2.0"',
     'EVAVO_LOCAL_COMPUTE_ROOT',
     'RECOVER-EVAVO-STORAGE-CURRENT.ps1',
+    'Get-EvavoStorageExecutionControlPlaneStatus.ps1',
+    'evavo_storage_execution_status',
+    'executionStatusTool: "evavo_storage_execution_status"',
+    'taskPresenceIsNotConsumerProof !== true',
+    'freshHeartbeatAndSuccessfulTaskRunRequired !== true',
+    'receipt.mutationPerformed !== false',
+    'receipt.networkPerformed !== false',
+    'receipt.providerMutationPerformed !== false',
     'evavo_storage_recovery_current',
     'preferredRecoveryTool: "evavo_storage_recovery_current"',
     'evavo-storage-current-recovery-v5',
@@ -56,11 +64,14 @@ foreach ($Marker in $Forbidden) {
 }
 
 [ordered]@{
-    schemaVersion = 1
-    kind = 'evavo-windows-storage-governance-mcp-contract-v1'
+    schemaVersion = 2
+    kind = 'evavo-windows-storage-governance-mcp-contract-v2'
     ok = $true
     preferredRecoveryTool = 'evavo_storage_recovery_current'
+    executionStatusTool = 'evavo_storage_execution_status'
     serializedCurrentRecoveryRequired = $true
+    taskPresenceIsNotConsumerProof = $true
+    freshHeartbeatAndSuccessfulTaskRunRequired = $true
     googleCapacityBytes = 15000000000L
     downloadsCapacityBytes = 150000000000L
     gitReposPlanningCeilingBytes = 400000000000L
