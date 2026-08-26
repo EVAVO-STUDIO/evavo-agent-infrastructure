@@ -4,12 +4,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $Installer=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnel.ps1'
+$Status=Join-Path $PSScriptRoot 'Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1'
 $Observer=Join-Path $Root 'mcp-server\workstation-observer-mcp.mjs'
-foreach($Path in @($Installer,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "Required ChatGPT workstation observer component missing: $Path"}}
-$tokens=$null;$errors=$null
-[Management.Automation.Language.Parser]::ParseFile($Installer,[ref]$tokens,[ref]$errors)|Out-Null
-if(@($errors).Count -gt 0){throw "ChatGPT workstation observer tunnel installer has PowerShell parse errors: $(@($errors)[0].Message)"}
+foreach($Path in @($Installer,$Status,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "Required ChatGPT workstation observer component missing: $Path"}}
+foreach($PowerShellPath in @($Installer,$Status)){
+  $tokens=$null;$errors=$null
+  [Management.Automation.Language.Parser]::ParseFile($PowerShellPath,[ref]$tokens,[ref]$errors)|Out-Null
+  if(@($errors).Count -gt 0){throw "ChatGPT workstation observer PowerShell parse error in $PowerShellPath: $(@($errors)[0].Message)"}
+}
 $installerSource=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
+$statusSource=Get-Content -LiteralPath $Status -Raw -Encoding UTF8
 $observerSource=Get-Content -LiteralPath $Observer -Raw -Encoding UTF8
 foreach($needle in @(
  'tunnel-client','EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','CONTROL_PLANE_API_KEY','sample_mcp_stdio_local',
@@ -28,8 +32,14 @@ foreach($needle in @('evavo_workstation_observer_status','evavo_workstation_obse
 foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','Repair-EvavoRemoteMcpRelayClient.ps1','manage-autonomous-node.ps1","-Action","repair')){
  if($observerSource.Contains($needle)){throw "Workstation observer contains forbidden mutation path: $needle"}
 }
+foreach($needle in @('tunnelIdReturned=$false','runtimeKeyReturned=$false','chatGptConnectorRegistrationPerformed=$false','chatGptProductSideConnectorSetupStillRequired=$true','physicalTunnelReachabilityClaimed=')){
+ if(-not$statusSource.Contains($needle)){throw "Workstation tunnel status contract missing: $needle"}
+}
+foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','SetEnvironmentVariable(','New-ItemProperty')){
+ if($statusSource.Contains($needle)){throw "Workstation tunnel status contains mutation path: $needle"}
+}
 [ordered]@{
- schemaVersion=1;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v1';ok=$true;powershellSyntaxValid=$true
+ schemaVersion=2;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v2';ok=$true;powershellSyntaxValid=$true
  outboundTunnelOnly=$true;observerReadOnly=$true;effectfulWorkstationToolsExposed=$false;credentialValuesExposed=$false
- chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
+ readOnlyStatusSurface=$true;doctorProbeIsExplicit=$true;chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
 }|ConvertTo-Json -Depth 8
