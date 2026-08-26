@@ -1,14 +1,10 @@
 {
   "name": "evavo-agent-infrastructure",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Comprehensive agent infrastructure for EVAVO ecosystem - code, test, build, deploy, review",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "packages/*",
-    "mcp-server",
-    "cli-tool"
-  ],
+  "workspaces": ["packages/*","mcp-server","cli-tool"],
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
@@ -31,6 +27,7 @@
     "chatgpt:android-observer-tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTAndroidObserverTunnel.ps1 -StartNow -Json",
     "chatgpt:workstation-observer-tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1 -StartNow -Json",
     "chatgpt:windows-execution-tunnel": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWindowsExecutionTunnel.ps1 -StartNow -Json",
+    "chatgpt:windows-execution-status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoChatGPTWindowsExecutionTunnelStatus.ps1 -ProbeTunnelDoctor",
     "chatgpt:workstation-observer-tunnel-v2": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1 -StartNow -Json",
     "chatgpt:workstation-observer-tunnel-v1": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Install-EvavoChatGPTWorkstationObserverTunnel.ps1 -StartNow -Json",
     "chatgpt:workstation-observer-status": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1",
@@ -61,8 +58,5 @@
     "vitest": "^2.0.0",
     "typedoc": "^0.25.0"
   },
-  "engines": {
-    "node": ">=20.0.0",
-    "pnpm": ">=8.0.0"
-  }
+  "engines": {"node":">=20.0.0","pnpm":">=8.0.0"}
 }
