@@ -7,6 +7,7 @@ const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "ut
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const deploy = readFileSync(new URL("../../../scripts/Deploy-EvavoRemoteMcpRelay.ps1", import.meta.url), "utf8");
+const deployV2 = readFileSync(new URL("../../../scripts/Deploy-EvavoRemoteMcpRelayV2.ps1", import.meta.url), "utf8");
 
 test("remote MCP exposes only read-only workstation tools", () => {
   assert.match(source, /workstation_status/);
@@ -67,12 +68,27 @@ test("deployment requires a live workstation connection when client installation
   assert.match(deploy, /WorkstationToken \$Secure -StartNow/);
 });
 
+test("canonical deploy wrapper selects an admitted current Local Storage checkout", () => {
+  assert.match(deployV2, /Test-AdmittedLocalStorageSource/);
+  assert.match(deployV2, /zero-cost-updater\\runtime\\evavo-local-storage/);
+  assert.match(deployV2, /zero-cost-recovery\\runtime\\evavo-local-storage/);
+  assert.match(deployV2, /zero-cost-logon-guardian\\runtime\\evavo-local-storage/);
+  assert.match(deployV2, /refs\/remotes\/origin\/main/);
+  assert.match(deployV2, /fetch --no-tags origin main/);
+  assert.match(deployV2, /EVAVO_REMOTE_MCP_RELAY_DEPLOY_V2_NO_ADMITTED_LOCAL_STORAGE_SOURCE/);
+  assert.match(deployV2, /localStorageSourcePathReturned=\$false/);
+  assert.doesNotMatch(deployV2, /reset --hard/i);
+  assert.doesNotMatch(deployV2, /git clean/i);
+});
+
 test("deployment keeps generated relay secrets out of receipts", () => {
   assert.match(deploy, /workstationSecretReturned=\$false/);
   assert.match(deploy, /dispatchSecretReturned=\$false/);
   assert.match(deploy, /wrangler secret put/);
   assert.doesNotMatch(deploy, /Write-Host\s+\$WorkstationSecret/i);
   assert.doesNotMatch(deploy, /Write-Host\s+\$DispatchSecret/i);
+  assert.match(deployV2, /cloudflareCredentialValueReturned=\$false/);
+  assert.match(deployV2, /cloudflareAccountIdReturned=\$false/);
 });
 
 test("documentation keeps local executors private and plan boundaries explicit", () => {
