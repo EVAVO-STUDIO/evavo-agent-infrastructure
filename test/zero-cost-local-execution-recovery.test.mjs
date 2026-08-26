@@ -41,6 +41,32 @@ test("Agent Infrastructure recognizes the physically accepted REST v5 recovery p
   assert.equal(policy.truthBoundary.restBootstrapMeansMailboxRecovered, false);
 });
 
+test("current ChatGPT read access uses repository-independent Secure MCP Tunnel", () => {
+  assert.equal(policy.remoteAccess.currentChatGptReadPath, "openai-secure-mcp-tunnel");
+  assert.equal(policy.remoteAccess.chatGptObserverInstaller, "scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1");
+  assert.equal(policy.remoteAccess.chatGptObserverStatus, "scripts/Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1");
+  assert.equal(policy.remoteAccess.chatGptObserverRepositoryIndependent, true);
+  assert.equal(policy.remoteAccess.chatGptObserverImmutableBundle, true);
+  assert.equal(policy.remoteAccess.chatGptObserverDevelopmentCheckoutRequiredAfterInstallation, false);
+  assert.equal(policy.remoteAccess.chatGptObserverReadOnly, true);
+  assert.equal(policy.remoteAccess.chatGptObserverEffectfulToolsExposed, false);
+  assert.equal(policy.truthBoundary.secureMcpTunnelInstalledMeansChatGptConnectorRegistered, false);
+  assert.equal(policy.truthBoundary.remoteObserverStatusMeansEffectfulExecutionAvailable, false);
+});
+
+test("Cloudflare relay is independent, outbound-only and not routine recovery authority", () => {
+  assert.equal(policy.remoteAccess.cloudflareRelayPackage, "packages/remote-mcp-relay");
+  assert.equal(policy.remoteAccess.cloudflareRelayMcpReadOnly, true);
+  assert.equal(policy.remoteAccess.cloudflareRelayDispatchSeparateFromMcp, true);
+  assert.equal(policy.remoteAccess.cloudflareRelayRawShellExposed, false);
+  assert.equal(policy.remoteAccess.cloudflareRelayWorkstationOutboundOnly, true);
+  assert.equal(policy.remoteAccess.cloudflareRelayDpapiClientOwner, "EVAVO-STUDIO/evavo-local-storage");
+  assert.equal(policy.remoteAccess.cloudflareRelayRequiredForRoutineRecovery, false);
+  assert.equal(policy.remoteAccess.githubActionsRequiredForRemoteAccess, false);
+  assert.equal(policy.remoteAccess.vercelRequiredForRemoteAccess, false);
+  assert.equal(policy.truthBoundary.cloudflareRelaySourcePresentMeansRelayDeployed, false);
+});
+
 test("Agent Infrastructure recovery remains zero-cost and receipt-bound", () => {
   assert.equal(policy.automation.recoveryTask, "EVAVO Zero Cost Worker Recovery");
   assert.equal(policy.automation.updaterTask, "EVAVO Zero Cost Trusted Updater");
