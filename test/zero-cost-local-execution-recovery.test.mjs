@@ -41,13 +41,17 @@ test("Agent Infrastructure recognizes the physically accepted REST v5 recovery p
   assert.equal(policy.truthBoundary.restBootstrapMeansMailboxRecovered, false);
 });
 
-test("current ChatGPT read access uses repository-independent Secure MCP Tunnel", () => {
+test("current ChatGPT read access uses repository-independent Secure MCP Tunnel v3", () => {
   assert.equal(policy.remoteAccess.currentChatGptReadPath, "openai-secure-mcp-tunnel");
-  assert.equal(policy.remoteAccess.chatGptObserverInstaller, "scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1");
+  assert.equal(policy.remoteAccess.chatGptObserverInstaller, "scripts/Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1");
+  assert.equal(policy.remoteAccess.chatGptObserverCompatibilityInstaller, "scripts/Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1");
   assert.equal(policy.remoteAccess.chatGptObserverStatus, "scripts/Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1");
   assert.equal(policy.remoteAccess.chatGptObserverRepositoryIndependent, true);
   assert.equal(policy.remoteAccess.chatGptObserverImmutableBundle, true);
   assert.equal(policy.remoteAccess.chatGptObserverDevelopmentCheckoutRequiredAfterInstallation, false);
+  assert.equal(policy.remoteAccess.chatGptObserverBackgroundCredentialPersisted, true);
+  assert.equal(policy.remoteAccess.chatGptObserverRuntimeCredentialInTaskArguments, false);
+  assert.equal(policy.remoteAccess.chatGptObserverRuntimeCredentialValueReturned, false);
   assert.equal(policy.remoteAccess.chatGptObserverReadOnly, true);
   assert.equal(policy.remoteAccess.chatGptObserverEffectfulToolsExposed, false);
   assert.equal(policy.truthBoundary.secureMcpTunnelInstalledMeansChatGptConnectorRegistered, false);
