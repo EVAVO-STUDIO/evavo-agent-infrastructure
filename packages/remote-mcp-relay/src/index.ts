@@ -138,8 +138,30 @@ function publicStatus(raw: Record<string, unknown>): Record<string, unknown> {
   };
 }
 
+function publicRequestStatus(raw: Record<string, unknown>): Record<string, unknown> {
+  const request = raw.request && typeof raw.request === "object" && !Array.isArray(raw.request)
+    ? (raw.request as Record<string, unknown>)
+    : null;
+  if (!request) return { ok: raw.ok === true, error: raw.error ?? null, requestId: raw.requestId ?? null };
+  const action = typeof request.action === "string" ? request.action : "unknown";
+  return {
+    ok: raw.ok === true,
+    request: {
+      id: request.id ?? null,
+      action,
+      status: request.status ?? null,
+      requestedAt: request.requestedAt ?? null,
+      deadline: request.deadline ?? null,
+      completedAt: request.completedAt ?? null,
+      succeeded: request.ok ?? null,
+      storageResultAvailableThroughAuthenticatedApi: STORAGE_ACTIONS.has(action) && request.status !== "queued",
+      detailedResultExposedThroughMcp: false,
+    },
+  };
+}
+
 function createServer(env: Env): McpServer {
-  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.2.0" });
+  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.2.1" });
 
   server.registerTool(
     "workstation_status",
@@ -167,11 +189,11 @@ function createServer(env: Env): McpServer {
   server.registerTool(
     "workstation_request_status",
     {
-      description: "Read a previously dispatched workstation request by its opaque UUID. This tool never dispatches work.",
+      description: "Read coarse status for a previously dispatched workstation request by opaque UUID. Detailed results are never exposed through this read-only MCP tool.",
       inputSchema: z.object({ requestId: z.string().uuid() }),
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ requestId }) => ({ content: [{ type: "text", text: JSON.stringify(await relayRequestStatus(env, requestId)) }] }),
+    async ({ requestId }) => ({ content: [{ type: "text", text: JSON.stringify(publicRequestStatus(await relayRequestStatus(env, requestId))) }] }),
   );
 
   return server;
@@ -229,13 +251,13 @@ export class WorkstationRelay extends DurableObject<Env> {
     await this.ctx.storage.put("presence", next);
   }
 
-  private async persistResult(message: DispatchResult): Promise<void> {
-    const previous = await this.readPresence();
-    if (previous) {
-      await this.ctx.storage.put("presence", { ...previous, lastSeen: new Date().toISOString(), lastReceiptKind: message.action.slice(0, 128), lastReceiptAt: message.completedAt } satisfies RelayPresence);
-    }
+  private async acceptResult(message: DispatchResult): Promise<void> {
     const existing = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
-    if (!existing || existing.action !== message.action) return;
+    if (!existing || existing.action !== message.action || existing.status !== "queued") return;
+    if (!Number.isFinite(Date.parse(message.completedAt))) return;
+    const encoded = new TextEncoder().encode(JSON.stringify(message));
+    if (encoded.byteLength > MAX_RESULT_BYTES) return;
+
     const record: DispatchRecord = {
       ...existing,
       status: message.ok ? "completed" : "failed",
@@ -245,6 +267,17 @@ export class WorkstationRelay extends DurableObject<Env> {
       ...(message.error === undefined ? {} : { error: message.error.slice(0, 1024) }),
     };
     await this.ctx.storage.put(this.requestKey(message.id), record, { expirationTtl: REQUEST_RETENTION_SECONDS });
+
+    const previous = await this.readPresence();
+    if (previous) {
+      await this.ctx.storage.put("presence", { ...previous, lastSeen: new Date().toISOString(), lastReceiptKind: message.action.slice(0, 128), lastReceiptAt: message.completedAt } satisfies RelayPresence);
+    }
+
+    const pending = this.pending.get(message.id);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pending.delete(message.id);
+    pending.resolve(message);
   }
 
   private async requestStatus(id: string): Promise<Response> {
@@ -290,7 +323,6 @@ export class WorkstationRelay extends DurableObject<Env> {
     });
     try {
       const result = await resultPromise;
-      if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_RESULT_BYTES) return json({ ok: false, error: "result-too-large", id }, { status: 502 });
       return json(result, { status: result.ok ? 200 : 502 });
     } catch (error) {
       const pending = this.pending.get(id);
@@ -322,13 +354,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     try { parsed = JSON.parse(message) as Record<string, unknown>; } catch { return; }
     if (parsed.type === "hello" || parsed.type === "heartbeat") { this.ctx.waitUntil(this.persistPresence(parsed)); return; }
     if (parsed.type !== "result" || typeof parsed.id !== "string" || typeof parsed.action !== "string" || typeof parsed.ok !== "boolean" || typeof parsed.completedAt !== "string") return;
-    const result = parsed as unknown as DispatchResult;
-    this.ctx.waitUntil(this.persistResult(result));
-    const pending = this.pending.get(result.id);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    this.pending.delete(result.id);
-    pending.resolve(result);
+    this.ctx.waitUntil(this.acceptResult(parsed as unknown as DispatchResult));
   }
 
   webSocketClose(socket: WebSocket, code: number, reason: string, wasClean: boolean): void {
