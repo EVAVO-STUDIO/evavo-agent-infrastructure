@@ -75,9 +75,6 @@ const ACTIONS = new Set([
   "workstation.repair",
   "workstation.bootstrap",
   "rest.health",
-  "execution.prepare",
-  "execution.run_request",
-  "godot.runtime_probe",
   ...STORAGE_ACTIONS,
 ]);
 
