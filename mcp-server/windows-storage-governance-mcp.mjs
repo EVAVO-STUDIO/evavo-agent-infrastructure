@@ -5,18 +5,19 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-storage-governance-mcp";
-const SERVER_VERSION = "1.1.0";
+const SERVER_VERSION = "1.2.0";
 const STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT || "C:\\GitRepos\\evavo-local-storage";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const STATUS = path.join(STORAGE_ROOT, "scripts", "Get-EvavoStorageEstateStatus.ps1");
 const ESTATE_ACTIVATE = path.join(STORAGE_ROOT, "scripts", "Invoke-EvavoStorageEstateRestExecutor.ps1");
 const GOOGLE_TASK_INSTALL = path.join(STORAGE_ROOT, "scripts", "Install-GoogleStoragePressureTaskCurrent.ps1");
 const STORAGE_RECOVERY_CURRENT = path.join(LOCAL_COMPUTE_ROOT, "RECOVER-EVAVO-STORAGE-CURRENT.ps1");
+const EXECUTION_CONTROL_STATUS = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoStorageExecutionControlPlaneStatus.ps1");
 
 const TOOLS = Object.freeze([
   {
     name: "evavo_storage_governance_doctor",
-    description: "Verify the fixed EVAVO Windows storage-governance scripts are present. Performs no scan, move, delete or provider mutation.",
+    description: "Verify the fixed EVAVO Windows storage-governance and execution-control scripts are present. Performs no scan, move, delete or provider mutation.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { "io.evavo/effects": ["read"], "io.evavo/arbitraryCommandTextAccepted": false },
@@ -27,6 +28,16 @@ const TOOLS = Object.freeze([
     inputSchema: {
       type: "object", additionalProperties: false,
       properties: { maximumInventoryAgeHours: { type: "integer", minimum: 1, maximum: 168, default: 12 } },
+    },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: { "io.evavo/effects": ["read"], "io.evavo/arbitraryCommandTextAccepted": false },
+  },
+  {
+    name: "evavo_storage_execution_status",
+    description: "Read the paired local-command and GitHub local-execution consumer state. Consumer readiness requires a fresh startup heartbeat plus a successful scheduled run; task presence alone is never accepted as execution proof.",
+    inputSchema: {
+      type: "object", additionalProperties: false,
+      properties: { maximumHeartbeatAgeSeconds: { type: "integer", minimum: 30, maximum: 3600, default: 300 } },
     },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { "io.evavo/effects": ["read"], "io.evavo/arbitraryCommandTextAccepted": false },
@@ -95,14 +106,15 @@ function runPowerShell(script, args = [], timeout = 180_000) {
 }
 
 function doctor() {
-  const scripts = [STATUS, ESTATE_ACTIVATE, GOOGLE_TASK_INSTALL, STORAGE_RECOVERY_CURRENT];
+  const scripts = [STATUS, EXECUTION_CONTROL_STATUS, ESTATE_ACTIVATE, GOOGLE_TASK_INSTALL, STORAGE_RECOVERY_CURRENT];
   return {
-    schema: "evavo.windows-storage-governance.doctor.v2",
+    schema: "evavo.windows-storage-governance.doctor.v3",
     ok: scripts.every((item) => existsSync(item)),
     server: SERVER_NAME,
     version: SERVER_VERSION,
     fixedHelpersPresent: scripts.every((item) => existsSync(item)),
     preferredRecoveryTool: "evavo_storage_recovery_current",
+    executionStatusTool: "evavo_storage_execution_status",
     tools: TOOLS.map((tool) => tool.name),
     googleCapacityBytes: 15_000_000_000,
     googlePrepareAtBasisPoints: 8500,
@@ -130,6 +142,27 @@ function status(args) {
   const receipt = runPowerShell(STATUS, ["-MaximumInventoryAgeHours", String(hours)], 45_000);
   if (receipt.kind !== "evavo-storage-estate-status-v5" || receipt.ok !== true || receipt.mutationPerformed !== false) {
     throw new Error("storage-governance status receipt failed admission");
+  }
+  return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
+}
+
+function executionStatus(args) {
+  const seconds = args.maximumHeartbeatAgeSeconds === undefined ? 300 : Number(args.maximumHeartbeatAgeSeconds);
+  if (!Number.isInteger(seconds) || seconds < 30 || seconds > 3600) throw new Error("maximumHeartbeatAgeSeconds must be 30-3600");
+  const receipt = runPowerShell(EXECUTION_CONTROL_STATUS, ["-MaximumHeartbeatAgeSeconds", String(seconds)], 30_000);
+  if (
+    receipt.kind !== "evavo-storage-execution-control-plane-status-v1" ||
+    receipt.ok !== true ||
+    receipt.taskPresenceIsNotConsumerProof !== true ||
+    receipt.freshHeartbeatAndSuccessfulTaskRunRequired !== true ||
+    receipt.mutationPerformed !== false ||
+    receipt.networkPerformed !== false ||
+    receipt.providerMutationPerformed !== false ||
+    receipt.githubActionsRequired !== false ||
+    receipt.vercelRequired !== false ||
+    receipt.mailboxRequired !== false
+  ) {
+    throw new Error("storage execution-control status receipt failed admission");
   }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
@@ -214,6 +247,7 @@ async function callTool(name, raw) {
     return doctor();
   }
   if (name === "evavo_storage_governance_status") return status(args);
+  if (name === "evavo_storage_execution_status") return executionStatus(args);
   if (name === "evavo_storage_recovery_current") {
     if (Object.keys(args).length) throw new Error("current storage recovery does not accept arguments");
     return recoverCurrent();
