@@ -68,7 +68,7 @@ if($ProvisionCloudflareRelay){
 }else{$CloudflareSkip='not-requested'}
 
 $Receipt=[ordered]@{
-  schemaVersion=1
+  schemaVersion=2
   kind='evavo-remote-workstation-access-installation'
   ok=$true
   startedAt=$Started.ToString('o')
@@ -77,6 +77,8 @@ $Receipt=[ordered]@{
   minimumLocalRecoveryPlanesInstalled=[int]$Bootstrap.minimumRecoveryPlanesInstalled
   openAiSecureMcpTunnel=$Tunnel
   openAiSecureMcpTunnelSkippedReason=$TunnelSkip
+  openAiTunnelTaskStarted=if($Tunnel){[bool]$Tunnel.started}else{$false}
+  openAiTunnelStartIsPhysicalReachabilityProof=$false
   cloudflareRelay=$Cloudflare
   cloudflareRelaySkippedReason=$CloudflareSkip
   cloudflareProvisionExplicitlyRequested=[bool]$ProvisionCloudflareRelay
@@ -86,7 +88,7 @@ $Receipt=[ordered]@{
   githubActionsRequired=$false
   vercelRequired=$false
   developmentCheckoutRequiredAfterEstablishment=$false
-  physicalRemoteReachabilityClaimed=[bool](($Tunnel-and$Tunnel.started)-or($Cloudflare-and$Cloudflare.physicalWorkstationConnectionProven))
+  physicalRemoteReachabilityClaimed=[bool]($Cloudflare-and$Cloudflare.physicalWorkstationConnectionProven)
 }
 $RuntimeKey=$null;$Admin=$null
 $Receipt|ConvertTo-Json -Depth 18
