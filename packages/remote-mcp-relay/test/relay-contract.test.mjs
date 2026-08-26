@@ -25,10 +25,21 @@ test("MCP v2 tool schemas use raw Zod shapes", () => {
   assert.equal(packageJson.dependencies.agents, "^0.21.0");
 });
 
-test("effectful dispatch is separately authenticated and typed", () => {
+test("effectful dispatch is separately authenticated, typed and end-to-end implemented", () => {
   assert.match(source, /\/api\/dispatch/);
   assert.match(source, /DISPATCH_TOKEN/);
   assert.match(source, /const ACTIONS = new Set/);
+  for (const action of [
+    "workstation.status",
+    "workstation.repair",
+    "workstation.bootstrap",
+    "rest.health",
+    "storage.status",
+    "storage.inventory.refresh",
+    "storage.google_pressure.activate",
+    "storage.estate.activate",
+  ]) assert.match(source, new RegExp(action.replaceAll(".", "\\.")));
+  for (const reserved of ["execution.prepare", "execution.run_request", "godot.runtime_probe"]) assert.doesNotMatch(source, new RegExp(reserved.replaceAll(".", "\\.")));
   assert.match(source, /action-not-admitted/);
   assert.doesNotMatch(source, /powershell\.command/i);
   assert.doesNotMatch(source, /shell\.command/i);
