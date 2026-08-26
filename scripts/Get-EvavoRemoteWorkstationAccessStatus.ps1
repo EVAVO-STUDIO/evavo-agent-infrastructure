@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$ProbeOpenAiTunnelDoctor,
-    [switch]$ProbeRestHealth
+    [switch]$ProbeRestHealth,
+    [switch]$ProbeProviderCliAuth
 )
 
 Set-StrictMode -Version Latest
@@ -11,8 +12,9 @@ if($env:OS-ne'Windows_NT'){throw'EVAVO_REMOTE_ACCESS_STATUS_WINDOWS_REQUIRED'}
 
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $TunnelStatus=Join-Path $PSScriptRoot 'Get-EvavoChatGPTWorkstationObserverTunnelStatus.ps1'
+$ProviderStatus=Join-Path $PSScriptRoot 'Get-EvavoProviderCredentialReadiness.ps1'
 $Observer=Join-Path $Root 'mcp-server\workstation-observer-mcp.mjs'
-foreach($Path in @($TunnelStatus,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_STATUS_SOURCE_MISSING:$Path"}}
+foreach($Path in @($TunnelStatus,$ProviderStatus,$Observer)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_STATUS_SOURCE_MISSING:$Path"}}
 $PowerShell=(Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
 
 function Invoke-JsonScript {
@@ -25,6 +27,9 @@ function Invoke-JsonScript {
 $TunnelArgs=@()
 if($ProbeOpenAiTunnelDoctor){$TunnelArgs+='-ProbeDoctor'}
 $OpenAi=Invoke-JsonScript -Script $TunnelStatus -Arguments $TunnelArgs
+$ProviderArgs=@()
+if($ProbeProviderCliAuth){$ProviderArgs+='-ProbeCliAuth'}
+$Providers=Invoke-JsonScript -Script $ProviderStatus -Arguments $ProviderArgs
 
 $LocalStorage=$null
 $Local=$env:LOCALAPPDATA
@@ -54,12 +59,22 @@ $AutomationHealthy=[bool]($Automation-and$Automation.ok-eq$true)
 $RestHealthy=[bool]($Rest-and[string]$Rest.status-eq'healthy'-and[string]$Rest.version-eq'5.0.0'-and[int]$Rest.api_revision-ge2)
 
 [ordered]@{
- schemaVersion=1
- kind='evavo-remote-workstation-access-status-v1'
+ schemaVersion=2
+ kind='evavo-remote-workstation-access-status-v2'
  ok=[bool]($AutomationHealthy-or$OpenAiInstalled-or$RelayTaskHealthy-or$RestHealthy)
  checkedAt=[DateTimeOffset]::UtcNow.ToString('o')
  localStorageSourceAvailable=[bool]$LocalStorage
  localStorageSourcePathReturned=$false
+ providerReadiness=if($Providers){[ordered]@{
+   available=$true
+   cliAuthProbeRequested=[bool]$ProbeProviderCliAuth
+   github=[ordered]@{cliAvailable=[bool]$Providers.github.cliAvailable;authProbeAttempted=[bool]$Providers.github.authProbeAttempted;authProbePassed=[bool]$Providers.github.authProbePassed}
+   cloudflare=[ordered]@{wranglerAvailable=[bool]$Providers.cloudflare.wranglerAvailable;authProbeAttempted=[bool]$Providers.cloudflare.authProbeAttempted;authProbePassed=[bool]$Providers.cloudflare.authProbePassed;credentialSourceCategory=[string]$Providers.cloudflare.credentialSourceCategory;accountSourceCategory=[string]$Providers.cloudflare.accountSourceCategory}
+   openAi=[ordered]@{tunnelClientAvailable=[bool]$Providers.openAi.tunnelClientAvailable;runtimeCredentialConfigured=[bool]$Providers.openAi.runtimeCredentialConfigured;runtimeCredentialSourceCategory=[string]$Providers.openAi.runtimeCredentialSourceCategory;adminCredentialConfigured=[bool]$Providers.openAi.adminCredentialConfigured;workspaceOrOrganizationScopeConfigured=[bool]$Providers.openAi.workspaceOrOrganizationScopeConfigured;tunnelIdConfigured=[bool]$Providers.openAi.tunnelIdConfigured}
+   vercel=[ordered]@{cliAvailable=[bool]$Providers.vercel.cliAvailable;authProbeAttempted=[bool]$Providers.vercel.authProbeAttempted;authProbePassed=[bool]$Providers.vercel.authProbePassed}
+   credentialValuesReturned=$false
+   environmentValuesReturned=$false
+ }}else{[ordered]@{available=$false;credentialValuesReturned=$false;environmentValuesReturned=$false}}
  workerAutomation=[ordered]@{
    available=[bool]$Automation
    healthy=$AutomationHealthy
@@ -89,11 +104,12 @@ $RestHealthy=[bool]($Rest-and[string]$Rest.status-eq'healthy'-and[string]$Rest.v
    loopbackOnly=$true
    commandExecuted=$false
  }
- networkProbePerformed=[bool]($ProbeOpenAiTunnelDoctor-or$ProbeRestHealth)
+ networkProbePerformed=[bool]($ProbeOpenAiTunnelDoctor-or$ProbeRestHealth-or$ProbeProviderCliAuth)
  repairPerformed=$false
  arbitraryShellExposed=$false
  credentialValuesReturned=$false
+ environmentValuesReturned=$false
  githubActionsRequired=$false
  vercelRequired=$false
  physicalWorkstationExecutionClaimed=$false
-}|ConvertTo-Json -Depth 12
+}|ConvertTo-Json -Depth 14
