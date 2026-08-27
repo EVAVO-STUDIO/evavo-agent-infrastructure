@@ -3,11 +3,19 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const source = readFileSync(new URL("../src/worker.ts", import.meta.url), "utf8");
+const compatibilitySource = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
 const wrangler = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
 const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
 const packageJson = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 const deploy = readFileSync(new URL("../../../scripts/Deploy-EvavoRemoteMcpRelay.ps1", import.meta.url), "utf8");
 const deployV2 = readFileSync(new URL("../../../scripts/Deploy-EvavoRemoteMcpRelayV2.ps1", import.meta.url), "utf8");
+
+test("Wrangler worker is the single authoritative implementation", () => {
+  assert.match(wrangler, /"main": "src\/worker\.ts"/);
+  assert.match(compatibilitySource, /export \{ WorkstationRelay \} from "\.\/worker"/);
+  assert.match(compatibilitySource, /export \{ default \} from "\.\/worker"/);
+  assert.doesNotMatch(compatibilitySource, /DurableObject|registerTool|api\/dispatch|execution\.prepare/);
+});
 
 test("remote MCP exposes only read-only workstation tools", () => {
   assert.match(source, /workstation_status/);
@@ -16,13 +24,28 @@ test("remote MCP exposes only read-only workstation tools", () => {
   assert.match(source, /readOnlyHint:\s*true/g);
   assert.doesNotMatch(source, /registerTool\(\s*["'](?:dispatch|execute|powershell|shell)/i);
   assert.match(source, /dispatchExposedThroughProMcp:\s*false/);
+  assert.match(source, /rawShellExposed:\s*false/);
 });
 
-test("MCP v2 tool schemas use raw Zod shapes", () => {
+test("public MCP request status is coarse and cannot expose execution output", () => {
+  const start = source.indexOf("function publicRequestStatus");
+  const end = source.indexOf("function makeMcpServer");
+  assert.ok(start >= 0 && end > start);
+  const redaction = source.slice(start, end);
+  assert.match(redaction, /detailedResultExposedThroughMcp:\s*false/);
+  assert.doesNotMatch(redaction, /request\.result|request\.error|raw\.result/);
+  assert.match(source, /publicRequestStatus\(await internalRequestStatus/);
+  assert.match(source, /\/api\/request/);
+  assert.match(source, /DISPATCH_TOKEN/);
+});
+
+test("MCP v2 tool schemas use raw Zod shapes and package versions agree", () => {
   assert.match(source, /inputSchema:\s*\{\s*requestId:\s*z\.string\(\)\.uuid\(\)\s*\}/);
   assert.doesNotMatch(source, /inputSchema:\s*z\.object/);
   assert.equal(packageJson.dependencies["@modelcontextprotocol/server"], "2.0.0");
   assert.equal(packageJson.dependencies.agents, "^0.21.0");
+  const serverVersion = source.match(/new McpServer\(\{ name: "EVAVO Workstation Relay", version: "([^"]+)" \}\)/)?.[1];
+  assert.equal(serverVersion, packageJson.version);
 });
 
 test("effectful dispatch is separately authenticated, typed and end-to-end implemented", () => {
@@ -39,7 +62,9 @@ test("effectful dispatch is separately authenticated, typed and end-to-end imple
     "storage.google_pressure.activate",
     "storage.estate.activate",
   ]) assert.match(source, new RegExp(action.replaceAll(".", "\\.")));
-  for (const reserved of ["execution.prepare", "execution.run_request", "godot.runtime_probe"]) assert.doesNotMatch(source, new RegExp(reserved.replaceAll(".", "\\.")));
+  for (const reserved of ["execution.prepare", "execution.run_request", "godot.runtime_probe"]) {
+    assert.doesNotMatch(source, new RegExp(reserved.replaceAll(".", "\\.")));
+  }
   assert.match(source, /action-not-admitted/);
   assert.doesNotMatch(source, /powershell\.command/i);
   assert.doesNotMatch(source, /shell\.command/i);
@@ -107,4 +132,5 @@ test("documentation keeps local executors private and plan boundaries explicit",
   assert.match(readme, /ChatGPT Pro custom MCP access is limited to read\/fetch permissions/);
   assert.match(readme, /No raw PowerShell or arbitrary command string/);
   assert.match(readme, /paid overage is not a required recovery assumption/);
+  assert.match(readme, /Detailed request results require the authenticated API/);
 });
