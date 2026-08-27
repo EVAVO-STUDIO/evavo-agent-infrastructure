@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-windows-workstation-operator-client-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "executorOwner": "EVAVO-STUDIO/evavo-local-compute",
+  "clientRouting": {
+    "codex": {
+      "sameMachine": "mcp-stdio",
+      "effectful": true,
+      "registration": "current-user-dynamic"
+    },
+    "claudeDesktop": {
+      "sameMachine": "mcp-stdio",
+      "effectful": true,
+      "registration": "current-user-dynamic"
+    },
+    "claudeCode": {
+      "sameMachine": "mcp-stdio",
+      "effectful": true,
+      "registration": "project-or-current-user-dynamic"
+    },
+    "hostedChat": {
+      "primaryFallback": "github-issues-pull-queue",
+      "secureMcpTunnel": "optional-when-supported-and-configured"
+    }
+  },
+  "canonicalLaunchers": {
+    "operator": "EVAVO-STUDIO/evavo-local-compute:scripts/windows-workstation-operator.py",
+    "mcp": "EVAVO-STUDIO/evavo-local-compute:scripts/windows-workstation-operator-mcp.py",
+    "queueAdapter": "EVAVO-STUDIO/evavo-local-compute:automation/remote-jobs/run-windows-workstation-operator-v1.py"
+  },
+  "requirements": {
+    "structuredOperationsOnly": true,
+    "shaBoundRepositoryScripts": true,
+    "logicalRootsOnly": true,
+    "currentUserLimitedIdentity": true,
+    "compactSanitizedReceipts": true,
+    "githubActionsRequired": false,
+    "vercelRequired": false,
+    "publicRawShellAllowed": false,
+    "arbitraryInlineCodeAllowed": false
+  },
+  "compatibility": {
+    "retiredRawChatShellMustNotReturn": true,
+    "localhostRestExecutorIsNotCanonical": true,
+    "mandatoryTunnelReadinessIsInvalid": true,
+    "parallelExecutorImplementationsAreInvalid": true
+  }
+}
