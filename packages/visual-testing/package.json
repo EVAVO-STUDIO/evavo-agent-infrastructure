@@ -1,7 +1,7 @@
 {
   "name": "@evavo/visual-testing",
-  "version": "1.0.0",
-  "description": "Visual regression, performance, accessibility testing",
+  "version": "1.1.0",
+  "description": "Thin EVAVO visual testing capability route to Automated Testing, Computer Agent, Local Compute and Model Lab",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -12,9 +12,7 @@
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"
   },
-  "dependencies": {
-    "puppeteer": "^21.0.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "@types/node": "^22.0.0",
     "typescript": "^5.5.0",
