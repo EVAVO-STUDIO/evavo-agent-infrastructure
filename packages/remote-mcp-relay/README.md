@@ -4,33 +4,37 @@ Cloudflare-hosted bridge between supported remote MCP clients and the EVAVO Wind
 
 ## Purpose
 
-This package solves a specific boundary: cloud agents cannot directly connect to `localhost` on the EVAVO workstation. The relay provides a remote `/mcp` endpoint plus an outbound-only Windows WebSocket channel.
+Cloud agents cannot directly connect to `localhost` on the EVAVO workstation. This package provides a remote `/mcp` endpoint plus an outbound-only Windows WebSocket channel. The workstation never opens an inbound router or firewall port; it connects to Cloudflare over `wss://`.
 
-The workstation never opens an inbound router port. It connects to Cloudflare over `wss://`.
-
-The relay is an additional remote control plane, not the root of storage automation. Google pressure, Downloads/BeeStation governance, Local Compute recovery and their Windows scheduled tasks must continue operating locally when the relay is unavailable.
+The relay is an optional remote control plane, not the root of local automation. Google pressure handling, Downloads and BeeStation governance, Local Compute recovery, and their Windows scheduled tasks continue operating locally when the relay is unavailable.
 
 ## ChatGPT Pro boundary
 
-As of 2026-08-26, the EVAVO ChatGPT Pro integration treats MCP as a read-only remote surface. The relay therefore exposes only read/status tools through MCP:
+As of 2026-08-26, ChatGPT Pro custom MCP access is limited to read/fetch permissions. This relay therefore exposes only read/status tools through MCP:
 
 - `workstation_status`
 - `workstation_capabilities`
 - `workstation_request_status`
 
-Effectful dispatch is deliberately **not** disguised as a read MCP tool. A separately authenticated `POST /api/dispatch` route exists for Codex, reviewed local agents and future/full MCP clients. A queued request is never treated as physical success; callers must observe the correlated completed result, directly or through `workstation_request_status`.
+`workstation_request_status` exposes only the request identifier, typed action, lifecycle timestamps, coarse status, and success state. It never returns command output, local paths, detailed errors, or action results. Detailed request results require the authenticated API.
+
+Effectful dispatch is deliberately **not** disguised as a read MCP tool. A separately authenticated `POST /api/dispatch` route exists for reviewed operators and trusted automation. A queued request is never treated as physical success; callers must observe the correlated completed result through the authenticated API or a separately trusted receipt channel.
 
 ## Security boundary
 
 - `/connect` requires the `WORKSTATION_TOKEN` Worker secret.
-- `/api/dispatch` requires the independent `DISPATCH_TOKEN` Worker secret.
+- `/api/dispatch` and `/api/request` require the independent `DISPATCH_TOKEN` Worker secret.
 - `/mcp`, `/api/status`, and `/health` expose only coarse non-secret readiness metadata.
-- No raw PowerShell, shell command, script source, executable or caller-selected local path is an admitted storage action.
-- Dispatch accepts only a typed action allowlist. The Windows client enforces a second local allowlist.
-- Storage actions require an empty argument object and route through `Invoke-EvavoRemoteOperatorRequest.ps1`.
-- The workstation token is stored by the Windows client using current-user DPAPI; it is not placed in Task Scheduler arguments, environment variables or the registry.
+- No raw PowerShell or arbitrary command string, inline script source, executable, or caller-selected local path is admitted by the relay.
+- Dispatch accepts only a fixed typed action allowlist. The Windows client enforces an independent local allowlist.
+- Storage actions require an empty argument object and route through the governed local operator.
+- The workstation token is stored by the Windows client using current-user DPAPI; it is not placed in Task Scheduler arguments, environment variables, or the registry.
 - REST Executor v5 and Local Agent remain loopback-only.
-- The Cloudflare relay does not receive local credential values, private keys, token files or arbitrary filesystem contents.
+- The Cloudflare relay does not receive local credential values, private keys, token files, or arbitrary filesystem contents.
+
+## Single-source implementation
+
+Wrangler deploys `src/worker.ts`. That file is the only authoritative relay implementation. `src/index.ts` is a compatibility re-export and must never contain an independent action allowlist, MCP server, or Durable Object implementation. Contract tests fail if those sources diverge.
 
 ## Cloudflare architecture
 
@@ -64,55 +68,54 @@ npx wrangler secret put WORKSTATION_TOKEN
 npx wrangler secret put DISPATCH_TOKEN
 ```
 
-A deployment is not operational proof. Record the deployed HTTPS/WSS endpoint separately, commission the Windows relay client with its `WORKSTATION_TOKEN`, and verify `/health`/`/api/status` reports an attached workstation before relying on remote dispatch.
+A deployment is not operational proof. Record the deployed HTTPS/WSS endpoint separately, commission the Windows relay client with its `WORKSTATION_TOKEN`, and verify `/health` or `/api/status` reports an attached workstation before relying on remote dispatch.
 
 The deployed endpoints are:
 
 ```text
 GET/POST /mcp          Remote MCP Streamable HTTP, read/status tools only
-GET      /health       Relay health + coarse workstation online state
+GET      /health       Relay health plus coarse workstation online state
 GET      /api/status   Coarse read-only workstation state
 GET      /connect      Authenticated WebSocket upgrade for Windows client
 POST     /api/dispatch Authenticated typed dispatch API
-GET      /api/request  Poll a previously queued dispatch request
+GET      /api/request  Authenticated detailed request polling
 ```
 
 ## Dispatch actions
 
-The hosted relay transport admits these identifiers. The Windows client/local dispatcher must independently admit the same operation before any local effect occurs.
+The hosted relay transport currently admits only these fixed identifiers. The Windows client and local dispatcher must independently admit the same operation before any local effect occurs.
 
 ```text
 workstation.status
 workstation.repair
 workstation.bootstrap
 rest.health
-execution.prepare
-execution.run_request
-godot.runtime_probe
 storage.status
 storage.inventory.refresh
 storage.google_pressure.activate
 storage.estate.activate
 ```
 
-The storage actions require `{}` arguments. They are intentionally coarse fixed operations:
+Direct generic execution actions such as `execution.prepare`, `execution.run_request`, `godot.runtime_probe`, raw shell, and caller-supplied script text are intentionally not admitted by this internet-facing relay. Structured local execution remains owned by `evavo-local-compute` and is reached through its reviewed SHA-bound request contract or the GitHub issue queue.
 
-- `storage.status` — read the unified storage-estate state.
-- `storage.inventory.refresh` — refresh the governed local/Drive storage inventory.
-- `storage.google_pressure.activate` — run the fixed archive-before-reclaim Google pressure route.
-- `storage.estate.activate` — run the fixed Downloads/GitRepos/BeeStation/EVAVO Storage estate route.
+The storage actions require `{}` arguments and are intentionally coarse fixed operations:
 
-Long-running storage dispatch defaults to queued/pollable behavior. `202 queued` is only transport acceptance, not execution success.
+- `storage.status` reads the unified storage-estate state.
+- `storage.inventory.refresh` refreshes the governed local and Drive storage inventory.
+- `storage.google_pressure.activate` runs the fixed archive-before-reclaim Google pressure route.
+- `storage.estate.activate` runs the fixed Downloads, GitRepos, BeeStation, and EVAVO Storage estate route.
+
+Long-running storage dispatch defaults to queued and pollable behavior. `202 queued` is only transport acceptance, not execution success.
 
 ## Windows client persistence
 
-The installed client is same-user, Limited and outbound-only. It runs at logon and has periodic recovery. A configured relay is also repaired by the zero-cost logon guardian. Failure of the optional relay does not block core local recovery.
+The installed client is same-user, Limited, and outbound-only. It runs at logon and has periodic recovery. A configured relay is also repaired by the zero-cost logon guardian. Failure of the optional relay does not block core local recovery.
 
 The client requires the user-context credential boundary; do not convert it to S4U or SYSTEM simply to make it run while logged out. Network and DPAPI-backed credentials are part of its intended same-user boundary.
 
 ## Free-tier intent
 
-The design is intended to fit Cloudflare Workers Free usage for a personal workstation: one Durable Object, a hibernating WebSocket, very small state and low request volume. It must fail closed if a free-plan limit is reached; paid overage is not a required recovery assumption.
+The design is intended to fit Cloudflare Workers Free usage for a personal workstation: one Durable Object, a hibernating WebSocket, very small state, and low request volume. It fails closed if a free-plan limit is reached; paid overage is not a required recovery assumption.
 
 GitHub Actions and Vercel are not required for relay runtime or workstation storage recovery.
 
