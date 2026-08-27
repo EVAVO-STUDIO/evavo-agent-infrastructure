@@ -1,0 +1,22 @@
+{
+  "mcpServers": {
+    "evavo-windows-workstation-operator": {
+      "command": "node",
+      "args": [
+        "mcp-server/windows-workstation-operator-compatibility.mjs"
+      ],
+      "env": {
+        "EVAVO_LOCAL_COMPUTE_ROOT": "${EVAVO_LOCAL_COMPUTE_ROOT}",
+        "EVAVO_GIT_REPOS_ROOT": "${EVAVO_GIT_REPOS_ROOT}"
+      }
+    }
+  },
+  "notes": {
+    "sameMachineOnly": true,
+    "transport": "stdio",
+    "rawShell": false,
+    "secureMcpTunnelRequired": false,
+    "githubActionsRequired": false,
+    "vercelRequired": false
+  }
+}
