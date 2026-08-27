@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-windows-execution-provider-reference-v1",
+  "provider": {
+    "repository": "EVAVO-STUDIO/evavo-local-compute",
+    "contractPath": "config/windows-workstation-execution-contract-v1.json",
+    "consumerContractPath": "config/windows-execution-consumer-contract-v1.json"
+  },
+  "thisRepositoryRole": "transport-and-agent-infrastructure-consumer",
+  "legacyWindowsChatShim": {
+    "effectfulExecutionAuthority": false,
+    "allowedRoles": ["migration-diagnostic", "readiness-report", "canonical-provider-pointer"]
+  },
+  "prohibited": [
+    "raw public Windows shell",
+    "parallel REST executor",
+    "GitHub Actions workstation execution",
+    "Vercel workstation proxy",
+    "physical execution claims without Local Compute receipts"
+  ]
+}
