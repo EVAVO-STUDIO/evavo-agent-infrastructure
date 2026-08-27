@@ -1,23 +1,96 @@
 # EVAVO Agent Infrastructure
 
-**Complete, production-grade infrastructure enabling ChatGPT, Claude and other agents to autonomously code, test, build, deploy, inspect physical devices, and improve the EVAVO ecosystem.**
+Production infrastructure for ChatGPT, Claude, Codex, and EVAVO agents to plan, code, test, build, deploy, inspect devices, and coordinate work across the EVAVO repository estate.
 
-## Overview
+The design is capability-rich, but it is intentionally **not** an unrestricted public shell. Broad automation is achieved through typed specialist tools, structured local requests, explicit policy, exact source revisions, bounded receipts, and recoverable queues.
 
-This monorepo contains specialized packages + MCP server + CLI tooling providing agents with comprehensive capabilities across:
+## Repository responsibilities
 
-- **Git Operations** - Safe commits, pushes, lock file handling
-- **Code Quality** - TypeScript, ESLint, security scanning
-- **Testing** - Test execution, coverage analysis
-- **Building** - Multi-framework builds and deployment
-- **Visual Testing** - Screenshots, accessibility, performance
-- **Package Management** - Dependency analysis, compatibility
-- **Code Review** - Architecture validation, pattern detection
-- **Multi-Repo** - Cross-repository coordination
-- **Windows Chat Execution** - PowerShell, CMD, Bash and Python on the EVAVO workstation
-- **Remote MCP Relay / Secure MCP Tunnel** - Chat-to-workstation connectivity without an inbound workstation listener
+- `evavo-agent-infrastructure` owns chat-facing MCP routing, specialist tools, capability discovery, and the remote relay.
+- `evavo-local-compute` owns structured, SHA-bound, durable local execution and the Windows Workstation Bridge.
+- `evavo-local-storage` owns current-user workstation continuity, storage governance, BeeStation integration, and persistent recovery.
+- `evavo-service-control-plane` owns the accepted loopback REST Executor contract.
+- `evavo-development-studio` consumes those capabilities for governed cross-repository engineering.
 
-## Quick Start
+GitHub Actions, Vercel build minutes, and paid hosted agents are not routine workstation execution authority.
+
+## Canonical execution hierarchy
+
+Agents must choose the narrowest capable surface:
+
+1. **Typed specialist MCP first.** Android, Glasses, storage, testing, deployment, and device operations use their dedicated tools when available.
+2. **Structured Workstation Bridge for normal host work.** The bridge prepares, plans, and executes admitted PowerShell, Python, Bash, Node, Git, curl, rclone, container, archive, repository, and filesystem operations under configured roots. Script execution is bound to a reviewed file and SHA rather than caller-supplied inline code.
+3. **Durable Local Execution for long or recoverable work.** Jobs have durable state, exact runtime and source identity, logs, cancellation, bounded output, and auditable receipts.
+4. **Authenticated fixed remote actions only.** The Cloudflare relay accepts a small typed action allowlist through a separate dispatch credential. Its public MCP tools are read-only.
+5. **GitHub issue queue as the zero-cost fallback.** Queue requests are pure JSON, author-restricted, SHA-bound, replay-protected, non-elevated, and processed by the current-user workstation worker.
+
+The read-only observer, compatibility guide, and public status relay are never write channels.
+
+## Client matrix
+
+### Claude Code and compatible local MCP clients
+
+Project `.mcp.json` files can launch local stdio MCP servers. Repositories that need physical workstation effects register the real `evavo-windows-workstation-bridge` from `evavo-local-compute` and keep client approval and permission controls enabled.
+
+### ChatGPT Pro
+
+As of 2026-08-26, custom MCP access on ChatGPT Pro is read/fetch only and ChatGPT cannot directly reach a workstation `localhost` server. EVAVO therefore uses:
+
+- the Cloudflare remote MCP relay for coarse status and capability discovery;
+- OpenAI Secure MCP Tunnel where the product supports a local MCP connection;
+- a separately authenticated typed dispatch route for trusted operators; and
+- the GitHub issue queue when no direct effectful connector is available.
+
+A remote MCP status response is not evidence that a command ran. Physical success requires a correlated workstation receipt.
+
+### API agents and trusted operators
+
+Trusted automation can use the authenticated typed relay API. It never receives a generic internet-facing `/run` endpoint, raw shell text, caller-selected executables, or arbitrary local paths.
+
+## Retired raw-shell compatibility server
+
+`mcp-server/windows-chat-execution-mcp.mjs` is retained only as a fail-closed migration guide. It exposes status and routing guidance and cannot execute a runtime or shell. Project configuration names it `evavo-windows-execution-migration-guide` so agents cannot mistake it for the canonical executor.
+
+The canonical execution provider is `evavo-windows-workstation-bridge` in `evavo-local-compute`.
+
+## Remote MCP relay
+
+`packages/remote-mcp-relay` provides:
+
+- outbound-only workstation WebSocket transport;
+- a Cloudflare Durable Object with bounded request history;
+- read-only MCP tools for status, capabilities, and coarse request state;
+- independent workstation and dispatch credentials;
+- fixed typed dispatch actions only; and
+- no inbound workstation listener.
+
+Wrangler deploys `packages/remote-mcp-relay/src/worker.ts`. `src/index.ts` is only a compatibility re-export, preventing source/deployment drift.
+
+Detailed results are available only through the authenticated request API. Public MCP request status is redacted.
+
+## Why not Open Interpreter, Aider, or a Flask `/run` endpoint?
+
+Aider and Open Interpreter can be useful optional local user interfaces, but they do not own EVAVO execution authority, recovery, cross-repo policy, source attestation, or physical receipts.
+
+A Flask server that accepts a command string and is exposed through ngrok or LocalTunnel is prohibited. Locking its working directory does not prevent credential theft, destructive child processes, network exfiltration, persistence, or shell escaping. EVAVO instead admits structured operations and reviewed scripts under independent policy layers.
+
+See `docs/AI_AGENT_GATEWAY.md` for the full threat model and routing contract.
+
+## Packages
+
+- `@evavo/git-operations` — safe Git operations and lock handling
+- `@evavo/code-quality` — TypeScript, linting, and security checks
+- `@evavo/testing-runner` — tests and coverage
+- `@evavo/build-system` — multi-framework builds
+- `@evavo/visual-testing` — visual, accessibility, and performance checks
+- `@evavo/package-manager` — dependency analysis
+- `@evavo/code-review` — architecture and code review
+- `@evavo/multi-repo` — cross-repository coordination
+- `@evavo/remote-mcp-relay` — read-only remote MCP plus authenticated typed relay
+- `mcp-server` — MCP integration and specialist physical-device tools
+- `cli-tool` — command-line integration
+
+## Development
 
 ```bash
 pnpm install
@@ -27,196 +100,29 @@ pnpm type-check
 pnpm format
 ```
 
-## Packages
-
-### Core Packages
-- **@evavo/git-operations** - Safe git with automatic lock handling
-- **@evavo/code-quality** - TypeScript, linting, security
-- **@evavo/testing-runner** - Test execution and coverage
-- **@evavo/build-system** - Multi-framework build orchestration
-- **@evavo/visual-testing** - Visual, a11y, performance testing
-- **@evavo/package-manager** - Dependency analysis and management
-- **@evavo/code-review** - Automated code review
-- **@evavo/multi-repo** - Cross-repo operations
-- **@evavo/remote-mcp-relay** - Remote MCP status + authenticated outbound workstation relay
-
-### Integration
-- **mcp-server** - ChatGPT/Claude/MCP integration
-- **cli-tool** - Command-line interface
-
-## Local workstation execution ownership
-
-The canonical local execution and recovery split is:
-
-- `EVAVO-STUDIO/evavo-local-storage` owns workstation recovery, persistent Windows automation, the accepted REST Executor v5/API 2 contract and worker-fabric reachability.
-- `EVAVO-STUDIO/evavo-agent-infrastructure` owns chat-facing MCP/operator authority, Windows interactive execution and remote/tunnel routing surfaces.
-- `EVAVO-STUDIO/evavo-local-compute` owns structured, hash-bound durable local script/job execution.
-- `EVAVO-STUDIO/evavo-development-studio` consumes those surfaces for governed engineering work.
-
-The zero-cost recovery architecture includes independent HKCU logon recovery, the physically accepted REST Executor v5 loopback, repository-independent Scheduled Tasks, and the GitHub Issues worker fabric. GitHub Actions and paid hosted compute are not routine execution authority.
-
-### Execution hierarchy agents must follow
-
-1. **Typed specialist tool first.** When an Android, Glasses, storage, testing, device or other specialist MCP already expresses the requested operation, use that tool. It gives the strongest validation and evidence contract.
-2. **Interactive Windows shell for normal host work.** Use `evavo-windows-chat-execution` / `evavo_windows_execute` for caller-authored PowerShell, CMD, Bash/WSL or Python that can complete within 300 seconds. This tool intentionally accepts arbitrary command text and inline code with the current Windows user's authority. It attests the physically accepted REST Executor source before effects and automatically recovers its loopback runtime when possible.
-3. **Durable reviewed execution for long jobs.** Use canonical `evavo-local-execution` for longer jobs, persistence/recovery, or workflows that should be bound to a reviewed script/request SHA. Do not weaken this lane to accept arbitrary command text.
-4. **Never use the observer as a write channel.** `evavo-workstation-observer` and its ChatGPT observer tunnel remain read-only. Do not add mutation or shell authority to them.
-
-Interactive shell and durable execution are complementary, not competing implementations. The former removes manual PowerShell relay from normal agent work; the latter keeps long-running/reviewed jobs reproducible and recoverable.
-
-## ChatGPT Windows execution
-
-`mcp-server/windows-chat-execution-mcp.mjs` exposes:
-
-- `evavo_windows_execution_doctor`
-- `evavo_windows_execute`
-- `evavo_windows_execute_batch`
-
-The shell surface supports `powershell`, `cmd`, `bash`, and `python`, with each interactive command capped at 300 seconds. Working directories are admitted beneath configured EVAVO roots (normally `C:\GitRepos`, `%LOCALAPPDATA%\EVAVO`, and `%USERPROFILE%\Downloads`).
-
-Before execution the MCP:
-
-1. verifies the REST Executor source still has the physically accepted Git blob,
-2. verifies the recorded 13/13 API-v2 physical acceptance,
-3. checks the loopback v5/API2 runtime,
-4. installs/starts the accepted same-user scheduled runtime if recovery is needed,
-5. executes the command and returns a bounded structured receipt.
-
-The MCP advertises its effectful authority explicitly: arbitrary command text and inline code are accepted, execution occurs with the current Windows user's authority, and command text is represented by digest rather than echoed back by the MCP receipt.
-
-### ChatGPT secure execution tunnel
-
-`Install-EvavoChatGPTWindowsExecutionTunnel.ps1` provides a **separate effectful OpenAI Secure MCP Tunnel** for the Windows execution MCP. It does not weaken or reuse the read-only observer authority.
-
-The execution tunnel:
-
-- bundles the MCP immutably under `%LOCALAPPDATA%\EVAVO\WorkerControlPlane\chatgpt-windows-execution`,
-- uses an outbound-only secure MCP tunnel and no inbound workstation listener,
-- persists as a same-user Limited scheduled task with logon and periodic recovery,
-- supports PowerShell, CMD, Bash and Python,
-- requires REST Executor accepted-source attestation for each execution,
-- never returns tunnel IDs or credential values in installation receipts.
-
-Useful repo commands:
+Useful focused checks:
 
 ```bash
-pnpm chatgpt:windows-execution-tunnel
-pnpm chatgpt:windows-execution-status
 pnpm test:windows-chat-mcp
-pnpm test:windows-chat-physical
-pnpm remote-access:install-with-execution
+pnpm --filter @evavo/remote-mcp-relay check
+pnpm --filter @evavo/git-operations test
 ```
-
-`Get-EvavoChatGPTWindowsExecutionTunnelStatus.ps1` distinguishes source/bundle presence, bundle integrity, scheduled-task correctness and secure-tunnel doctor state. Code presence or task creation alone is not treated as proof that a ChatGPT product connector has been registered or that a remote command has physically executed.
-
-## Remote MCP relay
-
-`packages/remote-mcp-relay` provides a Cloudflare-hosted bridge for supported remote MCP clients. It uses Streamable HTTP at `/mcp` and a Durable Object hibernating WebSocket accepted from the Windows workstation.
-
-The Cloudflare MCP surface remains deliberately read-only (`workstation_status`, `workstation_capabilities`, request status). Effectful shell authority is **not** exposed through that unauthenticated/read MCP surface. Interactive ChatGPT shell execution instead uses the dedicated OpenAI Secure MCP Tunnel above.
-
-The workstation connects outbound only. REST Executor v5, Local Agent and local structured executors remain bound to the workstation rather than being exposed as an unauthenticated internet-facing shell.
-
-See `packages/remote-mcp-relay/README.md` for relay deployment, secrets and security boundaries.
-
-## Usage
-
-### As CLI Tool
-
-```bash
-evavo git:commit --message "fix: types"
-evavo git:push --verify
-
-evavo quality:check --repo super-admin-ai-agent
-evavo test:run --repo evavo-site-foundation
-evavo build:verify --all
-```
-
-### As MCP Tools
-
-Available tools include Git, quality, testing, build, visual testing, package management, review, multi-repo operations, specialist physical-device tooling and the explicit Windows chat execution surface.
 
 ## Documentation
 
-- **EVAVO_ECOSYSTEM_AUDIT.md** - Ecosystem audit
-- **COMPREHENSIVE_AGENT_INFRASTRUCTURE_DESIGN.md** - Architecture
-- **CLI_REFERENCE.md** - CLI reference
-- **MCP_TOOLS_REFERENCE.md** - MCP tools
-- **INTEGRATION_GUIDE.md** - Repo integration
-- **packages/remote-mcp-relay/README.md** - Cloudflare remote MCP relay
+- `docs/AI_AGENT_GATEWAY.md` — canonical client routing and security contract
+- `docs/CHATGPT_LOCAL_EXECUTION_ARCHITECTURE.md` — ChatGPT/local execution transport architecture
+- `packages/remote-mcp-relay/README.md` — relay deployment and truth boundaries
+- `EVAVO_ECOSYSTEM_AUDIT.md` — ecosystem audit
+- `COMPREHENSIVE_AGENT_INFRASTRUCTURE_DESIGN.md` — broader infrastructure design
+- `CLI_REFERENCE.md` — CLI reference
+- `MCP_TOOLS_REFERENCE.md` — MCP tools
+- `INTEGRATION_GUIDE.md` — repository integration
 
-## Development
+## Truth boundary
 
-```bash
-pnpm dev
-pnpm --filter @evavo/git-operations test
-pnpm type-check
-pnpm test:windows-chat-mcp
-pnpm format
-pnpm clean
-```
+Repository source and passing contract tests prove only the source contract. They do not prove the current Windows worker, Cloudflare deployment, BeeStation mount, Android device, or tunnel is online. Runtime claims require fresh status and a correlated physical receipt from the exact accepted revision.
 
-## Architecture
-
-```
-evavo-agent-infrastructure/
-├── packages/
-│   ├── git-operations/
-│   ├── code-quality/
-│   ├── testing-runner/
-│   ├── build-system/
-│   ├── visual-testing/
-│   ├── package-manager/
-│   ├── code-review/
-│   ├── multi-repo/
-│   └── remote-mcp-relay/
-├── mcp-server/
-│   └── windows-chat-execution-mcp.mjs
-├── scripts/
-│   ├── Install-EvavoChatGPTWindowsExecutionTunnel.ps1
-│   └── Get-EvavoChatGPTWindowsExecutionTunnelStatus.ps1
-├── cli-tool/
-└── docs/
-```
-
-## Key Features
-
-✅ Automatic lock handling  
-✅ MCP and CLI integration  
-✅ Type-safe packages  
-✅ Contract testing  
-✅ Zero-cost workstation recovery  
-✅ Outbound-only secure ChatGPT execution tunnel  
-✅ Interactive PowerShell/CMD/Bash/Python execution  
-✅ Separate read-only observer authority  
-✅ Durable SHA-bound long-job execution  
-
-## Integration with EVAVO Repos
-
-The `evavo-windows-chat-execution` MCP is registered from the core EVAVO workspaces (Agent Infrastructure, Local Compute, Local Storage, Development Studio, Android Device Bridge and Glasses). New MCP-aware sessions opened in those repositories should discover the same interactive Windows shell surface.
-
-For ChatGPT product access outside a repo-local MCP client, establish the dedicated secure execution tunnel and then register/enable that tunnel connector in ChatGPT. Do not substitute the read-only observer connector when effectful execution is required.
-
-## Roadmap
-
-- [x] Local execution/recovery ownership contracts
-- [x] Physically accepted REST Executor v5/API2
-- [x] Chat-facing interactive Windows execution MCP
-- [x] PowerShell/CMD/Bash/Python mixed-shell physical acceptance script
-- [x] Separate secure ChatGPT Windows execution tunnel installer
-- [ ] Physically run the new execution MCP acceptance on the workstation after the updated repos are locally synchronised
-- [ ] Register/enable the dedicated execution tunnel in the ChatGPT product and prove a remote command round trip
-
-## Contributing
-
-Follow TypeScript strict mode, explicit safety/authority boundaries, test-driven development and comprehensive error handling.
-
-## Status
-
-**Development Status:** Active implementation and physical integration  
-**Node Version Required:** >=20.0.0  
-**Package Manager:** pnpm >=8.0.0
-
----
-
-**EVAVO Agent Infrastructure - Enabling Autonomous Code Excellence**
+**Status:** active implementation and physical integration  
+**Node:** 20 or newer  
+**Package manager:** pnpm 8 or newer
