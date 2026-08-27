@@ -93,7 +93,7 @@ function bearer(request: Request): string | null {
 function constantTimeEqual(left: string, right: string): boolean {
   if (!left || !right || left.length !== right.length) return false;
   let diff = 0;
-  for (let i = 0; i < left.length; i += 1) diff |= left.charCodeAt(i) ^ right.charCodeAt(i);
+  for (let index = 0; index < left.length; index += 1) diff |= left.charCodeAt(index) ^ right.charCodeAt(index);
   return diff === 0;
 }
 
@@ -133,8 +133,37 @@ async function internalRequestStatus(env: Env, requestId: string): Promise<Recor
   return value;
 }
 
+function publicRequestStatus(raw: Record<string, unknown>): Record<string, unknown> {
+  const request = raw.request && typeof raw.request === "object" && !Array.isArray(raw.request)
+    ? raw.request as Record<string, unknown>
+    : null;
+  if (!request) {
+    return {
+      ok: false,
+      found: false,
+      requestId: typeof raw.requestId === "string" ? raw.requestId : null,
+      state: raw.error === "request-not-found" ? "not_found" : "unavailable",
+      detailedResultExposedThroughMcp: false,
+    };
+  }
+  return {
+    ok: raw.ok === true,
+    found: true,
+    request: {
+      id: request.id ?? null,
+      action: request.action ?? null,
+      status: request.status ?? null,
+      requestedAt: request.requestedAt ?? null,
+      deadline: request.deadline ?? null,
+      completedAt: request.completedAt ?? null,
+      succeeded: request.ok ?? null,
+    },
+    detailedResultExposedThroughMcp: false,
+  };
+}
+
 function makeMcpServer(env: Env): McpServer {
-  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.3.0" });
+  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.3.1" });
   server.registerTool(
     "workstation_status",
     {
@@ -153,17 +182,30 @@ function makeMcpServer(env: Env): McpServer {
     },
     async () => {
       const status = publicStatus(await internalStatus(env));
-      return { content: [{ type: "text", text: JSON.stringify({ online: status.online, capabilities: status.capabilities, workerFabricProfile: status.workerFabricProfile, dispatchRequiresSeparateAuthenticatedApi: true, rawShellExposed: false }) }] };
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            online: status.online,
+            capabilities: status.capabilities,
+            workerFabricProfile: status.workerFabricProfile,
+            dispatchRequiresSeparateAuthenticatedApi: true,
+            rawShellExposed: false,
+          }),
+        }],
+      };
     },
   );
   server.registerTool(
     "workstation_request_status",
     {
-      description: "Read a previously dispatched workstation request by opaque UUID. This never dispatches work.",
+      description: "Read coarse state for a previously dispatched workstation request by opaque UUID. Detailed results are never exposed through this MCP tool.",
       inputSchema: { requestId: z.string().uuid() },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ requestId }) => ({ content: [{ type: "text", text: JSON.stringify(await internalRequestStatus(env, requestId)) }] }),
+    async ({ requestId }) => ({
+      content: [{ type: "text", text: JSON.stringify(publicRequestStatus(await internalRequestStatus(env, requestId))) }],
+    }),
   );
   return server;
 }
@@ -232,7 +274,12 @@ export class WorkstationRelay extends DurableObject<Env> {
   private async finish(message: ResultMessage): Promise<void> {
     const oldPresence = await this.presence();
     if (oldPresence) {
-      await this.ctx.storage.put("presence", { ...oldPresence, lastSeen: new Date().toISOString(), lastReceiptKind: message.action.slice(0, 128), lastReceiptAt: message.completedAt } satisfies Presence);
+      await this.ctx.storage.put("presence", {
+        ...oldPresence,
+        lastSeen: new Date().toISOString(),
+        lastReceiptKind: message.action.slice(0, 128),
+        lastReceiptAt: message.completedAt,
+      } satisfies Presence);
     }
     const existing = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
     if (!existing || existing.action !== message.action) return;
@@ -255,19 +302,34 @@ export class WorkstationRelay extends DurableObject<Env> {
 
   private async dispatch(body: Record<string, unknown>): Promise<Response> {
     const sockets = this.sockets();
-    if (sockets.length !== 1) return json({ ok: false, error: sockets.length ? "multiple-workstations-connected" : "workstation-offline" }, { status: 503 });
+    if (sockets.length !== 1) {
+      return json({ ok: false, error: sockets.length ? "multiple-workstations-connected" : "workstation-offline" }, { status: 503 });
+    }
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return json({ ok: false, error: "action-not-admitted" }, { status: 400 });
-    const args = body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments) ? body.arguments as Record<string, unknown> : {};
-    if (STORAGE_ACTIONS.has(action) && Object.keys(args).length !== 0) return json({ ok: false, error: "storage-actions-require-empty-arguments" }, { status: 400 });
-    if (new TextEncoder().encode(JSON.stringify(args)).byteLength > MAX_DISPATCH_BYTES) return json({ ok: false, error: "arguments-too-large" }, { status: 413 });
+    const args = body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
+      ? body.arguments as Record<string, unknown>
+      : {};
+    if (STORAGE_ACTIONS.has(action) && Object.keys(args).length !== 0) {
+      return json({ ok: false, error: "storage-actions-require-empty-arguments" }, { status: 400 });
+    }
+    if (new TextEncoder().encode(JSON.stringify(args)).byteLength > MAX_DISPATCH_BYTES) {
+      return json({ ok: false, error: "arguments-too-large" }, { status: 413 });
+    }
 
     const requestedAt = new Date();
     const desired = Number(body.timeoutMs ?? (STORAGE_ACTIONS.has(action) ? MAX_DEADLINE_MS : 30_000));
     const deadlineMs = Math.min(MAX_DEADLINE_MS, Math.max(1_000, Number.isFinite(desired) ? desired : 30_000));
     const id = crypto.randomUUID();
     const deadline = new Date(requestedAt.getTime() + deadlineMs).toISOString();
-    const message: DispatchMessage = { id, type: "dispatch", action, arguments: args, requestedAt: requestedAt.toISOString(), deadline };
+    const message: DispatchMessage = {
+      id,
+      type: "dispatch",
+      action,
+      arguments: args,
+      requestedAt: requestedAt.toISOString(),
+      deadline,
+    };
     await this.remember({ id, action, status: "queued", requestedAt: message.requestedAt, deadline, completedAt: null, ok: null });
     sockets[0].send(JSON.stringify(message));
 
@@ -275,17 +337,32 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (!wait) return json({ ok: true, id, action, status: "queued", deadline }, { status: 202 });
     const waitMs = Math.min(MAX_SYNC_WAIT_MS, deadlineMs);
     const resultPromise = new Promise<ResultMessage>((resolve, reject) => {
-      const timer = setTimeout(() => { this.pending.delete(id); reject(new Error("workstation-dispatch-timeout")); }, waitMs);
+      const timer = setTimeout(() => {
+        this.pending.delete(id);
+        reject(new Error("workstation-dispatch-timeout"));
+      }, waitMs);
       this.pending.set(id, { resolve, reject, timer });
     });
     try {
       const result = await resultPromise;
-      if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_RESULT_BYTES) return json({ ok: false, error: "result-too-large", id }, { status: 502 });
+      if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_RESULT_BYTES) {
+        return json({ ok: false, error: "result-too-large", id }, { status: 502 });
+      }
       return json(result, { status: result.ok ? 200 : 502 });
     } catch (error) {
       const pending = this.pending.get(id);
-      if (pending) { clearTimeout(pending.timer); this.pending.delete(id); }
-      return json({ ok: true, id, action, status: "queued", pollingRequired: true, error: error instanceof Error ? error.message : "dispatch-wait-ended" }, { status: 202 });
+      if (pending) {
+        clearTimeout(pending.timer);
+        this.pending.delete(id);
+      }
+      return json({
+        ok: true,
+        id,
+        action,
+        status: "queued",
+        pollingRequired: true,
+        error: error instanceof Error ? error.message : "dispatch-wait-ended",
+      }, { status: 202 });
     }
   }
 
@@ -293,10 +370,16 @@ export class WorkstationRelay extends DurableObject<Env> {
     const url = new URL(request.url);
     if (url.pathname === "/status" && request.method === "GET") return json(await this.status());
     if (url.pathname === "/request" && request.method === "GET") return this.requestStatus(url.searchParams.get("id") ?? "");
-    if (url.pathname === "/dispatch" && request.method === "POST") return this.dispatch(await request.json() as Record<string, unknown>);
+    if (url.pathname === "/dispatch" && request.method === "POST") {
+      return this.dispatch(await request.json() as Record<string, unknown>);
+    }
     if (url.pathname === "/connect") {
-      if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") return new Response("Expected WebSocket", { status: 426 });
-      for (const old of this.ctx.getWebSockets("workstation")) { try { old.close(4001, "superseded"); } catch { /* ignore */ } }
+      if (request.headers.get("upgrade")?.toLowerCase() !== "websocket") {
+        return new Response("Expected WebSocket", { status: 426 });
+      }
+      for (const old of this.ctx.getWebSockets("workstation")) {
+        try { old.close(4001, "superseded"); } catch { /* ignore */ }
+      }
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
       this.ctx.acceptWebSocket(server, ["workstation"]);
@@ -311,8 +394,17 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (typeof message !== "string" || new TextEncoder().encode(message).byteLength > MAX_RESULT_BYTES) return;
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(message) as Record<string, unknown>; } catch { return; }
-    if (parsed.type === "hello" || parsed.type === "heartbeat") { this.ctx.waitUntil(this.updatePresence(parsed)); return; }
-    if (parsed.type !== "result" || typeof parsed.id !== "string" || typeof parsed.action !== "string" || typeof parsed.ok !== "boolean" || typeof parsed.completedAt !== "string") return;
+    if (parsed.type === "hello" || parsed.type === "heartbeat") {
+      this.ctx.waitUntil(this.updatePresence(parsed));
+      return;
+    }
+    if (
+      parsed.type !== "result"
+      || typeof parsed.id !== "string"
+      || typeof parsed.action !== "string"
+      || typeof parsed.ok !== "boolean"
+      || typeof parsed.completedAt !== "string"
+    ) return;
     const result = parsed as unknown as ResultMessage;
     this.ctx.waitUntil(this.finish(result));
     const pending = this.pending.get(result.id);
@@ -324,11 +416,19 @@ export class WorkstationRelay extends DurableObject<Env> {
 
   webSocketClose(socket: WebSocket, code: number, reason: string, _wasClean: boolean): void {
     try { socket.close(code, reason); } catch { /* ignore */ }
-    for (const [id, pending] of this.pending) { clearTimeout(pending.timer); pending.reject(new Error("workstation-disconnected")); this.pending.delete(id); }
+    for (const [id, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error("workstation-disconnected"));
+      this.pending.delete(id);
+    }
   }
 
   webSocketError(_socket: WebSocket, _error: unknown): void {
-    for (const [id, pending] of this.pending) { clearTimeout(pending.timer); pending.reject(new Error("workstation-websocket-error")); this.pending.delete(id); }
+    for (const [id, pending] of this.pending) {
+      clearTimeout(pending.timer);
+      pending.reject(new Error("workstation-websocket-error"));
+      this.pending.delete(id);
+    }
   }
 }
 
@@ -338,30 +438,50 @@ export default {
     const relay = stub(env);
     if (url.pathname === "/connect") {
       const supplied = bearer(request);
-      if (!supplied || !constantTimeEqual(supplied, env.WORKSTATION_TOKEN)) return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      if (!supplied || !constantTimeEqual(supplied, env.WORKSTATION_TOKEN)) {
+        return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      }
       return relay.fetch(new Request("https://relay.internal/connect", { method: "GET", headers: request.headers }));
     }
     if (url.pathname === "/api/dispatch") {
       const supplied = bearer(request);
-      if (!supplied || !constantTimeEqual(supplied, env.DISPATCH_TOKEN)) return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      if (!supplied || !constantTimeEqual(supplied, env.DISPATCH_TOKEN)) {
+        return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      }
       if (request.method !== "POST") return json({ ok: false, error: "method-not-allowed" }, { status: 405 });
       const body = await request.text();
-      if (new TextEncoder().encode(body).byteLength > MAX_DISPATCH_BYTES) return json({ ok: false, error: "body-too-large" }, { status: 413 });
-      return relay.fetch(new Request("https://relay.internal/dispatch", { method: "POST", headers: { "content-type": "application/json" }, body }));
+      if (new TextEncoder().encode(body).byteLength > MAX_DISPATCH_BYTES) {
+        return json({ ok: false, error: "body-too-large" }, { status: 413 });
+      }
+      return relay.fetch(new Request("https://relay.internal/dispatch", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body,
+      }));
     }
     if (url.pathname === "/api/request" && request.method === "GET") {
       const supplied = bearer(request);
-      if (!supplied || !constantTimeEqual(supplied, env.DISPATCH_TOKEN)) return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      if (!supplied || !constantTimeEqual(supplied, env.DISPATCH_TOKEN)) {
+        return json({ ok: false, error: "unauthorized" }, { status: 401 });
+      }
       const internal = new URL("https://relay.internal/request");
       internal.searchParams.set("id", url.searchParams.get("id") ?? "");
       return relay.fetch(internal);
     }
-    if (url.pathname === "/api/status" && request.method === "GET") return json(publicStatus(await internalStatus(env)));
+    if (url.pathname === "/api/status" && request.method === "GET") {
+      return json(publicStatus(await internalStatus(env)));
+    }
     if (url.pathname === "/health" && request.method === "GET") {
       const status = publicStatus(await internalStatus(env));
       return json({ ok: true, service: "evavo-workstation-mcp-relay", workstationOnline: status.online });
     }
-    if (url.pathname === "/mcp") return createMcpHandler(() => makeMcpServer(env), { route: "/mcp", responseMode: "json", legacy: "stateless" })(request, env, ctx);
+    if (url.pathname === "/mcp") {
+      return createMcpHandler(() => makeMcpServer(env), {
+        route: "/mcp",
+        responseMode: "json",
+        legacy: "stateless",
+      })(request, env, ctx);
+    }
     return new Response("EVAVO workstation MCP relay", { status: 200 });
   },
 } satisfies ExportedHandler<Env>;
