@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "evavo-github-estate-routing": {
+      "command": "node",
+      "args": [
+        "C:\\GitRepos\\evavo-agent-infrastructure\\mcp-server\\github-estate-routing-mcp.mjs"
+      ],
+      "env": {
+        "EVAVO_GITHUB_ESTATE_SNAPSHOT_ROOT": "C:\\Users\\YOUR_USER\\AppData\\Local\\EVAVO\\GitHubEstateSnapshots",
+        "EVAVO_GITHUB_ESTATE_TRUST_BUNDLE": "C:\\Users\\YOUR_USER\\AppData\\Local\\EVAVO\\GitHubEstateSnapshots\\trust-bundle.json",
+        "EVAVO_GITHUB_ESTATE_ROUTING_TIMEOUT_MS": "30000"
+      }
+    }
+  }
+}
