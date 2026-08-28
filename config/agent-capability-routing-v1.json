@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-agent-capability-routing-v1",
+  "canonical": true,
+  "clients": [
+    "chatgpt-pro",
+    "claude-code",
+    "codex",
+    "api-agent"
+  ],
+  "truthStates": [
+    "source_ready",
+    "configured",
+    "transport_online",
+    "accepted",
+    "completed",
+    "physically_verified"
+  ],
+  "policy": {
+    "selection": "first-eligible-in-declared-order",
+    "routineCost": "zero-cost",
+    "maximumClockSkewSeconds": 120,
+    "allowGitHubActions": false,
+    "allowVercelAsExecutionAuthority": false,
+    "allowArbitraryShell": false,
+    "runtimeClaimsRequireReceipt": true,
+    "failureDomainScope": "transport-ingress-only"
+  },
+  "fragments": {
+    "authorities": "agent-capability-authorities-v1.json",
+    "transports": "agent-capability-transports-v1.json",
+    "routes": [
+      "agent-capability-routes-core-v1.json",
+      "agent-capability-routes-specialists-v1.json"
+    ]
+  }
+}

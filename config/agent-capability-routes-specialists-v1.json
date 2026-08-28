@@ -1,0 +1,209 @@
+[
+  {
+    "id": "browser-qa",
+    "capability": "browser.qa",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 3,
+    "description": "Run exact-SHA browser, responsive, accessibility and visual QA through Automated Testing with retained evidence.",
+    "strategies": [
+      {
+        "id": "browser-qa-workstation-bridge",
+        "authority": "automated-testing",
+        "transport": "structured-workstation-bridge",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "browser-qa-durable-local",
+        "authority": "automated-testing",
+        "transport": "durable-local-execution",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "browser-qa-typed-relay",
+        "authority": "automated-testing",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "browser-qa-issue-queue",
+        "authority": "automated-testing",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
+    ]
+  },
+  {
+    "id": "computer-interact",
+    "capability": "computer.interact",
+    "requestedEffect": "control",
+    "completionState": "completed",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 3,
+    "description": "Route signed visual UI journeys through Computer Agent while preserving screen-observation and action evidence.",
+    "strategies": [
+      {
+        "id": "computer-interact-specialist-mcp",
+        "authority": "computer-agent",
+        "transport": "local-specialist-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "computer-interact-workstation-bridge",
+        "authority": "computer-agent",
+        "transport": "structured-workstation-bridge",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "computer-interact-typed-relay",
+        "authority": "computer-agent",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "computer-interact-issue-queue",
+        "authority": "computer-agent",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
+    ]
+  },
+  {
+    "id": "device-android",
+    "capability": "device.android",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 3,
+    "description": "Use Android and Glasses specialist tools for bounded physical-device build, install, launch and inspection work.",
+    "strategies": [
+      {
+        "id": "device-android-specialist-mcp",
+        "authority": "agent-infrastructure",
+        "transport": "local-specialist-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "device-android-workstation-bridge",
+        "authority": "agent-infrastructure",
+        "transport": "structured-workstation-bridge",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "device-android-typed-relay",
+        "authority": "agent-infrastructure",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "device-android-issue-queue",
+        "authority": "agent-infrastructure",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
+    ]
+  },
+  {
+    "id": "memory-query",
+    "capability": "memory.query",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Retrieve bounded, attributable historical context and preference evidence without granting mutation authority.",
+    "strategies": [
+      {
+        "id": "memory-query-local-mcp",
+        "authority": "brain",
+        "transport": "local-specialist-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "memory-query-workstation-bridge",
+        "authority": "brain",
+        "transport": "structured-workstation-bridge",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "memory-query-secure-tunnel",
+        "authority": "brain",
+        "transport": "openai-secure-mcp-tunnel",
+        "clients": [
+          "chatgpt-pro"
+        ],
+        "minimumState": "transport_online"
+      }
+    ]
+  }
+]

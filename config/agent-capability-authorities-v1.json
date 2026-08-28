@@ -1,0 +1,77 @@
+{
+  "github-evidence": {
+    "repository": "EVAVO-STUDIO/evavo-github-mcp",
+    "effects": [
+      "read"
+    ],
+    "exclusiveEffects": [],
+    "description": "Read-only GitHub inventory, repository evidence and routing. It never owns source mutation, execution or publication."
+  },
+  "development-governance": {
+    "repository": "EVAVO-STUDIO/evavo-development-studio",
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "publish"
+    ],
+    "exclusiveEffects": [
+      "publish"
+    ],
+    "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority."
+  },
+  "local-compute": {
+    "repository": "EVAVO-STUDIO/evavo-local-compute",
+    "effects": [
+      "read",
+      "execute"
+    ],
+    "exclusiveEffects": [],
+    "description": "Structured SHA-bound workstation execution, durable local jobs and bounded execution receipts."
+  },
+  "local-storage": {
+    "repository": "EVAVO-STUDIO/evavo-local-storage",
+    "effects": [
+      "read",
+      "write",
+      "execute"
+    ],
+    "exclusiveEffects": [],
+    "description": "Workstation continuity, storage governance, BeeStation integration and worker recovery."
+  },
+  "automated-testing": {
+    "repository": "EVAVO-STUDIO/automated-testing",
+    "effects": [
+      "read",
+      "execute"
+    ],
+    "exclusiveEffects": [],
+    "description": "Browser, responsive, accessibility, performance and governed technical QA campaigns."
+  },
+  "computer-agent": {
+    "repository": "EVAVO-STUDIO/evavo-computer-agent",
+    "effects": [
+      "read",
+      "control"
+    ],
+    "exclusiveEffects": [],
+    "description": "Signed visual computer interaction and UI journey authority under explicit policy."
+  },
+  "agent-infrastructure": {
+    "repository": "EVAVO-STUDIO/evavo-agent-infrastructure",
+    "effects": [
+      "read",
+      "execute"
+    ],
+    "exclusiveEffects": [],
+    "description": "Chat-facing MCP routing, specialist device tools, capability discovery and remote relay."
+  },
+  "brain": {
+    "repository": "EVAVO-STUDIO/the-brain",
+    "effects": [
+      "read"
+    ],
+    "exclusiveEffects": [],
+    "description": "Bounded historical context, preference intelligence and evidence-backed memory retrieval."
+  }
+}

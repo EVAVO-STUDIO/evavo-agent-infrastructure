@@ -8,6 +8,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
+    "test:capability-routing": "node --test tests/agent-capability-routing.test.mjs",
+    "check:capability-routing": "node scripts/check-agent-capability-routing.mjs",
+    "plan:capability-routing": "node scripts/plan-agent-capability-route.mjs",
     "test:windows-chat-mcp": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoWindowsChatExecutionMcpContract.ps1 && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoWindowsChatExecutionMcpHandshake.ps1",
     "test:windows-chat-physical": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoWindowsChatExecutionMcpPhysical.ps1",
     "test:chatgpt-windows-execution-tunnel-contract": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Test-EvavoChatGPTWindowsExecutionTunnelContract.ps1",
@@ -42,7 +45,7 @@
     "remote-access:doctor": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1 -ProbeOpenAiTunnelDoctor -ProbeRestHealth -ProbeProviderCliAuth",
     "remote-mcp-relay:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Deploy-EvavoRemoteMcpRelayV2.ps1",
     "remote-mcp-relay:deploy-v1": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/Deploy-EvavoRemoteMcpRelay.ps1",
-    "check": "pnpm test && pnpm test:windows-chat-mcp && pnpm test:chatgpt-windows-execution-tunnel-contract && pnpm test:android-mcps && pnpm test:physical-device-contract && pnpm test:chatgpt-android-observer-contract && pnpm test:chatgpt-workstation-observer-contract && pnpm test:remote-access-install-contract && pnpm test:remote-mcp-relay-contract && pnpm test:storage-governance-mcp && pnpm test:provider-credential-readiness",
+    "check": "pnpm test:capability-routing && pnpm check:capability-routing && pnpm test && pnpm test:windows-chat-mcp && pnpm test:chatgpt-windows-execution-tunnel-contract && pnpm test:android-mcps && pnpm test:physical-device-contract && pnpm test:chatgpt-android-observer-contract && pnpm test:chatgpt-workstation-observer-contract && pnpm test:remote-access-install-contract && pnpm test:remote-mcp-relay-contract && pnpm test:storage-governance-mcp && pnpm test:provider-credential-readiness",
     "lint": "pnpm -r lint",
     "type-check": "pnpm -r type-check",
     "dev": "pnpm -r dev",

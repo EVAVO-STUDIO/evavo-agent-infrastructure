@@ -14,6 +14,8 @@ The design is capability-rich, but it is intentionally **not** an unrestricted p
 
 GitHub Actions, Vercel build minutes, and paid hosted agents are not routine workstation execution authority.
 
+`config/agent-capability-routing-v1.json` is the canonical machine-readable owner and transport map for ChatGPT, Claude Code, Codex, and trusted API agents. Its deterministic planner selects only fresh eligible routes, keeps effect authority with the owning repository, exposes shared dependencies across fallbacks, and never treats queue acceptance or tool presence as proof that physical work ran.
+
 ## Canonical execution hierarchy
 
 Agents must choose the narrowest capable surface:
@@ -103,14 +105,23 @@ pnpm format
 Useful focused checks:
 
 ```bash
+pnpm test:capability-routing
+pnpm check:capability-routing
 pnpm test:windows-chat-mcp
 pnpm --filter @evavo/remote-mcp-relay check
 pnpm --filter @evavo/git-operations test
 ```
 
+Create a deterministic client route plan from a bounded status document:
+
+```bash
+pnpm plan:capability-routing -- --status status.json
+```
+
 ## Documentation
 
 - `docs/AI_AGENT_GATEWAY.md` — canonical client routing and security contract
+- `docs/AGENT_CAPABILITY_ROUTING.md` — machine-readable authority, fallback, evidence and receipt routing
 - `docs/CHATGPT_LOCAL_EXECUTION_ARCHITECTURE.md` — ChatGPT/local execution transport architecture
 - `packages/remote-mcp-relay/README.md` — relay deployment and truth boundaries
 - `EVAVO_ECOSYSTEM_AUDIT.md` — ecosystem audit
@@ -122,6 +133,8 @@ pnpm --filter @evavo/git-operations test
 ## Truth boundary
 
 Repository source and passing contract tests prove only the source contract. They do not prove the current Windows worker, Cloudflare deployment, BeeStation mount, Android device, or tunnel is online. Runtime claims require fresh status and a correlated physical receipt from the exact accepted revision.
+
+The capability route planner has no execution, source-mutation, repository-write, publication, provider-mutation, or credential authority. A selected route means the declared readiness threshold was met; only terminal correlated receipts support completion or physical-verification claims.
 
 **Status:** active implementation and physical integration  
 **Node:** 20 or newer  
