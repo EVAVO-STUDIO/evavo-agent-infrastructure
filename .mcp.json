@@ -15,6 +15,21 @@
         "EVAVO_CONTROL_POLICY_MCP_ROLE": "read-only-route-planner"
       }
     },
+    "evavo-hardware-gateway": {
+      "command": "powershell.exe",
+      "args": [
+        "-NoLogo",
+        "-NoProfile",
+        "-NonInteractive",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "../evavo-local-ai-agent-gateway/scripts/start-mcp.ps1"
+      ],
+      "env": {
+        "EVAVO_HARDWARE_GATEWAY_MCP_ROLE": "governed-physical-control"
+      }
+    },
     "evavo-windows-workstation-bridge": {
       "command": "../evavo-local-compute/.venv/Scripts/evavo-windows-workstation-bridge.exe",
       "args": ["mcp"],
