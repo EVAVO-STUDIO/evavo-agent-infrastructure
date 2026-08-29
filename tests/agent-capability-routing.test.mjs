@@ -63,8 +63,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 8);
-  assert.equal(validatedRouting.strategyCount, 30);
+  assert.equal(validatedRouting.routeCount, 9);
+  assert.equal(validatedRouting.strategyCount, 34);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -108,6 +108,27 @@ test('ChatGPT effectful work can fall back to a configured issue queue without c
   assert.equal(decision.claims.mayClaimCompleted, false);
   assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
   assert.ok(decision.selected.sharedDependencies.includes('current-user-queue-worker'));
+});
+
+test('ChatGPT hardware control selects the accepted typed relay and stays receipt-bound', () => {
+  const result = plan(
+    status({
+      requestedCapabilities: ['workstation.hardware-control'],
+      evidence: [
+        evidence('workstation-hardware-control-typed-relay', 'accepted', {
+          receiptId: 'hardware-acceptance:sha256:' + 'c'.repeat(64),
+        }),
+      ],
+    }),
+  );
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'workstation-hardware-control-typed-relay');
+  assert.equal(decision.selected.transportId, 'cloudflare-typed-relay');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
+  assert.ok(decision.selected.sharedDependencies.includes('local-action-allowlist'));
 });
 
 test('completed and physical claims require a current correlated receipt', () => {
