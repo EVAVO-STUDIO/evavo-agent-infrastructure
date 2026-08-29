@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-workstation-control-health-v1",
+  "canonical": true,
+  "goal": "keep the workstation automation fabric healthy using the narrowest owner-specific repair before escalating to physical-console or out-of-band recovery",
+  "components": [
+    {
+      "id": "local-compute",
+      "repository": "EVAVO-STUDIO/evavo-local-compute",
+      "healthClass": "background-execution",
+      "disruption": "none",
+      "selfHeal": ["owned service/process restart", "durable-job reconciliation", "bounded stale-state cleanup"],
+      "forbiddenSelfHeal": ["desktop input", "hardware identity replacement", "firmware mutation"]
+    },
+    {
+      "id": "computer-agent",
+      "repository": "EVAVO-STUDIO/evavo-computer-agent",
+      "healthClass": "ui-automation",
+      "disruption": "isolated-ui-or-foreground-ui",
+      "selfHeal": ["isolated browser-session recreation", "owned browser automation process restart"],
+      "forbiddenSelfHeal": ["unrequested native-desktop takeover", "physical HID escalation"]
+    },
+    {
+      "id": "hardware-gateway",
+      "repository": "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
+      "healthClass": "signed-hardware-gateway",
+      "disruption": "none-for-status-physical-console-for-hid",
+      "selfHeal": ["owned gateway process restart", "watchdog refresh", "readiness and drift re-evaluation"],
+      "forbiddenSelfHeal": ["automatic HID", "automatic firmware flash", "accepted hardware identity replacement", "automatic profile promotion"]
+    },
+    {
+      "id": "network-studio",
+      "repository": "EVAVO-STUDIO/network-studio",
+      "healthClass": "private-connectivity",
+      "disruption": "none",
+      "selfHeal": ["bounded LAN/Tailscale path re-evaluation", "owned network health refresh"],
+      "forbiddenSelfHeal": ["public Comet exposure", "credential replacement", "KVM input"]
+    },
+    {
+      "id": "out-of-band-control",
+      "repository": "EVAVO-STUDIO/evavo-out-of-band-control",
+      "healthClass": "recovery-escalation",
+      "disruption": "physical-console-or-recovery-impact",
+      "selfHeal": ["expire stale session/admission state", "refresh read-only provider observation"],
+      "forbiddenSelfHeal": ["unapproved keyboard or pointer input", "automatic hard reset", "automatic virtual-media mount"]
+    }
+  ],
+  "evaluationOrder": [
+    "local-compute",
+    "computer-agent-isolated-browser",
+    "hardware-gateway-status",
+    "network-studio",
+    "computer-agent-native-desktop",
+    "hardware-gateway-s3-hid",
+    "out-of-band-control"
+  ],
+  "rules": [
+    "Health checks should be read-only and non-focus-disruptive whenever possible.",
+    "A component may repair only state it owns.",
+    "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
+    "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
+    "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed."
+  ]
+}
