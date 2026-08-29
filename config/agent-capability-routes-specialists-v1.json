@@ -12,44 +12,28 @@
         "id": "browser-qa-workstation-bridge",
         "authority": "automated-testing",
         "transport": "structured-workstation-bridge",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "browser-qa-durable-local",
         "authority": "automated-testing",
         "transport": "durable-local-execution",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "browser-qa-typed-relay",
         "authority": "automated-testing",
         "transport": "cloudflare-typed-relay",
-        "clients": [
-          "chatgpt-pro",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "browser-qa-issue-queue",
         "authority": "automated-testing",
         "transport": "github-issue-queue",
-        "clients": [
-          "chatgpt-pro",
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
         "minimumState": "configured"
       }
     ]
@@ -67,45 +51,68 @@
         "id": "computer-interact-specialist-mcp",
         "authority": "computer-agent",
         "transport": "local-specialist-mcp",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "computer-interact-workstation-bridge",
         "authority": "computer-agent",
         "transport": "structured-workstation-bridge",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "computer-interact-typed-relay",
         "authority": "computer-agent",
         "transport": "cloudflare-typed-relay",
-        "clients": [
-          "chatgpt-pro",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "computer-interact-issue-queue",
         "authority": "computer-agent",
         "transport": "github-issue-queue",
-        "clients": [
-          "chatgpt-pro",
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
         "minimumState": "configured"
+      }
+    ]
+  },
+  {
+    "id": "workstation-hardware-control",
+    "capability": "workstation.hardware-control",
+    "requestedEffect": "control",
+    "completionState": "completed",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 3,
+    "description": "Route signed S3/Comet/C5 hardware-gateway control only after the gateway profile, operation gate and exact physical evidence requirements are satisfied. This is physical-console fallback, not routine background execution.",
+    "strategies": [
+      {
+        "id": "workstation-hardware-control-specialist-mcp",
+        "authority": "local-ai-agent-gateway",
+        "transport": "local-specialist-mcp",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "accepted"
+      },
+      {
+        "id": "workstation-hardware-control-workstation-bridge",
+        "authority": "local-ai-agent-gateway",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "accepted"
+      },
+      {
+        "id": "workstation-hardware-control-typed-relay",
+        "authority": "local-ai-agent-gateway",
+        "transport": "cloudflare-typed-relay",
+        "clients": ["chatgpt-pro", "api-agent"],
+        "minimumState": "accepted"
+      },
+      {
+        "id": "workstation-hardware-control-issue-queue",
+        "authority": "local-ai-agent-gateway",
+        "transport": "github-issue-queue",
+        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+        "minimumState": "accepted"
       }
     ]
   },
@@ -122,44 +129,28 @@
         "id": "device-android-specialist-mcp",
         "authority": "agent-infrastructure",
         "transport": "local-specialist-mcp",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "device-android-workstation-bridge",
         "authority": "agent-infrastructure",
         "transport": "structured-workstation-bridge",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "device-android-typed-relay",
         "authority": "agent-infrastructure",
         "transport": "cloudflare-typed-relay",
-        "clients": [
-          "chatgpt-pro",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "device-android-issue-queue",
         "authority": "agent-infrastructure",
         "transport": "github-issue-queue",
-        "clients": [
-          "chatgpt-pro",
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
         "minimumState": "configured"
       }
     ]
@@ -177,31 +168,21 @@
         "id": "memory-query-local-mcp",
         "authority": "brain",
         "transport": "local-specialist-mcp",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "memory-query-workstation-bridge",
         "authority": "brain",
         "transport": "structured-workstation-bridge",
-        "clients": [
-          "claude-code",
-          "codex",
-          "api-agent"
-        ],
+        "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
       },
       {
         "id": "memory-query-secure-tunnel",
         "authority": "brain",
         "transport": "openai-secure-mcp-tunnel",
-        "clients": [
-          "chatgpt-pro"
-        ],
+        "clients": ["chatgpt-pro"],
         "minimumState": "transport_online"
       }
     ]
