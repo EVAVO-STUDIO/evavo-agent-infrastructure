@@ -24,11 +24,17 @@
     "allowVercelAsExecutionAuthority": false,
     "allowArbitraryShell": false,
     "runtimeClaimsRequireReceipt": true,
-    "failureDomainScope": "transport-ingress-only"
+    "failureDomainScope": "transport-ingress-only",
+    "preferLeastDisruptiveControlPath": true,
+    "preserveUserFocusWhenPossible": true,
+    "foregroundEscalationRequiresBackgroundInsufficiency": true,
+    "physicalConsoleIsFallbackNotDefault": true,
+    "remoteDoesNotImplyBackground": true
   },
   "fragments": {
     "authorities": "agent-capability-authorities-v1.json",
     "transports": "agent-capability-transports-v1.json",
+    "controlPathPolicy": "control-path-policy-v1.json",
     "routes": [
       "agent-capability-routes-core-v1.json",
       "agent-capability-routes-specialists-v1.json"
