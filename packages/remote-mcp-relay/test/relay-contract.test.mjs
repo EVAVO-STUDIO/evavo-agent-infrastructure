@@ -17,19 +17,33 @@ test("Wrangler worker is the single authoritative implementation", () => {
   assert.doesNotMatch(compatibilitySource, /DurableObject|registerTool|api\/dispatch|execution\.prepare/);
 });
 
-test("remote MCP exposes only read-only workstation tools", () => {
+test("remote MCP exposes only bounded read-only workstation and gateway tools", () => {
   assert.match(source, /workstation_status/);
   assert.match(source, /workstation_capabilities/);
+  assert.match(source, /gateway_fabric_status/);
   assert.match(source, /workstation_request_status/);
   assert.match(source, /readOnlyHint:\s*true/g);
   assert.doesNotMatch(source, /registerTool\(\s*["'](?:dispatch|execute|powershell|shell)/i);
   assert.match(source, /dispatchExposedThroughProMcp:\s*false/);
+  assert.match(source, /typedReadDispatchExposedThroughProMcp:\s*true/);
   assert.match(source, /rawShellExposed:\s*false/);
+});
+
+test("gateway fabric MCP tool is a fixed empty-argument read and cannot become HID control", () => {
+  assert.match(source, /const GATEWAY_READ_ACTIONS = new Set/);
+  assert.match(source, /gateway\.fabric_status/);
+  assert.match(source, /gateway-read-actions-require-empty-arguments/);
+  assert.match(source, /action: "gateway\.fabric_status", arguments: \{\}, wait: true/);
+  assert.match(source, /physicalAcceptanceClaimed:\s*false/);
+  assert.match(source, /physicalExecutionClaimed:\s*false/);
+  for (const prohibited of ["gateway.type_text", "gateway.press_keys", "gateway.move_mouse", "gateway.wake_target"]) {
+    assert.doesNotMatch(source, new RegExp(prohibited.replaceAll(".", "\\.")));
+  }
 });
 
 test("public MCP request status is coarse and cannot expose execution output", () => {
   const start = source.indexOf("function publicRequestStatus");
-  const end = source.indexOf("function makeMcpServer");
+  const end = source.indexOf("async function internalGatewayFabricStatus");
   assert.ok(start >= 0 && end > start);
   const redaction = source.slice(start, end);
   assert.match(redaction, /detailedResultExposedThroughMcp:\s*false/);
@@ -57,6 +71,7 @@ test("effectful dispatch is separately authenticated, typed and end-to-end imple
     "workstation.repair",
     "workstation.bootstrap",
     "rest.health",
+    "gateway.fabric_status",
     "storage.status",
     "storage.inventory.refresh",
     "storage.google_pressure.activate",
