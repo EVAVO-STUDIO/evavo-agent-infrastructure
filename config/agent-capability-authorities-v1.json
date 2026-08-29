@@ -1,77 +1,74 @@
 {
   "github-evidence": {
     "repository": "EVAVO-STUDIO/evavo-github-mcp",
-    "effects": [
-      "read"
-    ],
+    "effects": ["read"],
     "exclusiveEffects": [],
     "description": "Read-only GitHub inventory, repository evidence and routing. It never owns source mutation, execution or publication."
   },
   "development-governance": {
     "repository": "EVAVO-STUDIO/evavo-development-studio",
-    "effects": [
-      "read",
-      "write",
-      "execute",
-      "publish"
-    ],
-    "exclusiveEffects": [
-      "publish"
-    ],
-    "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority."
+    "effects": ["read", "write", "execute", "publish"],
+    "exclusiveEffects": ["publish"],
+    "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority. Normal host execution should route through Local Compute rather than visible interactive terminals."
   },
   "local-compute": {
     "repository": "EVAVO-STUDIO/evavo-local-compute",
-    "effects": [
-      "read",
-      "execute"
-    ],
+    "effects": ["read", "execute"],
     "exclusiveEffects": [],
-    "description": "Structured SHA-bound workstation execution, durable local jobs and bounded execution receipts."
+    "description": "Structured SHA-bound workstation execution, durable local jobs and bounded execution receipts. Preferred background authority for command, code, Git, build, test, file, process and local-model work."
   },
   "local-storage": {
     "repository": "EVAVO-STUDIO/evavo-local-storage",
-    "effects": [
-      "read",
-      "write",
-      "execute"
-    ],
+    "effects": ["read", "write", "execute"],
     "exclusiveEffects": [],
     "description": "Workstation continuity, storage governance, BeeStation integration and worker recovery."
   },
   "automated-testing": {
     "repository": "EVAVO-STUDIO/automated-testing",
-    "effects": [
-      "read",
-      "execute"
-    ],
+    "effects": ["read", "execute"],
     "exclusiveEffects": [],
-    "description": "Browser, responsive, accessibility, performance and governed technical QA campaigns."
+    "description": "Browser, responsive, accessibility, performance and governed technical QA campaigns, including control-path and focus-safety regression validation."
   },
   "computer-agent": {
     "repository": "EVAVO-STUDIO/evavo-computer-agent",
-    "effects": [
-      "read",
-      "control"
-    ],
+    "effects": ["read", "control"],
     "exclusiveEffects": [],
-    "description": "Signed visual computer interaction and UI journey authority under explicit policy."
+    "description": "Browser and native desktop UI interaction authority. Isolated/headless browser control is preferred; native desktop control is focus-disruptive fallback."
+  },
+  "local-ai-agent-gateway": {
+    "repository": "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
+    "effects": ["read", "execute", "control"],
+    "exclusiveEffects": [],
+    "description": "Signed S3 HID, C5 passive telemetry, Comet reachability, hardware-profile acceptance, drift/watchdog state and local hardware MCP authority. S3 HID targets the real physical console and is not a background route."
+  },
+  "network-studio": {
+    "repository": "EVAVO-STUDIO/network-studio",
+    "effects": ["read", "execute"],
+    "exclusiveEffects": [],
+    "description": "Private LAN/Tailscale/overlay diagnosis, Comet path reachability and network failover health. It does not own KVM input or desktop interaction."
+  },
+  "out-of-band-control": {
+    "repository": "EVAVO-STUDIO/evavo-out-of-band-control",
+    "effects": ["read", "control"],
+    "exclusiveEffects": [],
+    "description": "Acceptance-bound out-of-band/KVM recovery authority. Effectful Comet input, power and virtual-media operations are escalation paths, never routine workstation execution."
+  },
+  "super-admin": {
+    "repository": "EVAVO-STUDIO/super-admin-ai-agent",
+    "effects": ["read", "control"],
+    "exclusiveEffects": [],
+    "description": "Review, authorization and audit authority for high-impact recovery operations. It cannot self-approve proposals simply because a physical route is technically available."
   },
   "agent-infrastructure": {
     "repository": "EVAVO-STUDIO/evavo-agent-infrastructure",
-    "effects": [
-      "read",
-      "execute"
-    ],
+    "effects": ["read", "execute"],
     "exclusiveEffects": [],
-    "description": "Chat-facing MCP routing, specialist device tools, capability discovery and remote relay."
+    "description": "Chat-facing MCP routing, specialist device tools, capability discovery, least-disruptive route selection and remote relay."
   },
   "brain": {
     "repository": "EVAVO-STUDIO/the-brain",
-    "effects": [
-      "read"
-    ],
+    "effects": ["read"],
     "exclusiveEffects": [],
-    "description": "Bounded historical context, preference intelligence and evidence-backed memory retrieval."
+    "description": "Bounded historical context, preference intelligence, evidence-backed memory retrieval and the canonical cross-system workstation control operating model."
   }
 }
