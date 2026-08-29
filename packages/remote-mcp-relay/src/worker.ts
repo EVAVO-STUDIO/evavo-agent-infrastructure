@@ -70,11 +70,15 @@ const STORAGE_ACTIONS = new Set([
   "storage.google_pressure.activate",
   "storage.estate.activate",
 ]);
+const GATEWAY_READ_ACTIONS = new Set([
+  "gateway.fabric_status",
+]);
 const ACTIONS = new Set([
   "workstation.status",
   "workstation.repair",
   "workstation.bootstrap",
   "rest.health",
+  ...GATEWAY_READ_ACTIONS,
   ...STORAGE_ACTIONS,
 ]);
 
@@ -120,6 +124,7 @@ function publicStatus(raw: Record<string, unknown>): Record<string, unknown> {
     lastReceiptAt: raw.lastReceiptAt ?? null,
     transport: "outbound-websocket-via-cloudflare-durable-object",
     dispatchExposedThroughProMcp: false,
+    typedReadDispatchExposedThroughProMcp: true,
     rawShellExposed: false,
   };
 }
@@ -162,6 +167,59 @@ function publicRequestStatus(raw: Record<string, unknown>): Record<string, unkno
   };
 }
 
+async function internalGatewayFabricStatus(env: Env): Promise<Record<string, unknown>> {
+  const response = await stub(env).fetch(new Request("https://relay.internal/dispatch", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action: "gateway.fabric_status", arguments: {}, wait: true, timeoutMs: 30_000 }),
+  }));
+  const value = (await response.json()) as Record<string, unknown>;
+  if (!response.ok || value.ok !== true || value.action !== "gateway.fabric_status") {
+    throw new Error(typeof value.error === "string" ? value.error : `gateway-fabric-status-${response.status}`);
+  }
+  const result = value.result;
+  if (!result || typeof result !== "object" || Array.isArray(result)) throw new Error("gateway-fabric-status-result-invalid");
+  return result as Record<string, unknown>;
+}
+
+function publicGatewayFabricStatus(raw: Record<string, unknown>): Record<string, unknown> {
+  const hardware = raw.hardware && typeof raw.hardware === "object" && !Array.isArray(raw.hardware)
+    ? raw.hardware as Record<string, unknown>
+    : {};
+  const acceptance = raw.acceptance && typeof raw.acceptance === "object" && !Array.isArray(raw.acceptance)
+    ? raw.acceptance as Record<string, unknown>
+    : {};
+  const snapshot = raw.snapshot && typeof raw.snapshot === "object" && !Array.isArray(raw.snapshot)
+    ? raw.snapshot as Record<string, unknown>
+    : {};
+  return {
+    schemaVersion: raw.schemaVersion ?? null,
+    kind: raw.kind ?? null,
+    ok: raw.ok === true,
+    capturedAt: raw.capturedAt ?? null,
+    ready: raw.ready === true,
+    nextAction: raw.nextAction ?? null,
+    fabricProfile: raw.fabricProfile ?? null,
+    requiredDevices: Array.isArray(raw.requiredDevices) ? raw.requiredDevices : [],
+    maintenanceActive: raw.maintenanceActive === true,
+    hardware: {
+      s3Present: hardware.s3Present === true,
+      c5Present: hardware.c5Present === true,
+      c5Required: hardware.c5Required === true,
+      cometReachable: hardware.cometReachable === true,
+      cometPath: hardware.cometPath ?? null,
+    },
+    acceptance: {
+      ok: acceptance.ok === true,
+      failedChecks: Array.isArray(acceptance.failedChecks) ? acceptance.failedChecks : [],
+    },
+    snapshot: { drift: snapshot.drift === true },
+    physicalAcceptanceClaimed: false,
+    physicalExecutionClaimed: false,
+    rawShellExposed: false,
+  };
+}
+
 function makeMcpServer(env: Env): McpServer {
   const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.3.1" });
   server.registerTool(
@@ -190,11 +248,23 @@ function makeMcpServer(env: Env): McpServer {
             capabilities: status.capabilities,
             workerFabricProfile: status.workerFabricProfile,
             dispatchRequiresSeparateAuthenticatedApi: true,
+            typedReadDispatchAvailableThroughMcp: true,
             rawShellExposed: false,
           }),
         }],
       };
     },
+  );
+  server.registerTool(
+    "gateway_fabric_status",
+    {
+      description: "Read the bounded EVAVO gateway hardware fabric, commissioning, Comet reachability and acceptance status. This fixed tool cannot type, click, move a pointer, wake a target or run arbitrary commands.",
+      inputSchema: {},
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    async () => ({
+      content: [{ type: "text", text: JSON.stringify(publicGatewayFabricStatus(await internalGatewayFabricStatus(env))) }],
+    }),
   );
   server.registerTool(
     "workstation_request_status",
@@ -312,6 +382,9 @@ export class WorkstationRelay extends DurableObject<Env> {
       : {};
     if (STORAGE_ACTIONS.has(action) && Object.keys(args).length !== 0) {
       return json({ ok: false, error: "storage-actions-require-empty-arguments" }, { status: 400 });
+    }
+    if (GATEWAY_READ_ACTIONS.has(action) && Object.keys(args).length !== 0) {
+      return json({ ok: false, error: "gateway-read-actions-require-empty-arguments" }, { status: 400 });
     }
     if (new TextEncoder().encode(JSON.stringify(args)).byteLength > MAX_DISPATCH_BYTES) {
       return json({ ok: false, error: "arguments-too-large" }, { status: 413 });
