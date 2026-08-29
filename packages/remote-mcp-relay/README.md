@@ -10,11 +10,14 @@ The relay is an optional remote control plane, not the root of local automation.
 
 ## ChatGPT Pro boundary
 
-As of 2026-08-26, ChatGPT Pro custom MCP access is limited to read/fetch permissions. This relay therefore exposes only read/status tools through MCP:
+As of 2026-08-26, ChatGPT Pro custom MCP access is limited to read/fetch permissions. This relay therefore exposes only bounded read/status tools through MCP:
 
 - `workstation_status`
 - `workstation_capabilities`
+- `gateway_fabric_status`
 - `workstation_request_status`
+
+`gateway_fabric_status` is a fixed empty-argument read. It asks the workstation for the redacted output of the canonical gateway commissioning-readiness evaluator and returns only the active fabric profile, required devices, S3/C5 presence, Comet reachability, maintenance state, snapshot drift, acceptance result, failed acceptance checks and next action. It cannot type text, press keys, move a pointer, wake a target, select a local path, run a caller-provided command, or claim physical execution.
 
 `workstation_request_status` exposes only the request identifier, typed action, lifecycle timestamps, coarse status, and success state. It never returns command output, local paths, detailed errors, or action results. Detailed request results require the authenticated API.
 
@@ -27,10 +30,11 @@ Effectful dispatch is deliberately **not** disguised as a read MCP tool. A separ
 - `/mcp`, `/api/status`, and `/health` expose only coarse non-secret readiness metadata.
 - No raw PowerShell or arbitrary command string, inline script source, executable, or caller-selected local path is admitted by the relay.
 - Dispatch accepts only a fixed typed action allowlist. The Windows client enforces an independent local allowlist.
+- Gateway read actions require an empty argument object and route through a fixed Local Storage bridge into a clean exact `origin/main` gateway checkout.
 - Storage actions require an empty argument object and route through the governed local operator.
 - The workstation token is stored by the Windows client using current-user DPAPI; it is not placed in Task Scheduler arguments, environment variables, or the registry.
 - REST Executor v5 and Local Agent remain loopback-only.
-- The Cloudflare relay does not receive local credential values, private keys, token files, or arbitrary filesystem contents.
+- The Cloudflare relay does not receive local credential values, private keys, token files, arbitrary filesystem contents, or raw gateway diagnostic output.
 
 ## Single-source implementation
 
@@ -73,7 +77,7 @@ A deployment is not operational proof. Record the deployed HTTPS/WSS endpoint se
 The deployed endpoints are:
 
 ```text
-GET/POST /mcp          Remote MCP Streamable HTTP, read/status tools only
+GET/POST /mcp          Remote MCP Streamable HTTP, bounded read/status tools only
 GET      /health       Relay health plus coarse workstation online state
 GET      /api/status   Coarse read-only workstation state
 GET      /connect      Authenticated WebSocket upgrade for Windows client
@@ -90,11 +94,25 @@ workstation.status
 workstation.repair
 workstation.bootstrap
 rest.health
+gateway.fabric_status
 storage.status
 storage.inventory.refresh
 storage.google_pressure.activate
 storage.estate.activate
 ```
+
+`gateway.fabric_status` is read-only despite using the typed workstation transport. It requires `{}` arguments, invokes only `scripts/Get-EvavoGatewayFabricStatus.ps1` in Local Storage, requires the canonical `C:\GitRepos\evavo-local-ai-agent-gateway` checkout to be clean exact `origin/main`, runs only `scripts\commissioning-readiness.ps1 -Json`, and returns a second-stage redacted summary. The MCP surface additionally re-whitelists that summary before returning it.
+
+Physical gateway actions remain deliberately unadmitted:
+
+```text
+gateway.type_text
+gateway.press_keys
+gateway.move_mouse
+gateway.wake_target
+```
+
+Those identifiers remain reserved until each has a separate typed schema, explicit disruption/acceptance policy, local implementation, receipt contract and end-to-end tests. They must never be implemented by widening `gateway.fabric_status` or by introducing arbitrary shell parameters.
 
 Direct generic execution actions such as `execution.prepare`, `execution.run_request`, `godot.runtime_probe`, raw shell, and caller-supplied script text are intentionally not admitted by this internet-facing relay. Structured local execution remains owned by `evavo-local-compute` and is reached through its reviewed SHA-bound request contract or the GitHub issue queue.
 
@@ -121,4 +139,4 @@ GitHub Actions and Vercel are not required for relay runtime or workstation stor
 
 ## Truth boundary
 
-Source presence or a successful Cloudflare deployment does not prove the workstation is connected. `workstation_status.online=true` requires a currently attached WebSocket. A successful typed dispatch additionally requires a correlated result from the Windows client. Local scheduled storage governance remains authoritative even when the relay is offline.
+Source presence or a successful Cloudflare deployment does not prove the workstation is connected. `workstation_status.online=true` requires a currently attached WebSocket. A successful typed dispatch additionally requires a correlated result from the Windows client. `gateway_fabric_status.ready=true` is evidence that the gateway readiness evaluator reported ready at that captured time; it is not proof that a physical HID action was executed. Local scheduled storage governance remains authoritative even when the relay is offline.
