@@ -124,7 +124,7 @@ test('ChatGPT hardware control selects the accepted typed relay and stays receip
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'workstation-hardware-control-typed-relay');
-  assert.equal(decision.selected.transportId, 'cloudflare-typed-relay');
+  assert.equal(decision.selected.transport, 'cloudflare-typed-relay');
   assert.equal(decision.claims.mayAttempt, true);
   assert.equal(decision.claims.mayClaimCompleted, false);
   assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
