@@ -8,6 +8,13 @@
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
     },
+    "evavo-control-policy": {
+      "command": "node",
+      "args": ["./mcp-server/control-policy-mcp.mjs"],
+      "env": {
+        "EVAVO_CONTROL_POLICY_MCP_ROLE": "read-only-route-planner"
+      }
+    },
     "evavo-windows-workstation-bridge": {
       "command": "../evavo-local-compute/.venv/Scripts/evavo-windows-workstation-bridge.exe",
       "args": ["mcp"],
