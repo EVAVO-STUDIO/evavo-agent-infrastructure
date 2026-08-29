@@ -24,12 +24,7 @@
     "allowVercelAsExecutionAuthority": false,
     "allowArbitraryShell": false,
     "runtimeClaimsRequireReceipt": true,
-    "failureDomainScope": "transport-ingress-only",
-    "preferLeastDisruptiveControlPath": true,
-    "preserveUserFocusWhenPossible": true,
-    "foregroundEscalationRequiresBackgroundInsufficiency": true,
-    "physicalConsoleIsFallbackNotDefault": true,
-    "remoteDoesNotImplyBackground": true
+    "failureDomainScope": "transport-ingress-only"
   },
   "fragments": {
     "authorities": "agent-capability-authorities-v1.json",
