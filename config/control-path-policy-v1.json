@@ -1,0 +1,103 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-control-path-policy-v1",
+  "canonical": true,
+  "goal": "complete work using the least disruptive eligible authority while preserving evidence and recovery capability",
+  "default": {
+    "preferBackground": true,
+    "preserveUserFocus": true,
+    "allowForegroundEscalation": true,
+    "foregroundOnlyWhenBackgroundInsufficient": true,
+    "remoteDoesNotMeanBackground": true,
+    "runtimeClaimsRequireReceipt": true
+  },
+  "disruptionLevels": {
+    "none": "No interaction with the user's visible desktop or active physical console.",
+    "isolated-ui": "UI automation runs in an isolated/headless/separate browser context and should not take focus from the user's active application.",
+    "foreground-ui": "Automation may change focus or manipulate a visible application in the current user session.",
+    "physical-console": "Keyboard, pointer or KVM input targets the real workstation console and can interrupt the human user.",
+    "recovery-impact": "Power, reboot, virtual media or other recovery action can interrupt workloads and requires the strongest governance."
+  },
+  "routeOrder": [
+    {
+      "rank": 10,
+      "routeClass": "typed-api-or-connector",
+      "disruption": "none",
+      "examples": ["connected-github", "specialist API", "repository connector"],
+      "rule": "Use when a typed native interface can complete the task."
+    },
+    {
+      "rank": 20,
+      "routeClass": "local-compute-background",
+      "disruption": "none",
+      "authorities": ["local-compute", "development-governance", "local-storage"],
+      "transports": ["structured-workstation-bridge", "durable-local-execution", "cloudflare-typed-relay", "github-issue-queue"],
+      "rule": "Preferred for code, Git, file, build, test, package, process, service and local-model work. Windows non-interactive child processes should use hidden/no-console launch policy."
+    },
+    {
+      "rank": 30,
+      "routeClass": "local-mcp",
+      "disruption": "none",
+      "transports": ["local-specialist-mcp", "openai-secure-mcp-tunnel"],
+      "rule": "MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
+    },
+    {
+      "rank": 40,
+      "routeClass": "isolated-browser",
+      "disruption": "isolated-ui",
+      "authorities": ["computer-agent"],
+      "rule": "Prefer headless or isolated browser context before native desktop interaction when the web workflow supports it."
+    },
+    {
+      "rank": 50,
+      "routeClass": "native-desktop",
+      "disruption": "foreground-ui",
+      "authorities": ["computer-agent"],
+      "rule": "Use only when a real desktop application/UI must be manipulated. Declare focus disruption and keep the interaction bounded."
+    },
+    {
+      "rank": 60,
+      "routeClass": "s3-hid",
+      "disruption": "physical-console",
+      "authorities": ["local-ai-agent-gateway"],
+      "rule": "Use governed S3 HID only when narrower in-band routes cannot perform the required physical-console interaction and the signed operation gate is green."
+    },
+    {
+      "rank": 70,
+      "routeClass": "comet-kvm",
+      "disruption": "physical-console",
+      "authorities": ["out-of-band-control"],
+      "rule": "Prefer observation over interaction. Effectful Comet KVM is an escalation/recovery path and requires exact provider admission and action governance."
+    },
+    {
+      "rank": 80,
+      "routeClass": "oob-recovery",
+      "disruption": "recovery-impact",
+      "authorities": ["out-of-band-control", "super-admin"],
+      "rule": "Power, reset and virtual-media operations are last-resort recovery and must not be selected for routine work."
+    }
+  ],
+  "hardwareProfiles": {
+    "s3_comet": {
+      "required": ["s3_hid", "comet_visual"],
+      "optional": ["c5_radio"],
+      "meaning": "Stage 1 signed workstation physical-control profile while C5 is absent."
+    },
+    "full": {
+      "required": ["s3_hid", "comet_visual", "c5_radio"],
+      "meaning": "Full signed hardware profile. C5 is passive telemetry by default."
+    }
+  },
+  "clientRules": {
+    "chatgpt-pro": "Use connected/native tools first. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
+    "claude-code": "Prefer local MCP/Local Compute typed execution before interactive terminal or desktop control.",
+    "codex": "Prefer local MCP/Local Compute typed execution and isolated browser control before actual-console routes.",
+    "api-agent": "Select the first eligible route by this policy and retain receipts for effectful work."
+  },
+  "healthRules": [
+    "Health and self-heal should use status endpoints, process/service APIs and watchdogs before GUI interaction.",
+    "A watchdog may restart only owned processes according to its repository contract; watchdog recovery must not silently send HID or change hardware identity.",
+    "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
+    "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient."
+  ]
+}
