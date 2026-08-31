@@ -5,23 +5,25 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 
 const SERVER_NAME = 'evavo-gmail-trash-evacuation-mcp';
-const SERVER_VERSION = '1.1.0';
+const SERVER_VERSION = '1.2.0';
 const STORAGE_REPOSITORY = process.env.EVAVO_STORAGE_ROOT || 'C:\\GitRepos\\evavo-storage';
+const OPERATIONS_CORE_REPOSITORY = process.env.EVAVO_OPERATIONS_CORE_ROOT || 'C:\\GitRepos\\evavo-operations-core';
 const INSTALLER = path.join(STORAGE_REPOSITORY, 'scripts', 'Install-GmailTrashEvacuationTaskCurrent.ps1');
 const RUNNER = path.join(STORAGE_REPOSITORY, 'scripts', 'Invoke-GmailTrashEvacuationCurrent.ps1');
+const FINANCE_ARCHIVE_AUTOMATION = path.join(OPERATIONS_CORE_REPOSITORY, 'scripts', 'Invoke-EvavoFinanceArchiveEvidenceAutomation.ps1');
 const SHA256 = /^[0-9a-f]{64}$/;
 
 const TOOLS = Object.freeze([
   {
     name: 'evavo_gmail_trash_evacuation_doctor',
-    description: 'Verify that the fixed Gmail Trash evacuation installer and cycle runner are present. Performs no provider mutation.',
+    description: 'Verify the fixed Gmail Trash evacuation and Operations Core archive-evidence consumer surfaces. Performs no provider mutation.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: { 'io.evavo/effects': ['read'], 'io.evavo/arbitraryCommandTextAccepted': false },
   },
   {
     name: 'evavo_gmail_trash_evacuation_activate',
-    description: 'Install or refresh the fixed resumable Gmail Trash evacuation scheduled task using an externally authorized standing provider policy. This tool cannot create or self-approve permanent-delete authority.',
+    description: 'Install or refresh the finance-evidence consumer and fixed resumable Gmail Trash evacuation task using an externally authorized standing provider policy. This tool cannot create or self-approve permanent-delete authority.',
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -37,7 +39,7 @@ const TOOLS = Object.freeze([
   },
   {
     name: 'evavo_gmail_trash_evacuation_cycle',
-    description: 'Run one bounded resumable Gmail Trash evacuation cycle using the already-pinned standing provider policy. Inventory/archive phases are non-destructive; provider deletion occurs only after exact archive verification and policy admission.',
+    description: 'Run one bounded resumable Gmail Trash evacuation cycle using the already-pinned standing provider policy. Business records cannot be provider-deleted until Operations Core has durably accepted their exact verified archive handoffs.',
     inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
     _meta: { 'io.evavo/effects': ['execute', 'write', 'network', 'provider-mutation'], 'io.evavo/arbitraryCommandTextAccepted': false },
@@ -45,28 +47,33 @@ const TOOLS = Object.freeze([
 ]);
 
 function runPowerShell(script, args = [], timeout = 7_500_000) {
-  if (!existsSync(script)) throw new Error(`fixed Gmail evacuation helper is missing: ${path.basename(script)}`);
+  if (!existsSync(script)) throw new Error(`fixed automation helper is missing: ${path.basename(script)}`);
   const result = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, ...args], {
     encoding: 'utf8', windowsHide: true, shell: false, timeout, maxBuffer: 16 * 1024 * 1024,
   });
   if (result.error) throw result.error;
   const text = String(result.stdout || result.stderr || '').trim();
   let receipt;
-  try { receipt = JSON.parse(text); } catch { throw new Error('Gmail evacuation helper returned invalid JSON'); }
-  if (result.status !== 0 || receipt?.ok !== true) throw new Error('Gmail evacuation helper did not report success');
+  try { receipt = JSON.parse(text); } catch { throw new Error(`automation helper returned invalid JSON: ${path.basename(script)}`); }
+  if (result.status !== 0 || receipt?.ok !== true) throw new Error(`automation helper did not report success: ${path.basename(script)}`);
   return receipt;
 }
 
 function doctor() {
+  const installerPresent = existsSync(INSTALLER);
+  const runnerPresent = existsSync(RUNNER);
+  const financeConsumerPresent = existsSync(FINANCE_ARCHIVE_AUTOMATION);
   return {
     schemaVersion: 1,
     kind: 'evavo-gmail-trash-evacuation-mcp-doctor-v1',
-    ok: existsSync(INSTALLER) && existsSync(RUNNER),
+    ok: installerPresent && runnerPresent && financeConsumerPresent,
     server: SERVER_NAME,
     version: SERVER_VERSION,
-    installerPresent: existsSync(INSTALLER),
-    runnerPresent: existsSync(RUNNER),
+    installerPresent,
+    runnerPresent,
+    financeArchiveEvidenceConsumerPresent: financeConsumerPresent,
     archiveBeforeProviderDeletionRequired: true,
+    financeAcceptanceRequiredForBusinessRecords: true,
     standingProviderPolicyRequired: true,
     externalStandingAuthorizationRequired: true,
     selfApprovalAllowed: false,
@@ -81,6 +88,24 @@ function activate(args) {
   const policyPath = String(args.policyPath || '').trim();
   const policySha256 = String(args.policySha256 || '').trim().toLowerCase();
   if (!policyPath || policyPath.length > 4096 || !SHA256.test(policySha256)) throw new Error('valid externally-authorized policyPath and policySha256 are required');
+
+  // Install the prerequisite Operations Core consumer first. It reuses the
+  // already-DPAPI-protected finance receiver secrets and does not create any
+  // accounting, tax or payment posting authority.
+  const financeArgs = ['-Mode', 'Install', '-AllowTaskMutation', '-AllowNetwork', '-NoThrow', '-AsJson'];
+  if (args.startNow !== false) financeArgs.push('-StartNow');
+  const finance = runPowerShell(FINANCE_ARCHIVE_AUTOMATION, financeArgs, 180_000);
+  if (
+    finance.kind !== 'evavo-finance-archive-evidence-windows-automation-receipt-v1'
+    || finance.state !== 'installed'
+    || finance.safety?.providerMutations !== 0
+    || finance.safety?.archiveMutations !== 0
+    || finance.safety?.accountingPosts !== 0
+    || finance.safety?.taxActions !== 0
+  ) {
+    throw new Error('Operations Core archive-evidence consumer failed admission');
+  }
+
   const argv = ['-PolicyPath', policyPath, '-PolicySha256', policySha256];
   if (args.startNow !== false) argv.push('-StartNow');
   const receipt = runPowerShell(INSTALLER, argv, 180_000);
@@ -93,12 +118,24 @@ function activate(args) {
   ) {
     throw new Error('Gmail evacuation installation receipt failed admission');
   }
-  return { ...receipt, invokedThrough: SERVER_NAME };
+  return {
+    ...receipt,
+    financeArchiveEvidenceConsumerInstalled: true,
+    financeArchiveEvidenceConsumerReceipt: {
+      kind: finance.kind,
+      state: finance.state,
+      taskCount: Array.isArray(finance.tasks) ? finance.tasks.length : 0,
+    },
+    invokedThrough: SERVER_NAME,
+  };
 }
 
 function cycle() {
   const receipt = runPowerShell(RUNNER, [], 7_500_000);
-  if (receipt.kind !== 'evavo-gmail-trash-evacuation-current-receipt-v1' || receipt.localArchiveRetentionUnaffected !== true) {
+  if (
+    receipt.kind !== 'evavo-gmail-trash-evacuation-current-receipt-v1'
+    || receipt.localArchiveRetentionUnaffected !== true
+  ) {
     throw new Error('Gmail evacuation cycle receipt failed admission');
   }
   return { ...receipt, invokedThrough: SERVER_NAME };
