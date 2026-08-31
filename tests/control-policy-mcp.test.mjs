@@ -175,12 +175,16 @@ test('central MCP bundle registers policy and hardware gateway without embedded 
   assert.doesNotMatch(text, /EVAVO_GATEWAY_TOKEN/u);
 });
 
-test('Windows receipt inspector uses the shared child receipt schema and never treats absence as no-effect proof', () => {
+test('Windows receipt inspector uses shared schema, bounded latest discovery, and never treats absence as no-effect proof', () => {
   const inspector = fs.readFileSync('mcp-server/windows-receipt-inspector-mcp.mjs', 'utf8');
   assert.match(inspector, /evavo-powershell-child-execution-receipt-v1/u);
   assert.match(inspector, /pschild-\[0-9\]\{10,16\}/u);
   assert.match(inspector, /PowerShellChildReceipts/u);
   assert.match(inspector, /receipt-not-found-is-not-proof-that-the-physical-action-did-not-run/u);
+  assert.match(inspector, /evavo_windows_latest_receipt/u);
+  assert.match(inspector, /MAX_DISCOVERY_FILES = 5000/u);
+  assert.match(inspector, /readdirSync\(root\)/u);
+  assert.match(inspector, /physicalPathsReturned: false/u);
   assert.match(inspector, /normalizeReceiptTruth/u);
   assert.match(inspector, /retryUnderlyingAction: false/u);
   assert.match(inspector, /reconciliationRequired: true/u);
