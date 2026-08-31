@@ -43,11 +43,28 @@ export const controlPolicyTools = Object.freeze([
       },
     },
   },
+  {
+    name: 'evavo_control_receipt_advice',
+    description: 'Classify explicit physical-effect and receipt facts into a safe retry/reconciliation disposition. Read-only; never repeats or executes the underlying action.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['physicalEffectState', 'sideEffectMayHaveCommitted', 'postconditionVerified', 'intentPersisted', 'terminalReceiptPersisted'],
+      properties: {
+        physicalEffectState: { type: 'string', minLength: 1, maxLength: 96 },
+        sideEffectMayHaveCommitted: { type: 'boolean' },
+        postconditionVerified: { type: 'boolean' },
+        intentPersisted: { type: 'boolean' },
+        terminalReceiptPersisted: { type: 'boolean' },
+        reconciliationRequired: { type: 'boolean' },
+      },
+    },
+  },
 ]);
 
 export const controlPolicyMcpContract = Object.freeze({
   serverName: 'EVAVO Control Path Policy',
-  serverVersion: '1.1.0',
+  serverVersion: '1.2.0',
   readOnly: true,
   executionAuthority: false,
   focusDisruptionExpected: false,
@@ -89,9 +106,97 @@ export function chooseControlRoute(args = {}) {
   };
 }
 
+function requireBoolean(args, key) {
+  if (typeof args[key] !== 'boolean') throw new Error(`${key} must be boolean`);
+  return args[key];
+}
+
+export function classifyReceiptTruth(args = {}) {
+  if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('arguments must be an object');
+  const allowed = new Set([
+    'physicalEffectState', 'sideEffectMayHaveCommitted', 'postconditionVerified', 'intentPersisted',
+    'terminalReceiptPersisted', 'reconciliationRequired',
+  ]);
+  for (const key of Object.keys(args)) if (!allowed.has(key)) throw new Error(`unknown receipt-advice field: ${key}`);
+
+  const physicalEffectState = String(args.physicalEffectState || '').trim();
+  if (!physicalEffectState || physicalEffectState.length > 96) throw new Error('physicalEffectState must be 1-96 characters');
+  const sideEffectMayHaveCommitted = requireBoolean(args, 'sideEffectMayHaveCommitted');
+  const postconditionVerified = requireBoolean(args, 'postconditionVerified');
+  const intentPersisted = requireBoolean(args, 'intentPersisted');
+  const terminalReceiptPersisted = requireBoolean(args, 'terminalReceiptPersisted');
+  const explicitReconciliation = args.reconciliationRequired === true;
+
+  let disposition = 'reconcile-before-retry';
+  let operationSucceeded = false;
+  let retryUnderlyingAction = false;
+  let requestReplaySafe = false;
+  let reconciliationRequired = true;
+  let reason = 'physical-effect-state-is-not-conclusive';
+
+  const noEffectStates = new Set(['not_attempted', 'verified_not_committed']);
+  const committedStates = new Set(['verified_committed']);
+
+  if (committedStates.has(physicalEffectState) && postconditionVerified) {
+    operationSucceeded = true;
+    retryUnderlyingAction = false;
+    requestReplaySafe = terminalReceiptPersisted;
+    reconciliationRequired = !terminalReceiptPersisted || explicitReconciliation;
+    if (reconciliationRequired) {
+      disposition = 'success-receipt-degraded';
+      reason = 'physical-effect-is-verified-but-terminal-receipt-is-not-conclusive';
+    } else {
+      disposition = 'complete';
+      reason = 'physical-effect-and-terminal-receipt-are-both-verified';
+    }
+  } else if (
+    noEffectStates.has(physicalEffectState) &&
+    sideEffectMayHaveCommitted === false &&
+    postconditionVerified === false &&
+    explicitReconciliation === false
+  ) {
+    disposition = 'retry-safe-no-effect';
+    operationSucceeded = false;
+    retryUnderlyingAction = true;
+    requestReplaySafe = true;
+    reconciliationRequired = false;
+    reason = intentPersisted
+      ? 'durable-intent-exists-but-physical-effect-is-verified-not-committed'
+      : 'physical-effect-was-not-attempted';
+  } else {
+    disposition = 'reconcile-before-retry';
+    operationSucceeded = false;
+    retryUnderlyingAction = false;
+    requestReplaySafe = false;
+    reconciliationRequired = true;
+    reason = sideEffectMayHaveCommitted
+      ? 'physical-effect-may-have-committed-and-must-be-observed-before-any-retry'
+      : 'receipt-facts-are-incomplete-or-contradictory';
+  }
+
+  return {
+    schemaVersion: 1,
+    kind: 'evavo-control-receipt-advice-v1',
+    disposition,
+    operationSucceeded,
+    retryUnderlyingAction,
+    requestReplaySafe,
+    reconciliationRequired,
+    physicalEffectState,
+    intentPersisted,
+    terminalReceiptPersisted,
+    sideEffectMayHaveCommitted,
+    postconditionVerified,
+    execute: false,
+    reason,
+    rule: 'Never infer physical failure from a transport, callback, audit, or receipt-persistence error after execution may have begun.',
+  };
+}
+
 export async function callControlPolicyTool(name, args = {}) {
   if (name === 'evavo_control_path_policy') return { ...readJson(POLICY_PATH), executionAuthority: false, focusDisruptionExpected: false };
   if (name === 'evavo_control_health_policy') return { ...readJson(HEALTH_PATH), executionAuthority: false, focusDisruptionExpected: false };
   if (name === 'evavo_control_route_advice') return chooseControlRoute(args);
+  if (name === 'evavo_control_receipt_advice') return classifyReceiptTruth(args);
   throw new Error(`unknown tool: ${String(name)}`);
 }
