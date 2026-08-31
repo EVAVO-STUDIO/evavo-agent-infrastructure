@@ -5,12 +5,12 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-physical-control-status";
-const SERVER_VERSION = "1.1.0";
+const SERVER_VERSION = "1.2.0";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const SCRIPT = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoWindowsPhysicalControlStatusCurrent.ps1");
 const TOOL = Object.freeze({
   name: "evavo_windows_physical_control_status",
-  description: "Read one non-mutating status receipt for Current queue, Local Command V3, control lane, supervisor, ingress recovery and singleton-gateway evidence, including latest terminal job physical-truth evidence. Task presence and process exit alone are never treated as physical outcome proof.",
+  description: "Read one non-mutating status receipt for Current queue, Local Command V3, control lane, supervisor, ingress recovery and singleton-gateway evidence, including latest terminal job physical-truth evidence. Terminal outcome claims require canonical digest validation; task presence and process exit alone are never outcome proof.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -29,6 +29,7 @@ const TOOL = Object.freeze({
     "io.evavo/inlineCodeAccepted": false,
     "io.evavo/taskPresenceIsNotLivenessProof": true,
     "io.evavo/processSuccessIsNotPhysicalPostconditionProof": true,
+    "io.evavo/terminalReceiptDigestValidationRequired": true,
   },
 });
 
@@ -79,11 +80,14 @@ function runStatus(raw = {}) {
     receipt.ok !== true ||
     receipt.routeLivenessSeparatedFromJobOutcome !== true ||
     receipt.terminalJobReceiptRequiredForOutcomeClaim !== true ||
+    receipt.terminalReceiptDigestValidationRequired !== true ||
     receipt.processSuccessIsNotPhysicalPostconditionProof !== true ||
     receipt.taskPresenceIsNotLivenessProof !== true ||
     receipt.scheduledTaskStartIsNotOutcomeProof !== true ||
     receipt.freshReceiptRequired !== true ||
     receipt.routeHealthIsObservationNotExecutionAuthority !== true ||
+    receipt.verificationHelperReadOnly !== true ||
+    receipt.processExecutionFieldRepresentsEffectfulWork !== true ||
     receipt.mutationPerformed !== false ||
     receipt.providerMutationPerformed !== false ||
     receipt.taskMutationPerformed !== false ||
@@ -100,12 +104,21 @@ function runStatus(raw = {}) {
   if (latest?.present === true) {
     if (
       latest.structurallyAccepted !== true ||
+      latest.outcomeClaimAdmissible !== true ||
+      latest.receiptDigestValid !== true ||
+      latest.receiptDigestValidation !== "validated-by-canonical-python-verifier" ||
+      latest.physicalTruthFieldsPresent !== true ||
+      Number(latest.receiptSemanticsVersion) < 2 ||
       latest.automaticRetryAllowed !== false ||
+      latest.safeAutomaticReplay !== false ||
       typeof latest.sideEffectMayHaveCommitted !== "boolean" ||
       typeof latest.postconditionVerified !== "boolean" ||
       typeof latest.reconciliationRequired !== "boolean" ||
-      typeof latest.physicalEffectState !== "string"
+      typeof latest.physicalEffectState !== "string" ||
+      latest.physicalEffectState.length < 1
     ) throw new Error("latest terminal physical-truth receipt failed admission");
+  } else if (receipt.latestTerminalOutcomeAdmissible !== false) {
+    throw new Error("status claimed an admissible terminal outcome without a terminal receipt");
   }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
