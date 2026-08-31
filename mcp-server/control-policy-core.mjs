@@ -44,6 +44,18 @@ export const controlPolicyTools = Object.freeze([
     },
   },
   {
+    name: 'evavo_control_receipt_normalize',
+    description: 'Normalize a raw EVAVO physical-operation receipt/result into canonical physical-effect facts and safe retry advice. Read-only; never executes or retries the underlying action.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['receipt'],
+      properties: {
+        receipt: { type: 'object' },
+      },
+    },
+  },
+  {
     name: 'evavo_control_receipt_advice',
     description: 'Classify explicit physical-effect and receipt facts into a safe retry/reconciliation disposition. Read-only; never repeats or executes the underlying action.',
     inputSchema: {
@@ -64,7 +76,7 @@ export const controlPolicyTools = Object.freeze([
 
 export const controlPolicyMcpContract = Object.freeze({
   serverName: 'EVAVO Control Path Policy',
-  serverVersion: '1.3.0',
+  serverVersion: '1.4.0',
   readOnly: true,
   executionAuthority: false,
   focusDisruptionExpected: false,
@@ -198,10 +210,131 @@ export function classifyReceiptTruth(args = {}) {
   };
 }
 
+function canonicalFactsFromFields(receipt) {
+  if (
+    typeof receipt.physicalEffectState === 'string' &&
+    typeof receipt.sideEffectMayHaveCommitted === 'boolean' &&
+    typeof receipt.postconditionVerified === 'boolean'
+  ) {
+    const nested = receipt.receipt && typeof receipt.receipt === 'object' && !Array.isArray(receipt.receipt)
+      ? receipt.receipt
+      : null;
+    return {
+      physicalEffectState: receipt.physicalEffectState,
+      sideEffectMayHaveCommitted: receipt.sideEffectMayHaveCommitted,
+      postconditionVerified: receipt.postconditionVerified,
+      intentPersisted: typeof receipt.intentPersisted === 'boolean'
+        ? receipt.intentPersisted
+        : typeof nested?.intentPersisted === 'boolean'
+          ? nested.intentPersisted
+          : typeof nested?.intent_persisted === 'boolean'
+            ? nested.intent_persisted
+            : true,
+      terminalReceiptPersisted: typeof receipt.terminalReceiptPersisted === 'boolean'
+        ? receipt.terminalReceiptPersisted
+        : typeof nested?.terminalReceiptPersisted === 'boolean'
+          ? nested.terminalReceiptPersisted
+          : typeof nested?.completion_persisted === 'boolean'
+            ? nested.completion_persisted
+            : false,
+      reconciliationRequired: receipt.reconciliationRequired === true,
+      sourceKind: String(receipt.kind || 'canonical-fields'),
+    };
+  }
+  return null;
+}
+
+function powershellChildFacts(receipt) {
+  if (receipt.kind !== 'evavo-powershell-child-execution-receipt-v1') return null;
+  const status = String(receipt.status || '');
+  if (['host-started', 'preflight-complete', 'failed-preflight'].includes(status)) {
+    return {
+      physicalEffectState: 'not_attempted',
+      sideEffectMayHaveCommitted: false,
+      postconditionVerified: false,
+      intentPersisted: true,
+      terminalReceiptPersisted: status === 'failed-preflight' && receipt.terminalReceiptPersisted === true,
+      reconciliationRequired: false,
+      sourceKind: receipt.kind,
+    };
+  }
+  if (status === 'returned') {
+    return {
+      physicalEffectState: 'completed_unverified',
+      sideEffectMayHaveCommitted: true,
+      postconditionVerified: false,
+      intentPersisted: true,
+      terminalReceiptPersisted: receipt.terminalReceiptPersisted === true,
+      reconciliationRequired: true,
+      sourceKind: receipt.kind,
+    };
+  }
+  if (status === 'target-dispatched') {
+    return {
+      physicalEffectState: 'unknown_after_dispatch',
+      sideEffectMayHaveCommitted: true,
+      postconditionVerified: false,
+      intentPersisted: true,
+      terminalReceiptPersisted: false,
+      reconciliationRequired: true,
+      sourceKind: receipt.kind,
+    };
+  }
+  if (status === 'failed-effect-unknown') {
+    return {
+      physicalEffectState: 'unknown_after_execution_error',
+      sideEffectMayHaveCommitted: true,
+      postconditionVerified: false,
+      intentPersisted: true,
+      terminalReceiptPersisted: receipt.terminalReceiptPersisted === true,
+      reconciliationRequired: true,
+      sourceKind: receipt.kind,
+    };
+  }
+  return null;
+}
+
+export function normalizeReceiptTruth(receipt) {
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw new Error('receipt must be an object');
+  const facts = canonicalFactsFromFields(receipt) || powershellChildFacts(receipt);
+  if (!facts) {
+    return {
+      schemaVersion: 1,
+      kind: 'evavo-control-normalized-receipt-v1',
+      recognized: false,
+      sourceKind: String(receipt.kind || 'unknown'),
+      reconciliationRequired: true,
+      retryUnderlyingAction: false,
+      execute: false,
+      reason: 'receipt-shape-not-recognized; do not infer no-effect or retry safety',
+    };
+  }
+  const advice = classifyReceiptTruth({
+    physicalEffectState: facts.physicalEffectState,
+    sideEffectMayHaveCommitted: facts.sideEffectMayHaveCommitted,
+    postconditionVerified: facts.postconditionVerified,
+    intentPersisted: facts.intentPersisted,
+    terminalReceiptPersisted: facts.terminalReceiptPersisted,
+    reconciliationRequired: facts.reconciliationRequired,
+  });
+  return {
+    schemaVersion: 1,
+    kind: 'evavo-control-normalized-receipt-v1',
+    recognized: true,
+    sourceKind: facts.sourceKind,
+    facts,
+    advice,
+    reconciliationRequired: advice.reconciliationRequired,
+    retryUnderlyingAction: advice.retryUnderlyingAction,
+    execute: false,
+  };
+}
+
 export async function callControlPolicyTool(name, args = {}) {
   if (name === 'evavo_control_path_policy') return { ...readJson(POLICY_PATH), executionAuthority: false, focusDisruptionExpected: false };
   if (name === 'evavo_control_health_policy') return { ...readJson(HEALTH_PATH), executionAuthority: false, focusDisruptionExpected: false };
   if (name === 'evavo_control_route_advice') return chooseControlRoute(args);
+  if (name === 'evavo_control_receipt_normalize') return normalizeReceiptTruth(args.receipt);
   if (name === 'evavo_control_receipt_advice') return classifyReceiptTruth(args);
   throw new Error(`unknown tool: ${String(name)}`);
 }
