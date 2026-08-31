@@ -139,6 +139,17 @@ test('raw receipt normalizer maps target dispatch to reconcile-before-retry', ()
   assert.equal(result.advice.retryUnderlyingAction, false);
 });
 
+test('policy explicitly rejects transport, scheduler, issue, and exit-code state as physical outcome proof', async () => {
+  const policy = await callControlPolicyTool('evavo_control_path_policy', {});
+  assert.equal(policy.default.transportSuccessIsNotPhysicalOutcomeProof, true);
+  assert.equal(policy.default.taskSchedulerStateIsNotPhysicalOutcomeProof, true);
+  assert.equal(policy.default.githubIssueStateIsNotPhysicalOutcomeProof, true);
+  assert.equal(policy.default.genericProcessExitIsNotPostconditionProof, true);
+  assert.ok(policy.healthRules.some((rule) => /Task Scheduler accepting Start-ScheduledTask/u.test(rule)));
+  assert.ok(policy.healthRules.some((rule) => /GitHub issue becoming closed/u.test(rule)));
+  assert.ok(policy.healthRules.some((rule) => /postcondition reconciliation before re-executing/u.test(rule)));
+});
+
 test('policy tools return canonical sibling contracts', async () => {
   const policy = await callControlPolicyTool('evavo_control_path_policy', {});
   const health = await callControlPolicyTool('evavo_control_health_policy', {});
