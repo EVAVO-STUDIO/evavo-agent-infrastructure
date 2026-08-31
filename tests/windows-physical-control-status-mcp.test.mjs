@@ -25,10 +25,30 @@ test('physical-control MCP exposes one read-only status tool', () => {
   assert.match(source, /paidComputeRequired !== false/);
 });
 
+test('status MCP admits only v2 route and outcome separated receipts', () => {
+  assert.match(source, /SERVER_VERSION = "1\.1\.0"/);
+  assert.match(source, /Number\(receipt\.schemaVersion\) !== 2/);
+  assert.match(source, /receipt\.kind !== "evavo-windows-physical-control-status-current-v2"/);
+  assert.match(source, /receipt\.routeLivenessSeparatedFromJobOutcome !== true/);
+  assert.match(source, /receipt\.terminalJobReceiptRequiredForOutcomeClaim !== true/);
+  assert.match(source, /receipt\.processSuccessIsNotPhysicalPostconditionProof !== true/);
+});
+
+test('latest terminal job admission requires conservative physical truth', () => {
+  assert.match(source, /latest\?\.present === true/);
+  assert.match(source, /latest\.structurallyAccepted !== true/);
+  assert.match(source, /latest\.automaticRetryAllowed !== false/);
+  assert.match(source, /typeof latest\.sideEffectMayHaveCommitted !== "boolean"/);
+  assert.match(source, /typeof latest\.postconditionVerified !== "boolean"/);
+  assert.match(source, /typeof latest\.reconciliationRequired !== "boolean"/);
+  assert.match(source, /typeof latest\.physicalEffectState !== "string"/);
+});
+
 test('status MCP never exposes arbitrary command or caller path execution', () => {
   assert.match(source, /arbitraryCommandTextAccepted": false/);
   assert.match(source, /inlineCodeAccepted": false/);
   assert.doesNotMatch(source, /child_process.*exec\(/);
   assert.doesNotMatch(source, /shell:\s*true/);
   assert.doesNotMatch(source, /Start-ScheduledTask/);
+  assert.doesNotMatch(source, /Register-ScheduledTask/);
 });
