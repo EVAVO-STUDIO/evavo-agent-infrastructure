@@ -68,21 +68,24 @@
       "routeClass": "s3-hid",
       "disruption": "physical-console",
       "authorities": ["local-ai-agent-gateway"],
-      "rule": "Use governed S3 HID only when narrower in-band routes cannot perform the required physical-console interaction and the signed operation gate is green."
+      "recoveryBootstrap": "BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1",
+      "rule": "Use governed S3 HID only when narrower in-band routes cannot perform the required physical-console interaction and the signed operation gate is green. For workstation control-plane recovery, the only supported bootstrap target is BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 with its exact confirmation phrase; never type or invoke retired queue installers directly."
     },
     {
       "rank": 70,
       "routeClass": "comet-kvm",
       "disruption": "physical-console",
       "authorities": ["out-of-band-control"],
-      "rule": "Prefer observation over interaction. Effectful Comet KVM is an escalation/recovery path and requires exact provider admission and action governance."
+      "recoveryBootstrap": "BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1",
+      "rule": "Prefer observation over interaction. Effectful Comet KVM is an escalation/recovery path and requires exact provider admission and action governance. If console recovery is required, invoke the single V6 remote-control bootstrap rather than individual legacy task/queue installers."
     },
     {
       "rank": 80,
       "routeClass": "oob-recovery",
       "disruption": "recovery-impact",
       "authorities": ["out-of-band-control", "super-admin"],
-      "rule": "Power, reset and virtual-media operations are last-resort recovery and must not be selected for routine work."
+      "recoveryBootstrap": "BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1",
+      "rule": "Power, reset and virtual-media operations are last-resort recovery and must not be selected for routine work. After machine/session recovery, restore the software control plane only through the V6 remote-control bootstrap and require its fresh Current durable-intent proof."
     }
   ],
   "hardwareProfiles": {
@@ -107,6 +110,7 @@
     "Storage route health must distinguish logical gateway readiness, Local Storage writer readiness, BeeStation primary-writer readiness and Windows execution fallback readiness.",
     "A watchdog may restart only owned processes according to its repository contract; watchdog recovery must not silently send HID or change hardware identity.",
     "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
-    "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient."
+    "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient.",
+    "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the Current queue emits a fresh durable invocation receipt."
   ]
 }
