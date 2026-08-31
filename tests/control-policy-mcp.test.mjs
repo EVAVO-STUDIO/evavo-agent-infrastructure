@@ -40,7 +40,7 @@ test('foreground and recovery route advice is truthful about focus disruption', 
   assert.equal(recovery.execute, false);
 });
 
-test('verified committed mutation with durable terminal receipt is complete and never re-executed', () => {
+test('verified committed mutation with durable terminal receipt is complete but physical action is never replay-safe', () => {
   const result = classifyReceiptTruth({
     physicalEffectState: 'verified_committed',
     sideEffectMayHaveCommitted: true,
@@ -49,14 +49,16 @@ test('verified committed mutation with durable terminal receipt is complete and 
     terminalReceiptPersisted: true,
     reconciliationRequired: false,
   });
+  assert.equal(result.kind, 'evavo-control-receipt-advice-v2');
   assert.equal(result.disposition, 'complete');
   assert.equal(result.operationSucceeded, true);
   assert.equal(result.retryUnderlyingAction, false);
-  assert.equal(result.requestReplaySafe, true);
+  assert.equal(result.requestReplaySafe, false);
+  assert.equal(result.receiptReplaySafe, true);
   assert.equal(result.reconciliationRequired, false);
 });
 
-test('verified physical success with degraded terminal receipt remains success but cannot re-execute', () => {
+test('verified physical success with degraded terminal receipt remains success and neither action nor receipt may replay', () => {
   const result = classifyReceiptTruth({
     physicalEffectState: 'verified_committed',
     sideEffectMayHaveCommitted: true,
@@ -69,6 +71,7 @@ test('verified physical success with degraded terminal receipt remains success b
   assert.equal(result.operationSucceeded, true);
   assert.equal(result.retryUnderlyingAction, false);
   assert.equal(result.requestReplaySafe, false);
+  assert.equal(result.receiptReplaySafe, false);
   assert.equal(result.reconciliationRequired, true);
 });
 
@@ -85,6 +88,7 @@ test('unknown physical effect after callback failure always requires reconciliat
   assert.equal(result.operationSucceeded, false);
   assert.equal(result.retryUnderlyingAction, false);
   assert.equal(result.requestReplaySafe, false);
+  assert.equal(result.receiptReplaySafe, false);
   assert.equal(result.reconciliationRequired, true);
 });
 
@@ -101,6 +105,7 @@ test('a proven not-attempted operation is the only normal retry-safe error dispo
   assert.equal(result.operationSucceeded, false);
   assert.equal(result.retryUnderlyingAction, true);
   assert.equal(result.requestReplaySafe, true);
+  assert.equal(result.receiptReplaySafe, false);
   assert.equal(result.reconciliationRequired, false);
 });
 
@@ -115,6 +120,8 @@ test('contradictory receipt facts fail closed rather than granting retry', () =>
   });
   assert.equal(result.disposition, 'reconcile-before-retry');
   assert.equal(result.retryUnderlyingAction, false);
+  assert.equal(result.requestReplaySafe, false);
+  assert.equal(result.receiptReplaySafe, false);
 });
 
 test('policy tools return canonical sibling contracts', async () => {
@@ -132,7 +139,7 @@ test('policy tools return canonical sibling contracts', async () => {
   assert.equal(policy.executionAuthority, false);
   assert.equal(health.kind, 'evavo-workstation-control-health-v1');
   assert.equal(health.executionAuthority, false);
-  assert.equal(receiptAdvice.kind, 'evavo-control-receipt-advice-v1');
+  assert.equal(receiptAdvice.kind, 'evavo-control-receipt-advice-v2');
   assert.equal(receiptAdvice.execute, false);
 });
 
