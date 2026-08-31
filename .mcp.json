@@ -73,7 +73,8 @@
       "command": "node",
       "args": ["./mcp-server/windows-chat-execution-mcp.mjs"],
       "env": {
-        "EVAVO_AGENT_WORKSTATION_EXECUTION_PROVIDER": "evavo-windows-workstation-bridge",
+        "EVAVO_AGENT_WORKSTATION_EXECUTION_PROVIDER": "evavo-hardware-gateway",
+        "EVAVO_AGENT_WORKSTATION_EXECUTION_FALLBACK": "evavo-windows-workstation-bridge",
         "EVAVO_AGENT_WORKSTATION_EXECUTION_STATUS": "legacy-raw-shell-retired"
       }
     },
