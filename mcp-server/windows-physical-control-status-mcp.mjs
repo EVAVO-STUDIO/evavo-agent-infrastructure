@@ -5,12 +5,12 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-physical-control-status";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "1.1.0";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const SCRIPT = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoWindowsPhysicalControlStatusCurrent.ps1");
 const TOOL = Object.freeze({
   name: "evavo_windows_physical_control_status",
-  description: "Read one non-mutating status receipt for Current queue, Local Command V3, control lane, supervisor, ingress recovery and singleton-gateway evidence. Task presence alone is never treated as liveness proof.",
+  description: "Read one non-mutating status receipt for Current queue, Local Command V3, control lane, supervisor, ingress recovery and singleton-gateway evidence, including latest terminal job physical-truth evidence. Task presence and process exit alone are never treated as physical outcome proof.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -28,6 +28,7 @@ const TOOL = Object.freeze({
     "io.evavo/arbitraryCommandTextAccepted": false,
     "io.evavo/inlineCodeAccepted": false,
     "io.evavo/taskPresenceIsNotLivenessProof": true,
+    "io.evavo/processSuccessIsNotPhysicalPostconditionProof": true,
   },
 });
 
@@ -73,9 +74,12 @@ function runStatus(raw = {}) {
   const receipt = lastJson(child.stdout || "");
   if (child.status !== 0 || !receipt) throw new Error("physical-control status helper returned no admitted receipt");
   if (
-    Number(receipt.schemaVersion) !== 1 ||
-    receipt.kind !== "evavo-windows-physical-control-status-current-v1" ||
+    Number(receipt.schemaVersion) !== 2 ||
+    receipt.kind !== "evavo-windows-physical-control-status-current-v2" ||
     receipt.ok !== true ||
+    receipt.routeLivenessSeparatedFromJobOutcome !== true ||
+    receipt.terminalJobReceiptRequiredForOutcomeClaim !== true ||
+    receipt.processSuccessIsNotPhysicalPostconditionProof !== true ||
     receipt.taskPresenceIsNotLivenessProof !== true ||
     receipt.scheduledTaskStartIsNotOutcomeProof !== true ||
     receipt.freshReceiptRequired !== true ||
@@ -92,6 +96,17 @@ function runStatus(raw = {}) {
     receipt.credentialValuesReturned !== false ||
     receipt.physicalPathsReturned !== false
   ) throw new Error("physical-control status receipt failed admission");
+  const latest = receipt.latestTerminalJob;
+  if (latest?.present === true) {
+    if (
+      latest.structurallyAccepted !== true ||
+      latest.automaticRetryAllowed !== false ||
+      typeof latest.sideEffectMayHaveCommitted !== "boolean" ||
+      typeof latest.postconditionVerified !== "boolean" ||
+      typeof latest.reconciliationRequired !== "boolean" ||
+      typeof latest.physicalEffectState !== "string"
+    ) throw new Error("latest terminal physical-truth receipt failed admission");
+  }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
 function send(id, result) { process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`); }
@@ -122,7 +137,7 @@ input.on("line", (line) => {
     if (request.method === "tools/call") {
       const payload = {
         ok: false,
-        kind: "evavo-windows-physical-control-status-error-v1",
+        kind: "evavo-windows-physical-control-status-error-v2",
         error: String(error?.message || error).slice(0, 2000),
         mutationPerformed: false,
         providerMutationPerformed: false,
