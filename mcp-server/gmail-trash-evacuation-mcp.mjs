@@ -5,10 +5,11 @@ import process from 'node:process';
 import { createInterface } from 'node:readline';
 
 const SERVER_NAME = 'evavo-gmail-trash-evacuation-mcp';
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = '1.1.0';
 const STORAGE_REPOSITORY = process.env.EVAVO_STORAGE_ROOT || 'C:\\GitRepos\\evavo-storage';
 const INSTALLER = path.join(STORAGE_REPOSITORY, 'scripts', 'Install-GmailTrashEvacuationTaskCurrent.ps1');
 const RUNNER = path.join(STORAGE_REPOSITORY, 'scripts', 'Invoke-GmailTrashEvacuationCurrent.ps1');
+const SHA256 = /^[0-9a-f]{64}$/;
 
 const TOOLS = Object.freeze([
   {
@@ -20,8 +21,17 @@ const TOOLS = Object.freeze([
   },
   {
     name: 'evavo_gmail_trash_evacuation_activate',
-    description: 'Install or refresh the fixed resumable Gmail Trash evacuation scheduled task. The task can permanently delete Gmail messages only under the pre-existing sealed standing provider-evacuation policy after complete archive verification.',
-    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
+    description: 'Install or refresh the fixed resumable Gmail Trash evacuation scheduled task using an externally authorized standing provider policy. This tool cannot create or self-approve permanent-delete authority.',
+    inputSchema: {
+      type: 'object',
+      additionalProperties: false,
+      required: ['policyPath', 'policySha256'],
+      properties: {
+        policyPath: { type: 'string', minLength: 1, maxLength: 4096 },
+        policySha256: { type: 'string', pattern: '^[0-9a-fA-F]{64}$' },
+        startNow: { type: 'boolean', default: true },
+      },
+    },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: true },
     _meta: { 'io.evavo/effects': ['execute', 'write', 'network', 'provider-mutation'], 'io.evavo/arbitraryCommandTextAccepted': false },
   },
@@ -58,16 +68,29 @@ function doctor() {
     runnerPresent: existsSync(RUNNER),
     archiveBeforeProviderDeletionRequired: true,
     standingProviderPolicyRequired: true,
+    externalStandingAuthorizationRequired: true,
+    selfApprovalAllowed: false,
     localArchiveRetentionUnaffected: true,
     arbitraryCommandTextAccepted: false,
-    callerSelectedPathAccepted: false,
+    callerSelectedExecutable: false,
     credentialValuesReturned: false,
   };
 }
 
-function activate() {
-  const receipt = runPowerShell(INSTALLER, ['-StartNow'], 180_000);
-  if (receipt.kind !== 'evavo-gmail-trash-evacuation-installation-v1' || receipt.taskExact !== true || receipt.policyPinned !== true) {
+function activate(args) {
+  const policyPath = String(args.policyPath || '').trim();
+  const policySha256 = String(args.policySha256 || '').trim().toLowerCase();
+  if (!policyPath || policyPath.length > 4096 || !SHA256.test(policySha256)) throw new Error('valid externally-authorized policyPath and policySha256 are required');
+  const argv = ['-PolicyPath', policyPath, '-PolicySha256', policySha256];
+  if (args.startNow !== false) argv.push('-StartNow');
+  const receipt = runPowerShell(INSTALLER, argv, 180_000);
+  if (
+    receipt.kind !== 'evavo-gmail-trash-evacuation-current-installation-v1'
+    || receipt.taskExact !== true
+    || receipt.policyPinned !== true
+    || receipt.authorizationCreatedByInstaller !== false
+    || String(receipt.policySha256 || '').toLowerCase() !== policySha256
+  ) {
     throw new Error('Gmail evacuation installation receipt failed admission');
   }
   return { ...receipt, invokedThrough: SERVER_NAME };
@@ -81,11 +104,21 @@ function cycle() {
   return { ...receipt, invokedThrough: SERVER_NAME };
 }
 
-async function callTool(name, args = {}) {
-  if (!args || typeof args !== 'object' || Array.isArray(args) || Object.keys(args).length) throw new Error('tool accepts no arguments');
-  if (name === 'evavo_gmail_trash_evacuation_doctor') return doctor();
-  if (name === 'evavo_gmail_trash_evacuation_activate') return activate();
-  if (name === 'evavo_gmail_trash_evacuation_cycle') return cycle();
+async function callTool(name, raw = {}) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('arguments must be an object');
+  if (name === 'evavo_gmail_trash_evacuation_doctor') {
+    if (Object.keys(raw).length) throw new Error('doctor accepts no arguments');
+    return doctor();
+  }
+  if (name === 'evavo_gmail_trash_evacuation_activate') {
+    const extra = Object.keys(raw).filter((key) => !['policyPath', 'policySha256', 'startNow'].includes(key));
+    if (extra.length) throw new Error(`unsupported activation arguments: ${extra.join(',')}`);
+    return activate(raw);
+  }
+  if (name === 'evavo_gmail_trash_evacuation_cycle') {
+    if (Object.keys(raw).length) throw new Error('cycle accepts no arguments');
+    return cycle();
+  }
   throw new Error(`unknown tool: ${name}`);
 }
 
