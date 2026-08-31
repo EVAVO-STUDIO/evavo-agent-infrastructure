@@ -33,6 +33,7 @@ export const controlPolicyTools = Object.freeze([
       additionalProperties: false,
       properties: {
         typedApiCapable: { type: 'boolean' },
+        singletonGatewayCapable: { type: 'boolean' },
         backgroundCapable: { type: 'boolean' },
         localMcpCapable: { type: 'boolean' },
         isolatedBrowserCapable: { type: 'boolean' },
@@ -46,7 +47,7 @@ export const controlPolicyTools = Object.freeze([
 
 export const controlPolicyMcpContract = Object.freeze({
   serverName: 'EVAVO Control Path Policy',
-  serverVersion: '1.0.0',
+  serverVersion: '1.1.0',
   readOnly: true,
   executionAuthority: false,
   focusDisruptionExpected: false,
@@ -57,7 +58,7 @@ function bool(value) { return value === true; }
 export function chooseControlRoute(args = {}) {
   if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('arguments must be an object');
   const allowed = new Set([
-    'typedApiCapable', 'backgroundCapable', 'localMcpCapable', 'isolatedBrowserCapable',
+    'typedApiCapable', 'singletonGatewayCapable', 'backgroundCapable', 'localMcpCapable', 'isolatedBrowserCapable',
     'nativeDesktopRequired', 'physicalConsoleRequired', 'outOfBandRecoveryRequired',
   ]);
   for (const key of Object.keys(args)) if (!allowed.has(key)) throw new Error(`unknown route-advice field: ${key}`);
@@ -65,6 +66,7 @@ export function chooseControlRoute(args = {}) {
   let routeClass = 'unresolved';
   let disruption = 'none';
   if (bool(args.typedApiCapable)) routeClass = 'typed-api-or-connector';
+  else if (bool(args.singletonGatewayCapable)) routeClass = 'singleton-agent-gateway';
   else if (bool(args.backgroundCapable)) routeClass = 'local-compute-background';
   else if (bool(args.localMcpCapable)) routeClass = 'local-mcp';
   else if (bool(args.isolatedBrowserCapable)) { routeClass = 'isolated-browser'; disruption = 'isolated-ui'; }
