@@ -1,10 +1,17 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "kind": "evavo-zero-cost-local-execution-recovery",
   "canonical": true,
   "workstationRecoveryOwner": "EVAVO-STUDIO/evavo-local-storage",
   "workstationRecoveryPolicy": "config/zero-cost-worker-recovery.json",
   "workstationAutomationBootstrap": "INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.cmd",
+  "structuredExecutionOwner": "EVAVO-STUDIO/evavo-local-compute",
+  "localComputeQueueBootstrap": "BOOTSTRAP-EVAVO-CURRENT-QUEUE-PLANE-LOCAL.ps1",
+  "localComputeAllFabricBootstrap": "BOOTSTRAP-EVAVO-ALL-LOCAL-FABRIC-CURRENT-V3.ps1",
+  "localComputeFetchBootstrap": "BOOTSTRAP-EVAVO-ALL-LOCAL-FABRIC-FROM-FETCH.cmd",
+  "localComputeOriginCurrentRunner": "RUN-EVAVO-ALL-LOCAL-FABRIC-ORIGIN-CURRENT-V3.ps1",
+  "queuePlaneGeneration": "current-v5-plus-local-command-v3",
+  "queuePlaneRecoveredBeforeWiderRollout": true,
   "controlTransport": "github-issues-https",
   "computePlane": "windows-scheduled-tasks",
   "independentLogonTrigger": "HKCU-Run",
@@ -12,18 +19,20 @@
   "preferredLiveExecutionPlane": "accepted-loopback-rest-executor-v5",
   "restExecutorRecoveryFacade": "scripts/Invoke-EvavoZeroCostAutomationRestRecovery.ps1",
   "authorityOrder": [
+    "singleton-agent-gateway-synchronous-independent-fallback",
+    "local-first-current-queue-plane-bootstrap",
     "HKCU-Run-logon-guardian-reestablishes-local-automation",
     "accepted-rest-executor-v5-live-loopback",
     "openai-secure-mcp-tunnel-read-only-workstation-observer",
     "cloudflare-remote-mcp-relay-independent-read-and-typed-dispatch-plane",
     "local-agent-rest-and-local-compute-persistence",
     "zero-cost-windows-scheduled-task-recovery",
-    "github-issues-worker-fabric-fallback"
+    "github-issues-current-queue-fallback",
+    "local-command-v3-file-recovery-fallback"
   ],
   "mcpOwner": "EVAVO-STUDIO/evavo-agent-infrastructure",
   "mcpEntrypoint": "mcp-server/local-agent-zero-cost-mcp.mjs",
   "mcpImplementation": "mcp-server/local-agent-mcp.mjs",
-  "structuredExecutionOwner": "EVAVO-STUDIO/evavo-local-compute",
   "developmentConsumer": "EVAVO-STUDIO/evavo-development-studio",
   "recoverySelection": {
     "preferManagedLocalStorageCheckout": true,
@@ -33,7 +42,16 @@
       "%LOCALAPPDATA%/EVAVO/WorkerControlPlane/zero-cost-logon-guardian/runtime/evavo-local-storage"
     ],
     "developmentCheckoutCompatibilityFallback": "C:/GitRepos/evavo-local-storage",
-    "fallbackIsCanonicalAfterEstablishment": false
+    "fallbackIsCanonicalAfterEstablishment": false,
+    "localComputeRecoveryOrder": [
+      "singleton-agent-gateway",
+      "local-first-current-queue-bootstrap",
+      "exact-origin-current-v3-fetch-bootstrap",
+      "workstation-bridge-direct-local-execution",
+      "current-github-issue-queue",
+      "local-command-v3"
+    ],
+    "legacyNormalQueueAuthoritative": false
   },
   "restExecutor": {
     "version": "5.0.0",
@@ -83,6 +101,10 @@
     "recoveryTask": "EVAVO Zero Cost Worker Recovery",
     "updaterTask": "EVAVO Zero Cost Trusted Updater",
     "restExecutorTask": "EVAVO REST Executor v5",
+    "currentQueueTask": "EVAVO GitHub Local Execution Queue Current",
+    "localCommandV3Task": "EVAVO Local Command Queue V3",
+    "controlLaneTask": "EVAVO GitHub Local Execution Control Lane",
+    "supervisorTask": "EVAVO GitHub Local Execution Queue Supervisor V2",
     "logonGuardianRegistryValue": "EVAVOZeroCostLogonGuardian",
     "logonGuardianIndependentOfTaskScheduler": true,
     "logonGuardianMayRecreateScheduledTasks": true,
@@ -91,6 +113,8 @@
     "managementReceiverMayUseAcceptedRestExecutorFallback": true,
     "restBootstrapMustBeFollowedByWorkerRecoveryReceipt": true,
     "developmentCheckoutRequiredAfterEstablishment": false,
+    "currentQueueFreshInvocationReceiptRequired": true,
+    "taskPresenceIsNotLivenessProof": true,
     "githubActionsRequired": false,
     "selfHostedActionsRunnerRequired": false,
     "vercelRequired": false,
@@ -102,6 +126,8 @@
     "mcpMayExposeGenericRestExecutorCommandAsNormalRecovery": false,
     "operatorExecutionRequiresSeparateCredential": true,
     "arbitraryShellIsNormalAutomation": false,
+    "legacyNormalQueueAuthoritative": false,
+    "automaticReplayAfterEffectMayHaveCommitted": false,
     "forcePush": false,
     "resetHard": false,
     "gitClean": false,
@@ -113,10 +139,16 @@
     "restHistoricalAcceptanceMeansCurrentHealth": false,
     "restBootstrapMeansMailboxRecovered": false,
     "logonGuardianInstalledMeansMailboxRecovered": false,
+    "scheduledTaskPresenceMeansExecutionPlaneLive": false,
+    "scheduledTaskStartAcceptedMeansJobRan": false,
+    "currentQueueFreshInvocationReceiptRequiredForLiveness": true,
+    "machineReceiptRequiredForPhysicalWork": true,
+    "physicalPostconditionRequiredForVerifiedCommit": true,
+    "terminalReceiptFailureMayNotInvertVerifiedPhysicalSuccess": true,
+    "uncertainEffectRequiresReconciliationBeforeRetry": true,
     "secureMcpTunnelInstalledMeansChatGptConnectorRegistered": false,
     "cloudflareRelaySourcePresentMeansRelayDeployed": false,
     "providerCredentialPresenceMeansProviderAuthPassed": false,
-    "remoteObserverStatusMeansEffectfulExecutionAvailable": false,
-    "machineReceiptRequiredForPhysicalWork": true
+    "remoteObserverStatusMeansEffectfulExecutionAvailable": false
   }
 }
