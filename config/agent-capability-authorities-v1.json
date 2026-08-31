@@ -3,25 +3,25 @@
     "repository": "EVAVO-STUDIO/evavo-github-mcp",
     "effects": ["read"],
     "exclusiveEffects": [],
-    "description": "Read-only GitHub inventory, repository evidence and routing. It never owns source mutation, execution or publication."
+    "description": "Read-only GitHub inventory, repository evidence and routing. It never owns source mutation, execution, physical storage or publication."
   },
   "development-governance": {
     "repository": "EVAVO-STUDIO/evavo-development-studio",
     "effects": ["read", "write", "execute", "publish"],
     "exclusiveEffects": ["publish"],
-    "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority. Normal host execution should route through Local Compute rather than visible interactive terminals."
+    "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority. Normal host execution routes through Local Compute; durable artifact/file lifecycle routes through Local Storage."
   },
   "local-compute": {
     "repository": "EVAVO-STUDIO/evavo-local-compute",
     "effects": ["read", "execute"],
     "exclusiveEffects": [],
-    "description": "Structured SHA-bound workstation execution, durable local jobs and bounded execution receipts. Preferred background authority for command, code, Git, build, test, file, process and local-model work."
+    "description": "Structured SHA-bound workstation execution, durable local jobs and bounded execution receipts. Preferred durable/heavy authority for command, code, Git, build, test, process, GPU, media and local-model work. It does not replace Local Storage as canonical byte lifecycle authority."
   },
   "local-storage": {
     "repository": "EVAVO-STUDIO/evavo-local-storage",
     "effects": ["read", "write", "execute"],
     "exclusiveEffects": [],
-    "description": "Workstation continuity, storage governance, BeeStation integration and worker recovery."
+    "description": "Canonical workstation/BeeStation byte lifecycle, verified copy/move/zip/unzip, reversible deletion, local logical roots, EVAVO Storage handoff and storage receipts. Physical effects require durable intent and postcondition verification."
   },
   "automated-testing": {
     "repository": "EVAVO-STUDIO/automated-testing",
@@ -33,13 +33,13 @@
     "repository": "EVAVO-STUDIO/evavo-computer-agent",
     "effects": ["read", "control"],
     "exclusiveEffects": [],
-    "description": "Browser and native desktop UI interaction authority. Isolated/headless browser control is preferred; native desktop control is focus-disruptive fallback."
+    "description": "Browser and native desktop UI interaction fallback. API, logical-storage and structured execution routes are preferred; native desktop control is focus-disruptive escalation and must verify the visible postcondition."
   },
   "local-ai-agent-gateway": {
     "repository": "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
-    "effects": ["read", "execute", "control"],
+    "effects": ["read", "write", "execute", "control"],
     "exclusiveEffects": [],
-    "description": "Signed S3 HID, C5 passive telemetry, Comet reachability, hardware-profile acceptance, drift/watchdog state and local hardware MCP authority. S3 HID targets the real physical console and is not a background route."
+    "description": "Singleton authenticated local ingress for agent control, including governed Local Storage delegation, bounded Windows compute fallback, signed S3 HID, C5 passive telemetry, Comet reachability, hardware-profile acceptance and drift/watchdog state. It never becomes a second byte authority: storage mutations delegate to Local Storage."
   },
   "network-studio": {
     "repository": "EVAVO-STUDIO/network-studio",
