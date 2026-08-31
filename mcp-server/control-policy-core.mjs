@@ -64,7 +64,7 @@ export const controlPolicyTools = Object.freeze([
 
 export const controlPolicyMcpContract = Object.freeze({
   serverName: 'EVAVO Control Path Policy',
-  serverVersion: '1.2.0',
+  serverVersion: '1.3.0',
   readOnly: true,
   executionAuthority: false,
   focusDisruptionExpected: false,
@@ -131,6 +131,7 @@ export function classifyReceiptTruth(args = {}) {
   let operationSucceeded = false;
   let retryUnderlyingAction = false;
   let requestReplaySafe = false;
+  let receiptReplaySafe = false;
   let reconciliationRequired = true;
   let reason = 'physical-effect-state-is-not-conclusive';
 
@@ -140,7 +141,8 @@ export function classifyReceiptTruth(args = {}) {
   if (committedStates.has(physicalEffectState) && postconditionVerified) {
     operationSucceeded = true;
     retryUnderlyingAction = false;
-    requestReplaySafe = terminalReceiptPersisted;
+    requestReplaySafe = false;
+    receiptReplaySafe = terminalReceiptPersisted && !explicitReconciliation;
     reconciliationRequired = !terminalReceiptPersisted || explicitReconciliation;
     if (reconciliationRequired) {
       disposition = 'success-receipt-degraded';
@@ -159,6 +161,7 @@ export function classifyReceiptTruth(args = {}) {
     operationSucceeded = false;
     retryUnderlyingAction = true;
     requestReplaySafe = true;
+    receiptReplaySafe = false;
     reconciliationRequired = false;
     reason = intentPersisted
       ? 'durable-intent-exists-but-physical-effect-is-verified-not-committed'
@@ -168,6 +171,7 @@ export function classifyReceiptTruth(args = {}) {
     operationSucceeded = false;
     retryUnderlyingAction = false;
     requestReplaySafe = false;
+    receiptReplaySafe = false;
     reconciliationRequired = true;
     reason = sideEffectMayHaveCommitted
       ? 'physical-effect-may-have-committed-and-must-be-observed-before-any-retry'
@@ -175,12 +179,13 @@ export function classifyReceiptTruth(args = {}) {
   }
 
   return {
-    schemaVersion: 1,
-    kind: 'evavo-control-receipt-advice-v1',
+    schemaVersion: 2,
+    kind: 'evavo-control-receipt-advice-v2',
     disposition,
     operationSucceeded,
     retryUnderlyingAction,
     requestReplaySafe,
+    receiptReplaySafe,
     reconciliationRequired,
     physicalEffectState,
     intentPersisted,
@@ -189,7 +194,7 @@ export function classifyReceiptTruth(args = {}) {
     postconditionVerified,
     execute: false,
     reason,
-    rule: 'Never infer physical failure from a transport, callback, audit, or receipt-persistence error after execution may have begun.',
+    rule: 'Never infer physical failure from a transport, callback, audit, or receipt-persistence error after execution may have begun. Replaying a stored receipt is distinct from re-executing the physical action.',
   };
 }
 
