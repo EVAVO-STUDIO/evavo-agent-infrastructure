@@ -15,6 +15,13 @@
         "EVAVO_CONTROL_POLICY_MCP_ROLE": "read-only-route-planner"
       }
     },
+    "evavo-windows-receipt-inspector": {
+      "command": "node",
+      "args": ["./mcp-server/windows-receipt-inspector-mcp.mjs"],
+      "env": {
+        "EVAVO_WINDOWS_RECEIPT_INSPECTOR_ROLE": "read-only-physical-receipt-reconciliation"
+      }
+    },
     "evavo-hardware-gateway": {
       "command": "powershell.exe",
       "args": [
