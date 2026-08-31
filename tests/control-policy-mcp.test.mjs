@@ -8,6 +8,7 @@ import {
   classifyReceiptTruth,
   controlPolicyMcpContract,
   controlPolicyTools,
+  normalizeReceiptTruth,
 } from '../mcp-server/control-policy-core.mjs';
 
 test('control policy MCP has no execution authority', () => {
@@ -18,6 +19,7 @@ test('control policy MCP has no execution authority', () => {
     'evavo_control_path_policy',
     'evavo_control_health_policy',
     'evavo_control_route_advice',
+    'evavo_control_receipt_normalize',
     'evavo_control_receipt_advice',
   ]);
 });
@@ -124,9 +126,29 @@ test('contradictory receipt facts fail closed rather than granting retry', () =>
   assert.equal(result.receiptReplaySafe, false);
 });
 
+test('raw receipt normalizer maps target dispatch to reconcile-before-retry', () => {
+  const result = normalizeReceiptTruth({
+    kind: 'evavo-powershell-child-execution-receipt-v1',
+    status: 'target-dispatched',
+    terminalReceiptPersisted: false,
+  });
+  assert.equal(result.kind, 'evavo-control-normalized-receipt-v1');
+  assert.equal(result.recognized, true);
+  assert.equal(result.facts.sideEffectMayHaveCommitted, true);
+  assert.equal(result.advice.disposition, 'reconcile-before-retry');
+  assert.equal(result.advice.retryUnderlyingAction, false);
+});
+
 test('policy tools return canonical sibling contracts', async () => {
   const policy = await callControlPolicyTool('evavo_control_path_policy', {});
   const health = await callControlPolicyTool('evavo_control_health_policy', {});
+  const normalized = await callControlPolicyTool('evavo_control_receipt_normalize', {
+    receipt: {
+      kind: 'evavo-powershell-child-execution-receipt-v1',
+      status: 'failed-preflight',
+      terminalReceiptPersisted: true,
+    },
+  });
   const receiptAdvice = await callControlPolicyTool('evavo_control_receipt_advice', {
     physicalEffectState: 'verified_committed',
     sideEffectMayHaveCommitted: true,
@@ -139,6 +161,8 @@ test('policy tools return canonical sibling contracts', async () => {
   assert.equal(policy.executionAuthority, false);
   assert.equal(health.kind, 'evavo-workstation-control-health-v1');
   assert.equal(health.executionAuthority, false);
+  assert.equal(normalized.kind, 'evavo-control-normalized-receipt-v1');
+  assert.equal(normalized.execute, false);
   assert.equal(receiptAdvice.kind, 'evavo-control-receipt-advice-v2');
   assert.equal(receiptAdvice.execute, false);
 });
