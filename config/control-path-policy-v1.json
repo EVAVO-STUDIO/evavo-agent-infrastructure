@@ -9,7 +9,11 @@
     "allowForegroundEscalation": true,
     "foregroundOnlyWhenBackgroundInsufficient": true,
     "remoteDoesNotMeanBackground": true,
-    "runtimeClaimsRequireReceipt": true
+    "runtimeClaimsRequireReceipt": true,
+    "transportSuccessIsNotPhysicalOutcomeProof": true,
+    "taskSchedulerStateIsNotPhysicalOutcomeProof": true,
+    "githubIssueStateIsNotPhysicalOutcomeProof": true,
+    "genericProcessExitIsNotPostconditionProof": true
   },
   "disruptionLevels": {
     "none": "No interaction with the user's visible desktop or active physical console.",
@@ -111,6 +115,8 @@
     "A watchdog may restart only owned processes according to its repository contract; watchdog recovery must not silently send HID or change hardware identity.",
     "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
     "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient.",
-    "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the Current queue emits a fresh durable invocation receipt."
+    "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the Current queue emits a fresh durable invocation receipt.",
+    "Task Scheduler accepting Start-ScheduledTask, a GitHub issue becoming closed, a transport returning 2xx, or a generic process exiting 0 may establish transport/progress evidence only; none of them alone proves that the intended physical postcondition occurred.",
+    "After execution may have begun, any missing, degraded, contradictory or unrecognized terminal receipt requires postcondition reconciliation before re-executing the underlying action."
   ]
 }
