@@ -9,24 +9,29 @@ import { createInterface } from 'node:readline';
 import { normalizeReceiptTruth } from './control-policy-core.mjs';
 
 const SERVER_NAME = 'evavo-windows-receipt-inspector-mcp';
-const SERVER_VERSION = '1.0.0';
+const SERVER_VERSION = '1.1.0';
 const RECEIPT_ID = /^pschild-[0-9]{10,16}-[0-9]{1,12}-[0-9a-f]{12}$/u;
 const MAX_RECEIPT_BYTES = 128 * 1024;
+const MAX_DISCOVERY_FILES = 5000;
 
 function receiptRoot() {
   const configured = String(process.env.EVAVO_POWERSHELL_CHILD_RECEIPT_ROOT || '').trim();
-  const root = configured
+  return configured
     ? path.resolve(configured.replace(/^%LOCALAPPDATA%/iu, process.env.LOCALAPPDATA || ''))
     : path.join(process.env.LOCALAPPDATA || path.join(os.homedir(), 'AppData', 'Local'), 'EVAVO', 'PowerShellChildReceipts');
-  return root;
 }
 
-function readReceipt(receiptId) {
+function admittedReceiptPath(receiptId) {
   if (!RECEIPT_ID.test(receiptId)) throw new Error('receiptId is invalid');
   const root = receiptRoot();
   const candidate = path.join(root, `${receiptId}.json`);
   const relative = path.relative(root, candidate);
   if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) throw new Error('receipt path escaped managed root');
+  return { root, candidate };
+}
+
+function readReceipt(receiptId) {
+  const { candidate } = admittedReceiptPath(receiptId);
   let stat;
   try { stat = fs.lstatSync(candidate); } catch (error) {
     if (error?.code === 'ENOENT') {
@@ -79,6 +84,67 @@ function readReceipt(receiptId) {
   };
 }
 
+function latestReceipt() {
+  const root = receiptRoot();
+  let names;
+  try { names = fs.readdirSync(root); } catch (error) {
+    if (error?.code === 'ENOENT') {
+      return {
+        schemaVersion: 1,
+        kind: 'evavo-windows-latest-physical-receipt-v1',
+        found: false,
+        receiptId: null,
+        retryUnderlyingAction: false,
+        reconciliationRequired: false,
+        physicalPathsReturned: false,
+      };
+    }
+    throw error;
+  }
+  if (names.length > MAX_DISCOVERY_FILES) throw new Error('managed receipt directory exceeds bounded discovery limit');
+  const candidates = [];
+  for (const name of names) {
+    if (!name.endsWith('.json')) continue;
+    const receiptId = name.slice(0, -5);
+    if (!RECEIPT_ID.test(receiptId)) continue;
+    const { candidate } = admittedReceiptPath(receiptId);
+    try {
+      const stat = fs.lstatSync(candidate);
+      if (!stat.isFile() || stat.isSymbolicLink() || stat.size < 2 || stat.size > MAX_RECEIPT_BYTES) continue;
+      candidates.push({ receiptId, mtimeMs: stat.mtimeMs });
+    } catch { /* ignore inadmissible candidate */ }
+  }
+  candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || b.receiptId.localeCompare(a.receiptId));
+  for (const candidate of candidates) {
+    try {
+      const status = readReceipt(candidate.receiptId);
+      if (status.found === true) {
+        return {
+          schemaVersion: 1,
+          kind: 'evavo-windows-latest-physical-receipt-v1',
+          found: true,
+          receiptId: candidate.receiptId,
+          status,
+          retryUnderlyingAction: status.retryUnderlyingAction === true,
+          reconciliationRequired: status.reconciliationRequired === true,
+          physicalPathsReturned: false,
+          credentialValuesReturned: false,
+          execute: false,
+        };
+      }
+    } catch { /* inspect next admitted candidate */ }
+  }
+  return {
+    schemaVersion: 1,
+    kind: 'evavo-windows-latest-physical-receipt-v1',
+    found: false,
+    receiptId: null,
+    retryUnderlyingAction: false,
+    reconciliationRequired: false,
+    physicalPathsReturned: false,
+  };
+}
+
 const TOOLS = Object.freeze([
   {
     name: 'evavo_windows_receipt_status',
@@ -91,6 +157,17 @@ const TOOLS = Object.freeze([
         receiptId: { type: 'string', pattern: '^pschild-[0-9]{10,16}-[0-9]{1,12}-[0-9a-f]{12}$' },
       },
     },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    _meta: {
+      'io.evavo/effects': ['read'],
+      'io.evavo/arbitraryCommandTextAccepted': false,
+      'io.evavo/callerSelectedPathAccepted': false,
+    },
+  },
+  {
+    name: 'evavo_windows_latest_receipt',
+    description: 'Return the newest admissible managed PowerShell child physical receipt and normalized truth. Read-only; scans only the fixed managed receipt directory and returns no physical paths.',
+    inputSchema: { type: 'object', additionalProperties: false, properties: {} },
     annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     _meta: {
       'io.evavo/effects': ['read'],
@@ -127,13 +204,22 @@ input.on('line', async (line) => {
     if (request.method === 'ping') { send(id, {}); return; }
     if (request.method === 'tools/list') { send(id, { tools: TOOLS }); return; }
     if (request.method === 'tools/call') {
-      if (request.params?.name !== 'evavo_windows_receipt_status') throw new Error(`unknown tool: ${String(request.params?.name || '')}`);
+      const name = String(request.params?.name || '');
       const args = request.params?.arguments || {};
-      const extra = Object.keys(args).filter((key) => key !== 'receiptId');
-      if (extra.length) throw new Error(`unsupported fields: ${extra.join(',')}`);
-      const value = readReceipt(String(args.receiptId || ''));
-      send(id, { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false });
-      return;
+      if (name === 'evavo_windows_receipt_status') {
+        const extra = Object.keys(args).filter((key) => key !== 'receiptId');
+        if (extra.length) throw new Error(`unsupported fields: ${extra.join(',')}`);
+        const value = readReceipt(String(args.receiptId || ''));
+        send(id, { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false });
+        return;
+      }
+      if (name === 'evavo_windows_latest_receipt') {
+        if (Object.keys(args).length) throw new Error('latest receipt does not accept arguments');
+        const value = latestReceipt();
+        send(id, { content: [{ type: 'text', text: JSON.stringify(value) }], structuredContent: value, isError: false });
+        return;
+      }
+      throw new Error(`unknown tool: ${name}`);
     }
     sendError(id, -32601, `method not found: ${String(request.method || '')}`);
   } catch (error) {
