@@ -7,7 +7,7 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-chat-execution-mcp";
-const SERVER_VERSION = "2.0.0";
+const SERVER_VERSION = "2.1.0";
 const PROTOCOL_VERSION = "2026-07-28";
 const LEGACY_EXECUTE_TOOLS = new Set([
   "evavo_windows_execute",
@@ -74,12 +74,16 @@ function queueReady() {
 
 function routeDocument() {
   return {
-    schemaVersion: 1,
-    kind: "evavo-windows-chat-execution-migration-route-v1",
+    schemaVersion: 2,
+    kind: "evavo-windows-chat-execution-migration-route-v2",
     legacyServer: SERVER_NAME,
     legacyRawShellExecutionRemoved: true,
     canonical: {
+      preferredSharedIngress: "evavo-hardware-gateway",
+      preferredSharedIngressRole: "singleton-agent-gateway",
+      receiptPolicyTool: "evavo_control_receipt_advice",
       workstationBridge: "evavo-windows-workstation-bridge",
+      workstationBridgeRole: "compatibility-direct-fallback",
       workstationStatusTool: "evavo_workstation_bridge_status",
       directChatGptTransport: "openai-secure-mcp-tunnel",
       sameMachineExecutionEngine: "evavo-local-execution",
@@ -95,6 +99,9 @@ function routeDocument() {
       automaticAdministratorElevation: false,
       inboundFirewallPortRequired: false,
       publicLocalEndpointRequired: false,
+      receiptPersistenceFailureMayNotInvertPhysicalSuccess: true,
+      unknownPostDispatchPhysicalEffectRequiresReconciliation: true,
+      blindRetryAfterUnknownPhysicalEffectAllowed: false,
     },
     physicalWindowsReadinessClaimed: false,
   };
@@ -104,21 +111,29 @@ async function doctor() {
   const tunnel = await tunnelReady();
   const queue = queueReady();
   return {
-    schemaVersion: 2,
-    kind: "evavo-windows-chat-execution-compatibility-doctor-v2",
+    schemaVersion: 3,
+    kind: "evavo-windows-chat-execution-compatibility-doctor-v3",
     ok: tunnel.ready && queue,
     server: SERVER_NAME,
     version: SERVER_VERSION,
     compatibilityShim: true,
     rawShellExecutionRemoved: true,
-    secureMcpTunnel: tunnel,
-    githubIssueQueueReadyObserved: queue,
+    preferredSharedIngress: "evavo-hardware-gateway",
+    preferredSharedIngressReadinessObservedHere: false,
+    compatibilityBridgeTunnel: tunnel,
+    compatibilityGithubIssueQueueReadyObserved: queue,
     route: routeDocument().canonical,
+    receiptTruthPolicy: {
+      tool: "evavo_control_receipt_advice",
+      unknownEffectDisposition: "reconcile-before-retry",
+      degradedVerifiedSuccessDisposition: "success-receipt-degraded",
+      blindRetryAllowed: false,
+    },
     arbitraryCommandTextAccepted: false,
     inlineCodeAccepted: false,
     currentWindowsUserRawShellAuthorityExposed: false,
     credentialValuesReturned: false,
-    physicalWindowsReadinessClaimed: tunnel.ready && queue,
+    physicalWindowsReadinessClaimed: false,
   };
 }
 
@@ -126,7 +141,7 @@ const TOOLS = Object.freeze([
   {
     name: STATUS_TOOL,
     description:
-      "Read-only compatibility doctor for the retired Windows chat shell. Reports sanitized Workstation Bridge tunnel/queue readiness and the canonical replacement route.",
+      "Read-only compatibility doctor for the retired Windows chat shell. Reports sanitized Workstation Bridge fallback readiness and the canonical singleton-gateway replacement route.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
     annotations: {
       readOnlyHint: true,
@@ -139,7 +154,8 @@ const TOOLS = Object.freeze([
       "io.evavo/arbitraryCommandTextAccepted": false,
       "io.evavo/inlineCodeAccepted": false,
       "io.evavo/canonicalExecutionServer": "evavo-local-execution",
-      "io.evavo/canonicalWorkstationBridge": "evavo-windows-workstation-bridge",
+      "io.evavo/preferredSharedIngress": "evavo-hardware-gateway",
+      "io.evavo/workstationBridgeRole": "compatibility-direct-fallback",
     },
   },
   {
@@ -157,6 +173,7 @@ const TOOLS = Object.freeze([
       "io.evavo/effects": ["read"],
       "io.evavo/arbitraryCommandTextAccepted": false,
       "io.evavo/inlineCodeAccepted": false,
+      "io.evavo/preferredSharedIngress": "evavo-hardware-gateway",
     },
   },
 ]);
@@ -183,16 +200,19 @@ async function callTool(name, args) {
   if (LEGACY_EXECUTE_TOOLS.has(name)) {
     return toolResult(
       {
-        schemaVersion: 1,
-        kind: "evavo-windows-chat-execution-retired-tool-v1",
+        schemaVersion: 2,
+        kind: "evavo-windows-chat-execution-retired-tool-v2",
         ok: false,
         retiredTool: name,
         reason: "raw-chat-shell-authority-retired",
         use: {
+          preferredSharedIngress: "evavo-hardware-gateway",
           sameMachineExecution: "evavo-local-execution",
-          cloudStatus: "evavo-windows-workstation-bridge",
+          compatibilityBridge: "evavo-windows-workstation-bridge",
           effectfulCloudFallback: "github-local-execution-issue-queue",
+          receiptPolicy: "evavo_control_receipt_advice",
         },
+        retryRule: "Never retry an effectful Windows action after dispatch unless receipt evidence proves no physical effect occurred.",
         arbitraryCommandTextAccepted: false,
         inlineCodeAccepted: false,
         executionPerformed: false,
@@ -216,7 +236,7 @@ async function dispatch(request) {
       capabilities: { tools: { listChanged: false } },
       serverInfo: { name: SERVER_NAME, version: SERVER_VERSION },
       instructions:
-        "Compatibility-only server. Raw caller-supplied Windows shell execution has been retired. Use evavo-windows-workstation-bridge for Windows/ChatGPT ingress and evavo-local-execution for structured SHA-bound execution.",
+        "Compatibility-only server. Raw caller-supplied Windows shell execution is retired. Prefer the singleton evavo-hardware-gateway for shared Windows/storage control, use evavo-local-execution for structured SHA-bound same-machine execution, keep evavo-windows-workstation-bridge as a compatibility/direct fallback, and use evavo_control_receipt_advice before any retry after an uncertain effect.",
     });
   }
   if (request.method === "server/discover") {
@@ -229,8 +249,10 @@ async function dispatch(request) {
         "io.evavo/compatibilityShim": true,
         "io.evavo/arbitraryCommandTextAccepted": false,
         "io.evavo/inlineCodeAccepted": false,
-        "io.evavo/canonicalWorkstationBridge": "evavo-windows-workstation-bridge",
+        "io.evavo/preferredSharedIngress": "evavo-hardware-gateway",
+        "io.evavo/workstationBridgeRole": "compatibility-direct-fallback",
         "io.evavo/canonicalExecutionServer": "evavo-local-execution",
+        "io.evavo/receiptPolicyTool": "evavo_control_receipt_advice",
       },
     });
   }
@@ -244,10 +266,13 @@ async function dispatch(request) {
         id,
         toolResult(
           {
-            schemaVersion: 1,
-            kind: "evavo-windows-chat-execution-compatibility-error-v1",
+            schemaVersion: 2,
+            kind: "evavo-windows-chat-execution-compatibility-error-v2",
             ok: false,
             error: error instanceof Error ? error.message : String(error),
+            retryUnderlyingAction: false,
+            reconciliationRequired: true,
+            receiptPolicyTool: "evavo_control_receipt_advice",
             arbitraryCommandTextAccepted: false,
             inlineCodeAccepted: false,
             executionPerformed: false,
