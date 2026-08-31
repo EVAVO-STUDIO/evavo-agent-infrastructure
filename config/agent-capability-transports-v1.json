@@ -1,19 +1,9 @@
 {
   "connected-github": {
     "failureDomain": "github-api",
-    "sharedDependencies": [
-      "github-service",
-      "connector-credential"
-    ],
-    "clients": [
-      "chatgpt-pro",
-      "claude-code",
-      "codex",
-      "api-agent"
-    ],
-    "effects": [
-      "read"
-    ],
+    "sharedDependencies": ["github-service", "connector-credential"],
+    "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+    "effects": ["read"],
     "minimumState": "transport_online",
     "freshnessSeconds": 900,
     "receiptRequired": false,
@@ -25,24 +15,27 @@
     "description": "Connected GitHub inventory and evidence path. Repository visibility does not imply workstation reachability.",
     "executorRepository": null
   },
+  "singleton-gateway-mcp": {
+    "failureDomain": "singleton-local-gateway",
+    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-ai-agent-gateway", "evavo-local-storage"],
+    "clients": ["claude-code", "codex", "api-agent"],
+    "effects": ["read", "write", "execute", "control"],
+    "minimumState": "transport_online",
+    "freshnessSeconds": 120,
+    "receiptRequired": true,
+    "physicalReceiptCapable": true,
+    "structuredOnly": true,
+    "arbitraryShell": false,
+    "routineCost": "zero-cost",
+    "probe": "Call the singleton gateway environment summary, storage route status and storage write-probe; require the gateway and delegated Local Storage authorities to report current readiness.",
+    "description": "Canonical authenticated local ingress for governed storage and bounded workstation control. Storage bytes remain owned by Local Storage; the gateway supplies one shared policy/audit boundary and an independent bounded Windows fallback.",
+    "executorRepository": "EVAVO-STUDIO/evavo-local-ai-agent-gateway"
+  },
   "local-specialist-mcp": {
     "failureDomain": "local-mcp",
-    "sharedDependencies": [
-      "windows-workstation",
-      "interactive-user-session",
-      "specialist-mcp-process"
-    ],
-    "clients": [
-      "claude-code",
-      "codex",
-      "api-agent"
-    ],
-    "effects": [
-      "read",
-      "write",
-      "execute",
-      "control"
-    ],
+    "sharedDependencies": ["windows-workstation", "interactive-user-session", "specialist-mcp-process"],
+    "clients": ["claude-code", "codex", "api-agent"],
+    "effects": ["read", "write", "execute", "control"],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -51,28 +44,14 @@
     "arbitraryShell": false,
     "routineCost": "zero-cost",
     "probe": "Start the declared local stdio MCP server, complete its handshake and call its bounded status tool.",
-    "description": "Narrow local MCP tools for repository, storage, device, testing and computer-control capabilities.",
+    "description": "Narrow local MCP tools for repository, storage, device, testing and computer-control capabilities. For storage mutation, prefer the singleton gateway route when available so all agents share one ingress boundary.",
     "executorRepository": "EVAVO-STUDIO/evavo-local-compute"
   },
   "structured-workstation-bridge": {
     "failureDomain": "workstation-bridge",
-    "sharedDependencies": [
-      "windows-workstation",
-      "interactive-user-session",
-      "evavo-local-compute"
-    ],
-    "clients": [
-      "claude-code",
-      "codex",
-      "api-agent"
-    ],
-    "effects": [
-      "read",
-      "write",
-      "execute",
-      "control",
-      "publish"
-    ],
+    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-compute"],
+    "clients": ["claude-code", "codex", "api-agent"],
+    "effects": ["read", "write", "execute", "control", "publish"],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -81,29 +60,14 @@
     "arbitraryShell": false,
     "routineCost": "zero-cost",
     "probe": "Call Workstation Bridge readiness and require the accepted exact source revision and current-user policy identity.",
-    "description": "Primary local structured execution surface for reviewed scripts, typed operations and exact-SHA repository tasks.",
+    "description": "Primary local structured execution surface for reviewed scripts, typed operations and exact-SHA repository tasks. Generated durable files should be promoted through Local Storage rather than creating a competing byte lifecycle.",
     "executorRepository": "EVAVO-STUDIO/evavo-local-compute"
   },
   "durable-local-execution": {
     "failureDomain": "durable-local-worker",
-    "sharedDependencies": [
-      "windows-workstation",
-      "interactive-user-session",
-      "evavo-local-compute",
-      "durable-job-store"
-    ],
-    "clients": [
-      "claude-code",
-      "codex",
-      "api-agent"
-    ],
-    "effects": [
-      "read",
-      "write",
-      "execute",
-      "control",
-      "publish"
-    ],
+    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-compute", "durable-job-store"],
+    "clients": ["claude-code", "codex", "api-agent"],
+    "effects": ["read", "write", "execute", "control", "publish"],
     "minimumState": "transport_online",
     "freshnessSeconds": 900,
     "receiptRequired": true,
@@ -112,22 +76,14 @@
     "arbitraryShell": false,
     "routineCost": "zero-cost",
     "probe": "Create or inspect a bounded durable no-op health job and retain its current worker and journal identity.",
-    "description": "Recoverable long-running local jobs with durable state, cancellation, bounded logs and terminal receipts.",
+    "description": "Recoverable long-running local jobs with durable state, cancellation, bounded logs and terminal receipts. Durable output promotion remains a Local Storage responsibility.",
     "executorRepository": "EVAVO-STUDIO/evavo-local-compute"
   },
   "openai-secure-mcp-tunnel": {
     "failureDomain": "openai-secure-tunnel",
-    "sharedDependencies": [
-      "windows-workstation",
-      "openai-client-registration",
-      "local-read-only-mcp-bundle"
-    ],
-    "clients": [
-      "chatgpt-pro"
-    ],
-    "effects": [
-      "read"
-    ],
+    "sharedDependencies": ["windows-workstation", "openai-client-registration", "local-read-only-mcp-bundle"],
+    "clients": ["chatgpt-pro"],
+    "effects": ["read"],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": false,
@@ -141,23 +97,9 @@
   },
   "cloudflare-typed-relay": {
     "failureDomain": "cloudflare-typed-relay",
-    "sharedDependencies": [
-      "windows-workstation",
-      "outbound-workstation-websocket",
-      "cloudflare-relay",
-      "local-action-allowlist"
-    ],
-    "clients": [
-      "chatgpt-pro",
-      "api-agent"
-    ],
-    "effects": [
-      "read",
-      "write",
-      "execute",
-      "control",
-      "publish"
-    ],
+    "sharedDependencies": ["windows-workstation", "outbound-workstation-websocket", "cloudflare-relay", "local-action-allowlist"],
+    "clients": ["chatgpt-pro", "api-agent"],
+    "effects": ["read", "write", "execute", "control", "publish"],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -166,29 +108,14 @@
     "arbitraryShell": false,
     "routineCost": "zero-cost",
     "probe": "Verify authenticated typed dispatch readiness, the outbound workstation connection and the current local allowlist revision.",
-    "description": "Separate authenticated fixed-action remote dispatch. Public MCP status remains read-only and redacted.",
+    "description": "Separate authenticated fixed-action remote dispatch. For ChatGPT this is the effectful remote route until an effectful OpenAI MCP transport is explicitly proven; public MCP status remains read-only and redacted.",
     "executorRepository": "EVAVO-STUDIO/evavo-local-compute"
   },
   "github-issue-queue": {
     "failureDomain": "github-issue-queue",
-    "sharedDependencies": [
-      "github-service",
-      "windows-workstation",
-      "current-user-queue-worker",
-      "replay-journal"
-    ],
-    "clients": [
-      "chatgpt-pro",
-      "claude-code",
-      "codex",
-      "api-agent"
-    ],
-    "effects": [
-      "write",
-      "execute",
-      "control",
-      "publish"
-    ],
+    "sharedDependencies": ["github-service", "windows-workstation", "current-user-queue-worker", "replay-journal"],
+    "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+    "effects": ["write", "execute", "control", "publish"],
     "minimumState": "configured",
     "freshnessSeconds": 1800,
     "receiptRequired": true,
