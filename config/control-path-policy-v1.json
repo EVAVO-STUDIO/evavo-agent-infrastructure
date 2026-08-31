@@ -27,19 +27,27 @@
       "rule": "Use when a typed native interface can complete the task."
     },
     {
+      "rank": 15,
+      "routeClass": "singleton-agent-gateway",
+      "disruption": "none",
+      "authorities": ["local-ai-agent-gateway"],
+      "delegatesTo": ["local-storage", "local-compute"],
+      "rule": "Preferred shared agent ingress for authenticated logical storage mutation, EVAVO Storage bridge work, route health and bounded workstation control. The gateway delegates bytes to Local Storage and execution to the appropriate execution authority; it does not become a second byte store or generic shell."
+    },
+    {
       "rank": 20,
       "routeClass": "local-compute-background",
       "disruption": "none",
       "authorities": ["local-compute", "development-governance", "local-storage"],
       "transports": ["structured-workstation-bridge", "durable-local-execution", "cloudflare-typed-relay", "github-issue-queue"],
-      "rule": "Preferred for code, Git, file, build, test, package, process, service and local-model work. Windows non-interactive child processes should use hidden/no-console launch policy."
+      "rule": "Preferred fallback for code, Git, file, build, test, package, process, service and local-model work when the singleton gateway does not expose the required typed operation. Windows non-interactive child processes should use hidden/no-console launch policy."
     },
     {
       "rank": 30,
       "routeClass": "local-mcp",
       "disruption": "none",
       "transports": ["local-specialist-mcp", "openai-secure-mcp-tunnel"],
-      "rule": "MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
+      "rule": "Direct specialist MCP is an independent fallback for capabilities not available through the singleton gateway. MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
     },
     {
       "rank": 40,
@@ -89,13 +97,14 @@
     }
   },
   "clientRules": {
-    "chatgpt-pro": "Use connected/native tools first. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
-    "claude-code": "Prefer local MCP/Local Compute typed execution before interactive terminal or desktop control.",
-    "codex": "Prefer local MCP/Local Compute typed execution and isolated browser control before actual-console routes.",
+    "chatgpt-pro": "Use connected/native tools first, then the authenticated singleton gateway when registered and healthy. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
+    "claude-code": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP before interactive terminal or desktop control.",
+    "codex": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP and isolated browser control before actual-console routes.",
     "api-agent": "Select the first eligible route by this policy and retain receipts for effectful work."
   },
   "healthRules": [
     "Health and self-heal should use status endpoints, process/service APIs and watchdogs before GUI interaction.",
+    "Storage route health must distinguish logical gateway readiness, Local Storage writer readiness, BeeStation primary-writer readiness and Windows execution fallback readiness.",
     "A watchdog may restart only owned processes according to its repository contract; watchdog recovery must not silently send HID or change hardware identity.",
     "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
     "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient."
