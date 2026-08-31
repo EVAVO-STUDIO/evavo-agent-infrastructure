@@ -85,6 +85,13 @@
         "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage"
       }
     },
+    "evavo-windows-physical-control-status": {
+      "command": "node",
+      "args": ["./mcp-server/windows-physical-control-status-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_COMPUTE_ROOT": "C:\\GitRepos\\evavo-local-compute"
+      }
+    },
     "evavo-android-device": {
       "command": "node",
       "args": ["./mcp-server/android-device-mcp.mjs"],
