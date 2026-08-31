@@ -4,8 +4,10 @@ import { win32 as path } from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline";
 
+import { classifyReceiptTruth } from "./control-policy-core.mjs";
+
 const SERVER_NAME = "evavo-windows-storage-governance-mcp";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.3.0";
 const STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT || "C:\\GitRepos\\evavo-local-storage";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const STATUS = path.join(STORAGE_ROOT, "scripts", "Get-EvavoStorageEstateStatus.ps1");
@@ -81,11 +83,106 @@ function lastJson(text) {
       if (value && typeof value === "object" && !Array.isArray(value)) return value;
     } catch { /* continue */ }
   }
-  throw new Error("PowerShell helper returned no JSON receipt");
+  return null;
+}
+
+function explicitNoEffect(receipt) {
+  return Boolean(
+    receipt &&
+    receipt.mutationPerformed === false &&
+    receipt.providerMutationPerformed !== true &&
+    receipt.executionPerformed !== true &&
+    receipt.deviceControlPerformed !== true,
+  );
+}
+
+function receiptAdvice(receipt, { processMayHaveStarted = true } = {}) {
+  const hasCanonicalFacts = Boolean(
+    receipt &&
+    typeof receipt.physicalEffectState === "string" &&
+    typeof receipt.sideEffectMayHaveCommitted === "boolean" &&
+    typeof receipt.postconditionVerified === "boolean" &&
+    typeof receipt.intentPersisted === "boolean" &&
+    typeof receipt.terminalReceiptPersisted === "boolean",
+  );
+  if (hasCanonicalFacts) {
+    return classifyReceiptTruth({
+      physicalEffectState: receipt.physicalEffectState,
+      sideEffectMayHaveCommitted: receipt.sideEffectMayHaveCommitted,
+      postconditionVerified: receipt.postconditionVerified,
+      intentPersisted: receipt.intentPersisted,
+      terminalReceiptPersisted: receipt.terminalReceiptPersisted,
+      reconciliationRequired: receipt.reconciliationRequired === true,
+    });
+  }
+  if (explicitNoEffect(receipt)) {
+    return classifyReceiptTruth({
+      physicalEffectState: "verified_not_committed",
+      sideEffectMayHaveCommitted: false,
+      postconditionVerified: false,
+      intentPersisted: false,
+      terminalReceiptPersisted: Boolean(receipt),
+      reconciliationRequired: false,
+    });
+  }
+  return {
+    schemaVersion: 1,
+    kind: "evavo-control-receipt-advice-v1",
+    disposition: processMayHaveStarted ? "reconcile-before-retry" : "retry-safe-no-effect",
+    operationSucceeded: false,
+    retryUnderlyingAction: !processMayHaveStarted,
+    requestReplaySafe: !processMayHaveStarted,
+    reconciliationRequired: processMayHaveStarted,
+    physicalEffectState: processMayHaveStarted ? "unknown_after_process_dispatch" : "not_attempted",
+    sideEffectMayHaveCommitted: processMayHaveStarted,
+    postconditionVerified: false,
+    intentPersisted: false,
+    terminalReceiptPersisted: Boolean(receipt),
+    execute: false,
+    reason: processMayHaveStarted
+      ? "helper-or-transport-failed-after-process-dispatch-without-canonical-effect-proof"
+      : "process-was-proven-not-started",
+    rule: "Never infer physical failure from a helper exit, transport error, or receipt error after execution may have begun.",
+  };
+}
+
+class ReceiptExecutionError extends Error {
+  constructor(message, { receipt = null, exitCode = null, processMayHaveStarted = true, helper = null, detail = null } = {}) {
+    super(message);
+    this.name = "ReceiptExecutionError";
+    this.receipt = receipt;
+    this.exitCode = exitCode;
+    this.processMayHaveStarted = processMayHaveStarted;
+    this.helper = helper;
+    this.detail = detail;
+    this.receiptAdvice = receiptAdvice(receipt, { processMayHaveStarted });
+  }
+
+  asObject() {
+    return {
+      ok: false,
+      kind: "evavo-windows-storage-governance-receipt-error-v1",
+      error: this.message.slice(0, 4000),
+      helper: this.helper,
+      exitCode: this.exitCode,
+      processMayHaveStarted: this.processMayHaveStarted,
+      receiptObserved: Boolean(this.receipt),
+      receipt: this.receipt,
+      receiptAdvice: this.receiptAdvice,
+      retryUnderlyingAction: this.receiptAdvice.retryUnderlyingAction === true,
+      reconciliationRequired: this.receiptAdvice.reconciliationRequired === true,
+      arbitraryCommandTextAccepted: false,
+    };
+  }
 }
 
 function runPowerShell(script, args = [], timeout = 180_000) {
-  if (!existsSync(script)) throw new Error(`fixed storage-governance helper is missing: ${path.basename(script)}`);
+  if (!existsSync(script)) {
+    throw new ReceiptExecutionError(`fixed storage-governance helper is missing: ${path.basename(script)}`, {
+      processMayHaveStarted: false,
+      helper: path.basename(script),
+    });
+  }
   const result = spawnSync("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", script, ...args], {
     encoding: "utf8",
     windowsHide: true,
@@ -93,13 +190,36 @@ function runPowerShell(script, args = [], timeout = 180_000) {
     timeout,
     maxBuffer: 8 * 1024 * 1024,
   });
-  if (result.error) throw result.error;
   const receipt = lastJson(result.stdout || "");
+  if (result.error) {
+    const processMayHaveStarted = result.error?.code !== "ENOENT";
+    throw new ReceiptExecutionError(String(result.error.message || result.error), {
+      receipt,
+      exitCode: result.status,
+      processMayHaveStarted,
+      helper: path.basename(script),
+      detail: `${result.stdout || ""}\n${result.stderr || ""}`.trim().slice(-4000),
+    });
+  }
+  if (!receipt) {
+    throw new ReceiptExecutionError("PowerShell helper returned no JSON receipt", {
+      exitCode: result.status,
+      processMayHaveStarted: true,
+      helper: path.basename(script),
+      detail: `${result.stdout || ""}\n${result.stderr || ""}`.trim().slice(-4000),
+    });
+  }
   if (result.status !== 0) {
     const safeBlocked = receipt.kind === "evavo-storage-estate-snapshot-v5" && receipt.status === "reclaim-blocked-no-safe-archive-destination";
     if (!safeBlocked) {
       const detail = `${result.stdout || ""}\n${result.stderr || ""}`.trim().slice(-4000);
-      throw new Error(detail || `fixed storage-governance helper failed: ${path.basename(script)}`);
+      throw new ReceiptExecutionError(detail || `fixed storage-governance helper failed: ${path.basename(script)}`, {
+        receipt,
+        exitCode: result.status,
+        processMayHaveStarted: true,
+        helper: path.basename(script),
+        detail,
+      });
     }
   }
   return receipt;
@@ -108,7 +228,7 @@ function runPowerShell(script, args = [], timeout = 180_000) {
 function doctor() {
   const scripts = [STATUS, EXECUTION_CONTROL_STATUS, ESTATE_ACTIVATE, GOOGLE_TASK_INSTALL, STORAGE_RECOVERY_CURRENT];
   return {
-    schema: "evavo.windows-storage-governance.doctor.v3",
+    schema: "evavo.windows-storage-governance.doctor.v4",
     ok: scripts.every((item) => existsSync(item)),
     server: SERVER_NAME,
     version: SERVER_VERSION,
@@ -116,6 +236,9 @@ function doctor() {
     preferredRecoveryTool: "evavo_storage_recovery_current",
     executionStatusTool: "evavo_storage_execution_status",
     tools: TOOLS.map((tool) => tool.name),
+    receiptTruthPreservedAcrossNonzeroExit: true,
+    unknownPostDispatchEffectRequiresReconciliation: true,
+    blindRetryAfterUnknownEffectAllowed: false,
     googleCapacityBytes: 15_000_000_000,
     googlePrepareAtBasisPoints: 8500,
     googleTriggerAtBasisPoints: 9000,
@@ -141,7 +264,12 @@ function status(args) {
   if (!Number.isInteger(hours) || hours < 1 || hours > 168) throw new Error("maximumInventoryAgeHours must be 1-168");
   const receipt = runPowerShell(STATUS, ["-MaximumInventoryAgeHours", String(hours)], 45_000);
   if (receipt.kind !== "evavo-storage-estate-status-v5" || receipt.ok !== true || receipt.mutationPerformed !== false) {
-    throw new Error("storage-governance status receipt failed admission");
+    throw new ReceiptExecutionError("storage-governance status receipt failed admission", {
+      receipt,
+      exitCode: 0,
+      processMayHaveStarted: false,
+      helper: path.basename(STATUS),
+    });
   }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
@@ -162,7 +290,12 @@ function executionStatus(args) {
     receipt.vercelRequired !== false ||
     receipt.mailboxRequired !== false
   ) {
-    throw new Error("storage execution-control status receipt failed admission");
+    throw new ReceiptExecutionError("storage execution-control status receipt failed admission", {
+      receipt,
+      exitCode: 0,
+      processMayHaveStarted: false,
+      helper: path.basename(EXECUTION_CONTROL_STATUS),
+    });
   }
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
@@ -195,7 +328,12 @@ function recoverCurrent() {
     receipt.vercelRequired !== false ||
     receipt.mailboxRequired !== false
   ) {
-    throw new Error("serialized current storage recovery receipt failed admission");
+    throw new ReceiptExecutionError("serialized current storage recovery receipt failed admission", {
+      receipt,
+      exitCode: 0,
+      processMayHaveStarted: true,
+      helper: path.basename(STORAGE_RECOVERY_CURRENT),
+    });
   }
   return {
     ...receipt,
@@ -210,7 +348,12 @@ function recoverCurrent() {
 function activateEstate() {
   const receipt = runPowerShell(ESTATE_ACTIVATE, [], 180_000);
   if (receipt.kind !== "evavo-storage-estate-rest-executor-activation-v2" || receipt.ok !== true || receipt.taskInstalled !== true || receipt.taskStarted !== true || receipt.scheduledRuntime !== "v5") {
-    throw new Error("storage-estate activation receipt failed admission");
+    throw new ReceiptExecutionError("storage-estate activation receipt failed admission", {
+      receipt,
+      exitCode: 0,
+      processMayHaveStarted: true,
+      helper: path.basename(ESTATE_ACTIVATE),
+    });
   }
   return { ...receipt, invokedThrough: SERVER_NAME, preferredRecoveryPath: false, arbitraryCommandTextAccepted: false };
 }
@@ -235,7 +378,12 @@ function activateGoogle() {
     receipt.providerMetadataRereadRequired !== true ||
     receipt.githubActionsRequired !== false
   ) {
-    throw new Error("Google storage-pressure activation receipt failed admission");
+    throw new ReceiptExecutionError("Google storage-pressure activation receipt failed admission", {
+      receipt,
+      exitCode: 0,
+      processMayHaveStarted: true,
+      helper: path.basename(GOOGLE_TASK_INSTALL),
+    });
   }
   return { ...receipt, invokedThrough: SERVER_NAME, preferredRecoveryPath: false, arbitraryCommandTextAccepted: false };
 }
@@ -291,13 +439,28 @@ input.on("line", async (line) => {
     if (request.method === "tools/call") {
       const name = String(request.params?.name || "");
       const value = await callTool(name, request.params?.arguments);
-      send(id, { content: [{ type: "text", text: JSON.stringify(value) }], isError: false });
+      send(id, { content: [{ type: "text", text: JSON.stringify(value) }], structuredContent: value, isError: false });
       return;
     }
     sendError(id, -32601, `method not found: ${String(request.method || "")}`);
   } catch (error) {
     if (request.method === "tools/call") {
-      send(id, { content: [{ type: "text", text: JSON.stringify({ ok: false, error: String(error?.message || error).slice(0, 4000) }) }], isError: true });
+      const payload = error instanceof ReceiptExecutionError
+        ? error.asObject()
+        : {
+            ok: false,
+            kind: "evavo-windows-storage-governance-error-v1",
+            error: String(error?.message || error).slice(0, 4000),
+            receiptObserved: false,
+            retryUnderlyingAction: false,
+            reconciliationRequired: true,
+            arbitraryCommandTextAccepted: false,
+          };
+      send(id, {
+        content: [{ type: "text", text: JSON.stringify(payload) }],
+        structuredContent: payload,
+        isError: true,
+      });
     } else {
       sendError(id, -32000, String(error?.message || error).slice(0, 4000));
     }
