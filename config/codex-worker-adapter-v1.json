@@ -36,11 +36,18 @@
     "apiKeyEnvironmentVariablesMustBeRemoved": [
       "OPENAI_API_KEY",
       "OPENAI_ORG_ID",
+      "OPENAI_ORGANIZATION",
       "OPENAI_PROJECT_ID",
+      "OPENAI_PROJECT",
+      "OPENAI_BASE_URL",
+      "OPENAI_API_BASE",
+      "CODEX_API_KEY",
       "AZURE_OPENAI_API_KEY",
       "AZURE_OPENAI_ENDPOINT"
     ],
     "maximumAutomaticAttempts": 2,
+    "maximumRetainedStdoutBytes": 262144,
+    "maximumRetainedStderrBytes": 131072,
     "paidFallbackAllowed": false,
     "publicationAuthority": false,
     "validationAuthority": false
@@ -53,5 +60,5 @@
     "rateLimitRetainsReadyJob": true,
     "exhaustionRetainsReadyJob": true
   },
-  "truthBoundary": "CLI presence and supported flags do not prove authentication, Spark availability or remaining allowance. A capability probe performs no model turn. The effectful runner must strip API-key environment variables and run only in an isolated Development Studio candidate worktree."
+  "truthBoundary": "CLI presence and supported flags do not prove authentication, Spark availability or remaining allowance. A capability probe performs no model turn. The effectful runner must strip API-key/provider override environment variables and run only in an isolated Development Studio candidate worktree."
 }
