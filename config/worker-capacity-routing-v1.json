@@ -9,8 +9,10 @@
       "runtime": "codex",
       "modelPreference": "gpt-5.3-codex-spark",
       "workerClasses": [
+        "test-generation"
+      ],
+      "futureCandidateWorkerClasses": [
         "fast-coding",
-        "test-generation",
         "documentation-truth",
         "migration",
         "robustness",
@@ -20,7 +22,9 @@
       "capacityClass": "included-consumer",
       "routineCost": "included-plan-capacity",
       "paidFallbackAllowed": false,
-      "maximumAutomaticConcurrency": 4,
+      "maximumAutomaticConcurrency": 1,
+      "physicalAdmissionRequired": true,
+      "physicalAdmissionKind": "evavo-codex-spark-route-admission-v1",
       "statusStates": [
         "AVAILABLE",
         "DEGRADED",
@@ -32,6 +36,9 @@
       "dispatchPolicy": {
         "requireReadyWorkPacket": true,
         "requireExactSourceRevision": true,
+        "requireFreshPhysicalAdmission": true,
+        "requireWorkerClassInPhysicalAdmission": true,
+        "capConcurrencyByPhysicalAdmission": true,
         "freshWorkerPerJob": true,
         "freshWorkerPerRetry": true,
         "maximumAutomaticAttempts": 2,
@@ -39,10 +46,11 @@
         "allowReserveDrainNearReset": true,
         "onRateLimit": "backoff-and-retain-ready-job",
         "onExhausted": "retain-ready-job",
+        "onMissingPhysicalAdmission": "retain-ready-job",
         "onArchitectureUncertainty": "NEEDS_DEEP_WORKER",
         "runDeterministicValidationInsideModelSession": false
       },
-      "truthBoundary": "Codex transport or authentication availability is distinct from Spark capacity. A started model turn is not completion, and model output never grants Git publication authority."
+      "truthBoundary": "Codex transport or authentication availability is distinct from Spark capacity and both are distinct from physical worker-class admission. Until a fresh supervised route admission exists, capacity state alone cannot authorize Spark dispatch. A started model turn is not completion, and model output never grants Git publication authority."
     },
     {
       "id": "local-classification-default",
@@ -52,7 +60,8 @@
       "capacityClass": "local-compute",
       "routineCost": "local-compute",
       "paidFallbackAllowed": false,
-      "maximumAutomaticConcurrency": 2
+      "maximumAutomaticConcurrency": 2,
+      "physicalAdmissionRequired": false
     }
   ],
   "selection": {
@@ -66,18 +75,20 @@
     ],
     "factors": [
       "eligibility",
+      "physicalAdmission",
       "qualityFit",
       "capacityState",
       "costClass",
       "observedSuccessRate",
       "jobPriority"
     ],
-    "rule": "Prefer an eligible zero-incremental-cost route that fits the worker class. Never silently convert included-capacity maintenance work into paid API usage."
+    "rule": "Prefer an eligible zero-incremental-cost route that fits the worker class and, where required, has a fresh supervised physical admission for that class. Never silently convert included-capacity maintenance work into paid API usage."
   },
   "telemetry": {
     "record": [
       "routeId",
       "workerClass",
+      "physicalAdmissionSha256",
       "startedAt",
       "finishedAt",
       "resultState",
