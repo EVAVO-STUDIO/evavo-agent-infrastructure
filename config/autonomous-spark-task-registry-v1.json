@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-autonomous-spark-task-registry-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Expose reviewed Spark capacity observation, admission, routing and Codex dispatch contracts without granting repository scope, queue mutation, validation or publication authority.",
+  "tasks": {
+    "spark-capacity-source-contract-suite": {
+      "runtime": "node-script",
+      "entry": "scripts/run-codex-spark-capacity-contract-suite.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 900,
+      "effect": "read-only-tests"
+    },
+    "spark-capacity-observation-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-codex-spark-capacity-observation.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-compiler",
+      "arguments": ["codexOutcomePath"]
+    },
+    "spark-capacity-status-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-codex-spark-capacity-status.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 180,
+      "effect": "read-only-compiler",
+      "arguments": [
+        "capacityObservationPath",
+        "codexCapabilityPath",
+        "chatgptAuthPolicyPath",
+        "optionalSupervisedAcceptancePath"
+      ]
+    },
+    "spark-admitted-route-plan": {
+      "runtime": "node-script",
+      "entry": "scripts/plan-codex-spark-admitted-route.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-planner",
+      "arguments": ["readyWorkItemPath", "capacityStatusPath"]
+    },
+    "codex-worker-capability-probe": {
+      "runtime": "node-script",
+      "entry": "scripts/probe-codex-worker-adapter.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "effect": "read-only-probe"
+    },
+    "codex-chatgpt-auth-policy-probe": {
+      "runtime": "node-script",
+      "entry": "scripts/probe-codex-chatgpt-auth-policy.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "effect": "read-only-probe"
+    }
+  },
+  "physicalCodexExecutionRegistered": false,
+  "normalSparkExecutionRequiresSupervisedPhysicalAcceptance": true,
+  "initialWorkerClasses": ["test-generation"],
+  "initialMaximumConcurrency": 1,
+  "paidFallbackAllowed": false,
+  "publicationAuthority": false
+}
