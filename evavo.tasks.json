@@ -10,12 +10,26 @@
       "timeoutSeconds": 300,
       "description": "Certify zero-cost Spark route selection, exhausted-capacity retention and paid-fallback rejection without starting a model turn."
     },
+    "codex-worker-result-classifier-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-worker-result-classifier.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify observed Codex result classification for available, exhausted, rate-limited, authentication and degraded states without querying account usage or starting a model turn."
+    },
+    "codex-worker-runner-safety-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-worker-runner-safety.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Prove the effectful Codex worker runner remains disabled without both explicit runtime and physical-profile acceptance gates. Does not require Codex or start a model turn."
+    },
     "codex-worker-capability-probe": {
       "runtime": "node-script",
       "entry": "scripts/probe-codex-worker-adapter.mjs",
       "network": "disabled",
       "timeoutSeconds": 60,
-      "description": "Inspect the installed Codex CLI version and exec help, proving supported structured-output/model-selection flags without authentication mutation, model inference or repository effects."
+      "description": "Inspect the installed Codex CLI version and exec help, proving supported structured-output, model-selection, sandbox and approval controls without authentication mutation, model inference or repository effects."
     }
   }
 }
