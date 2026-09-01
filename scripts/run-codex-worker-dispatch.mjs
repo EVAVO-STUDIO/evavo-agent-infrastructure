@@ -34,7 +34,7 @@ if (certificationMode) {
   if (plan.fixtureOnly !== true) errors.push("Certification mode only admits a fixtureOnly dispatch plan.");
   if (!chatgptAuthPolicyAccepted) errors.push("Certification mode requires EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED=1 from the read-only ChatGPT auth-policy probe.");
 } else if (!acceptanceReceiptInput) {
-  errors.push("Normal Spark execution requires EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT pointing to a current physical-acceptance receipt; the legacy PROFILE_ACCEPTED boolean is not authority.");
+  errors.push("Normal Spark execution requires EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT pointing to a current supervised physical-acceptance envelope; the legacy PROFILE_ACCEPTED boolean is not authority.");
 }
 if (plan.kind !== "evavo-codex-worker-dispatch-plan-v1" || plan.eligible !== true) errors.push("Dispatch plan is not eligible.");
 if (plan.executable !== adapter.executable) errors.push("Dispatch executable differs from the admitted adapter.");
@@ -42,16 +42,10 @@ if (plan.publicationAuthority !== false || plan.validationAuthority !== false) e
 if (plan.paidFallbackUsed !== false) errors.push("Paid fallback is forbidden.");
 if (plan.sandboxMode !== adapter.dispatch.sandboxMode) errors.push("Sandbox mode mismatch.");
 if (plan.approvalPolicy !== adapter.dispatch.approvalPolicy) errors.push("Approval policy mismatch.");
-if (capability.kind !== "evavo-codex-worker-capability-probe-v1" || capability.eligibleForWorkerDispatch !== true) {
-  errors.push("Fresh eligible Codex capability receipt is required.");
-}
+if (capability.kind !== "evavo-codex-worker-capability-probe-v1" || capability.eligibleForWorkerDispatch !== true) errors.push("Fresh eligible Codex capability receipt is required.");
 const observedAt = Date.parse(capability.observedAt ?? "");
-if (!Number.isFinite(observedAt) || Date.now() - observedAt > 10 * 60_000 || observedAt - Date.now() > 120_000) {
-  errors.push("Codex capability receipt is stale or future-dated.");
-}
-for (const key of ["jsonFlag", "modelFlag", "sandboxFlag", "approvalFlag"]) {
-  if (!capability.capabilities?.[key]) errors.push(`Codex capability receipt lacks ${key}.`);
-}
+if (!Number.isFinite(observedAt) || Date.now() - observedAt > 10 * 60_000 || observedAt - Date.now() > 120_000) errors.push("Codex capability receipt is stale or future-dated.");
+for (const key of ["jsonFlag", "modelFlag", "sandboxFlag", "approvalFlag"]) if (!capability.capabilities?.[key]) errors.push(`Codex capability receipt lacks ${key}.`);
 if (!Array.isArray(plan.argv) || plan.argv.length < 8 || plan.argv[0] !== "exec" || plan.argv.at(-1) !== "-") errors.push("Dispatch argv shape is invalid.");
 if (typeof plan.stdinPrompt !== "string" || !plan.stdinPrompt.trim()) errors.push("Dispatch prompt is missing.");
 
@@ -59,31 +53,25 @@ if (!certificationMode && acceptanceReceiptInput) {
   try {
     acceptanceReceiptResolved = fs.realpathSync.native(path.resolve(acceptanceReceiptInput));
     const acceptanceStat = fs.lstatSync(acceptanceReceiptResolved);
-    if (!acceptanceStat.isFile() || acceptanceStat.isSymbolicLink()) throw new Error("Physical acceptance must be a regular non-symlink file.");
-    const verifierPath = fs.realpathSync.native(path.resolve("scripts/verify-codex-spark-physical-acceptance.mjs"));
+    if (!acceptanceStat.isFile() || acceptanceStat.isSymbolicLink()) throw new Error("Supervised physical acceptance must be a regular non-symlink file.");
+    const verifierPath = fs.realpathSync.native(path.resolve("scripts/verify-codex-spark-safe-physical-acceptance.mjs"));
     const verifierStat = fs.lstatSync(verifierPath);
-    if (!verifierStat.isFile() || verifierStat.isSymbolicLink()) throw new Error("Physical acceptance verifier must be a regular non-symlink file.");
+    if (!verifierStat.isFile() || verifierStat.isSymbolicLink()) throw new Error("Supervised physical acceptance verifier must be a regular non-symlink file.");
     const verificationProcess = spawnSync(process.execPath, [verifierPath, acceptanceReceiptResolved, capabilityResolved], {
-      cwd: process.cwd(),
-      env: process.env,
-      encoding: "utf8",
-      shell: false,
-      windowsHide: true,
-      timeout: 120_000,
-      maxBuffer: 4 * 1024 * 1024,
+      cwd: process.cwd(), env: process.env, encoding: "utf8", shell: false, windowsHide: true, timeout: 120_000, maxBuffer: 4 * 1024 * 1024,
     });
     let verification;
     try {
       verification = JSON.parse(String(verificationProcess.stdout ?? "").trim());
     } catch {
-      throw new Error(`Physical acceptance verifier did not return valid JSON: ${String(verificationProcess.stderr ?? "").trim().slice(0, 2048)}`);
+      throw new Error(`Supervised physical acceptance verifier did not return valid JSON: ${String(verificationProcess.stderr ?? "").trim().slice(0, 2048)}`);
     }
     if (verificationProcess.status !== 0 || verification.accepted !== true) {
       const detail = Array.isArray(verification.errors) ? verification.errors.join("; ") : "verification rejected";
-      throw new Error(`Physical acceptance verification failed: ${detail}`);
+      throw new Error(`Supervised physical acceptance verification failed: ${detail}`);
     }
-    if (verification.routeId !== "codex-spark-pro" || verification.paidFallbackAllowed !== false || verification.maximumConcurrency < 1 || !Array.isArray(verification.workerClasses) || !verification.workerClasses.includes("test-generation")) {
-      throw new Error("Physical acceptance verification does not admit the required zero-paid-fallback Test Builder route.");
+    if (verification.supervisedCleanupProven !== true || verification.routeId !== "codex-spark-pro" || verification.paidFallbackAllowed !== false || verification.maximumConcurrency < 1 || !Array.isArray(verification.workerClasses) || !verification.workerClasses.includes("test-generation")) {
+      throw new Error("Supervised physical acceptance does not admit the required zero-paid-fallback Test Builder route.");
     }
     acceptanceVerification = verification;
   } catch (error) {
@@ -93,43 +81,19 @@ if (!certificationMode && acceptanceReceiptInput) {
 
 const profileAccepted = acceptanceVerification?.accepted === true;
 if (errors.length) {
-  console.error(JSON.stringify({
-    kind: "evavo-codex-worker-run-v1",
-    started: false,
-    certificationMode,
-    legacyProfileFlagPresent,
-    physicalAcceptanceVerified: profileAccepted,
-    errors,
-  }, null, 2));
+  console.error(JSON.stringify({ kind: "evavo-codex-worker-run-v1", started: false, certificationMode, legacyProfileFlagPresent, supervisedPhysicalAcceptanceVerified: profileAccepted, errors }, null, 2));
   process.exit(1);
 }
 
 const candidatePath = fs.realpathSync.native(path.resolve(plan.workingDirectory));
 const stat = fs.lstatSync(candidatePath);
 if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error("Candidate working directory must be a real directory.");
-
 function git(args) {
   return execFileSync(process.platform === "win32" ? "git.exe" : "git", args, {
-    cwd: candidatePath,
-    encoding: "utf8",
-    shell: false,
-    windowsHide: true,
-    timeout: 120_000,
-    maxBuffer: 16 * 1024 * 1024,
-    env: {
-      PATH: process.env.PATH ?? "",
-      PATHEXT: process.env.PATHEXT ?? "",
-      SYSTEMROOT: process.env.SYSTEMROOT ?? "",
-      WINDIR: process.env.WINDIR ?? "",
-      HOME: process.env.HOME ?? "",
-      USERPROFILE: process.env.USERPROFILE ?? "",
-      GIT_TERMINAL_PROMPT: "0",
-      GCM_INTERACTIVE: "Never",
-      GIT_CONFIG_NOSYSTEM: "1"
-    }
+    cwd: candidatePath, encoding: "utf8", shell: false, windowsHide: true, timeout: 120_000, maxBuffer: 16 * 1024 * 1024,
+    env: { PATH: process.env.PATH ?? "", PATHEXT: process.env.PATHEXT ?? "", SYSTEMROOT: process.env.SYSTEMROOT ?? "", WINDIR: process.env.WINDIR ?? "", HOME: process.env.HOME ?? "", USERPROFILE: process.env.USERPROFILE ?? "", GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "Never", GIT_CONFIG_NOSYSTEM: "1" }
   }).trim();
 }
-
 const gitRoot = fs.realpathSync.native(path.resolve(git(["rev-parse", "--show-toplevel"])));
 if (gitRoot !== candidatePath) throw new Error("Dispatch working directory is not the candidate Git root.");
 const beforeHead = git(["rev-parse", "HEAD^{commit}"]).toLowerCase();
@@ -143,13 +107,7 @@ for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [
   if (Object.prototype.hasOwnProperty.call(env, name)) removedEnvironment.push(name);
   delete env[name];
 }
-for (const controlName of [
-  "EVAVO_CODEX_SPARK_EXECUTION_ENABLED",
-  "EVAVO_CODEX_SPARK_PROFILE_ACCEPTED",
-  "EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT",
-  "EVAVO_CODEX_SPARK_CERTIFICATION_MODE",
-  "EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED"
-]) delete env[controlName];
+for (const controlName of ["EVAVO_CODEX_SPARK_EXECUTION_ENABLED", "EVAVO_CODEX_SPARK_PROFILE_ACCEPTED", "EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT", "EVAVO_CODEX_SPARK_CERTIFICATION_MODE", "EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED"]) delete env[controlName];
 const sanitizedEnvironmentNames = adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [];
 const environmentSanitized = sanitizedEnvironmentNames.every((name) => !Object.prototype.hasOwnProperty.call(env, name));
 if (!environmentSanitized) throw new Error("Codex child environment still contains a forbidden provider/API override.");
@@ -160,44 +118,24 @@ env.EVAVO_AUTONOMOUS_WORKER_CLASS = "test-generation";
 env.EVAVO_AUTONOMOUS_FIXTURE_ONLY = plan.fixtureOnly === true ? "1" : "0";
 
 const startedAt = new Date().toISOString();
-const result = spawnSync(plan.executable, plan.argv, {
-  cwd: candidatePath,
-  env,
-  encoding: "utf8",
-  input: plan.stdinPrompt,
-  shell: false,
-  windowsHide: true,
-  timeout: 20 * 60_000,
-  maxBuffer: 8 * 1024 * 1024,
-});
+const result = spawnSync(plan.executable, plan.argv, { cwd: candidatePath, env, encoding: "utf8", input: plan.stdinPrompt, shell: false, windowsHide: true, timeout: 20 * 60_000, maxBuffer: 8 * 1024 * 1024 });
 const finishedAt = new Date().toISOString();
 const afterHead = git(["rev-parse", "HEAD^{commit}"]).toLowerCase();
 const afterStatus = git(["status", "--porcelain=v1", "--untracked-files=all"]);
-
 const stdout = typeof result.stdout === "string" ? result.stdout : "";
 const stderr = typeof result.stderr === "string" ? result.stderr : "";
 const events = [];
 let malformedJsonLines = 0;
 for (const line of stdout.split(/\r?\n/).filter((value) => value.trim())) {
-  try {
-    events.push(JSON.parse(line));
-  } catch {
-    malformedJsonLines += 1;
-  }
+  try { events.push(JSON.parse(line)); } catch { malformedJsonLines += 1; }
 }
 const turnCompleted = [...events].reverse().find((event) => event?.type === "turn.completed") ?? null;
 const agentMessage = [...events].reverse().find((event) => event?.type === "item.completed" && event?.item?.type === "agent_message")?.item?.text ?? null;
 let workerSummary = null;
 if (typeof agentMessage === "string") {
-  try {
-    const parsed = JSON.parse(agentMessage);
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) workerSummary = parsed;
-  } catch {
-    // The candidate diff remains authoritative; an unstructured summary is retained only as text evidence.
-  }
+  try { const parsed = JSON.parse(agentMessage); if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) workerSummary = parsed; } catch {}
 }
 const structuredTurnCompleted = result.status === 0 && Boolean(turnCompleted) && malformedJsonLines === 0;
-
 const hash = (value) => createHash("sha256").update(value, "utf8").digest("hex");
 const retain = (value, maximum) => {
   const encoded = Buffer.from(value, "utf8");
@@ -210,51 +148,16 @@ const stderrReceipt = retain(stderr, adapter.dispatch.maximumRetainedStderrBytes
 const agentMessageReceipt = typeof agentMessage === "string" ? retain(agentMessage, 32768) : null;
 
 const receipt = {
-  schemaVersion: 1,
-  kind: "evavo-codex-worker-run-v1",
-  routeId: "codex-spark-pro",
-  workItemId: plan.workItemId,
-  workerId: plan.workerId,
-  repository: plan.repository,
-  sourceRevision: plan.sourceRevision,
-  fixtureOnly: plan.fixtureOnly === true,
-  certificationMode,
-  legacyProfileFlagPresentAtStart: legacyProfileFlagPresent,
-  physicalAcceptanceVerifiedAtStart: profileAccepted,
-  physicalAcceptanceRouteId: acceptanceVerification?.routeId ?? null,
-  physicalAcceptanceWorkerClasses: acceptanceVerification?.workerClasses ?? [],
-  chatgptAuthPolicyGateAtStart: certificationMode ? chatgptAuthPolicyAccepted : null,
-  startedAt,
-  finishedAt,
-  exitCode: result.status,
-  signal: result.signal ?? null,
-  error: result.error?.message ?? null,
-  stdout: stdoutReceipt,
-  stderr: stderrReceipt,
-  jsonl: {
-    parsedEvents: events.length,
-    malformedLines: malformedJsonLines,
-    turnCompleted: Boolean(turnCompleted),
-    usage: turnCompleted?.usage ?? null,
-    finalAgentMessage: agentMessageReceipt,
-    parsedWorkerSummary: workerSummary,
-  },
-  modelTurnCompleted: structuredTurnCompleted,
-  structuredTurnCompleted,
-  candidateHeadBefore: beforeHead,
-  candidateHeadAfter: afterHead,
-  candidateHeadChanged: afterHead !== beforeHead,
-  candidateDirtyAfter: Boolean(afterStatus),
-  apiKeyOrProviderEnvironmentRemoved: removedEnvironment,
-  apiKeyEnvironmentSanitized: environmentSanitized,
-  sanitizedEnvironmentNames,
-  sandboxMode: plan.sandboxMode,
-  approvalPolicy: plan.approvalPolicy,
-  paidFallbackUsed: false,
-  deterministicValidationPerformed: false,
-  publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Normal execution requires the runner itself to verify a current physical-acceptance receipt against the same fresh capability receipt; the legacy PROFILE_ACCEPTED boolean is not authority. Certification mode can precede acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Provider/API override and outer authorization variables are removed before spawning Codex. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
+  schemaVersion: 1, kind: "evavo-codex-worker-run-v1", routeId: "codex-spark-pro", workItemId: plan.workItemId, workerId: plan.workerId, repository: plan.repository, sourceRevision: plan.sourceRevision,
+  fixtureOnly: plan.fixtureOnly === true, certificationMode, legacyProfileFlagPresentAtStart: legacyProfileFlagPresent,
+  supervisedPhysicalAcceptanceVerifiedAtStart: profileAccepted, supervisedPhysicalAcceptanceRouteId: acceptanceVerification?.routeId ?? null, supervisedPhysicalAcceptanceWorkerClasses: acceptanceVerification?.workerClasses ?? [],
+  chatgptAuthPolicyGateAtStart: certificationMode ? chatgptAuthPolicyAccepted : null, startedAt, finishedAt, exitCode: result.status, signal: result.signal ?? null, error: result.error?.message ?? null,
+  stdout: stdoutReceipt, stderr: stderrReceipt,
+  jsonl: { parsedEvents: events.length, malformedLines: malformedJsonLines, turnCompleted: Boolean(turnCompleted), usage: turnCompleted?.usage ?? null, finalAgentMessage: agentMessageReceipt, parsedWorkerSummary: workerSummary },
+  modelTurnCompleted: structuredTurnCompleted, structuredTurnCompleted, candidateHeadBefore: beforeHead, candidateHeadAfter: afterHead, candidateHeadChanged: afterHead !== beforeHead, candidateDirtyAfter: Boolean(afterStatus),
+  apiKeyOrProviderEnvironmentRemoved: removedEnvironment, apiKeyEnvironmentSanitized: environmentSanitized, sanitizedEnvironmentNames, sandboxMode: plan.sandboxMode, approvalPolicy: plan.approvalPolicy,
+  paidFallbackUsed: false, deterministicValidationPerformed: false, publicationPerformed: false,
+  truthBoundary: "This is the bounded direct Codex process receipt. Normal execution requires the runner itself to verify a supervised physical-acceptance envelope against the same fresh capability receipt; a raw pre-cleanup acceptance or the legacy PROFILE_ACCEPTED boolean is not authority. Certification mode can precede acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Provider/API override and outer authorization variables are removed before spawning Codex."
 };
-
 console.log(JSON.stringify(receipt, null, 2));
 process.exit(structuredTurnCompleted ? 0 : 1);
