@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "evavo-worker-capacity-routing",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Select an eligible worker/model route after Development Studio has admitted a bounded work packet. This contract does not create engineering scope or publication authority.",
+  "purpose": "Select an eligible worker/model route only after Development Studio has admitted a bounded work packet and Agent Infrastructure has assembled current capacity plus physical-admission evidence. This contract creates neither engineering scope nor publication authority.",
   "workerRoutes": [
     {
       "id": "codex-spark-pro",
@@ -11,20 +11,10 @@
       "workerClasses": [
         "test-generation"
       ],
-      "futureCandidateWorkerClasses": [
-        "fast-coding",
-        "documentation-truth",
-        "migration",
-        "robustness",
-        "cross-platform",
-        "contract-hardening"
-      ],
       "capacityClass": "included-consumer",
       "routineCost": "included-plan-capacity",
       "paidFallbackAllowed": false,
       "maximumAutomaticConcurrency": 1,
-      "physicalAdmissionRequired": true,
-      "physicalAdmissionKind": "evavo-codex-spark-route-admission-v1",
       "statusStates": [
         "AVAILABLE",
         "DEGRADED",
@@ -36,9 +26,11 @@
       "dispatchPolicy": {
         "requireReadyWorkPacket": true,
         "requireExactSourceRevision": true,
-        "requireFreshPhysicalAdmission": true,
-        "requireWorkerClassInPhysicalAdmission": true,
-        "capConcurrencyByPhysicalAdmission": true,
+        "requireCanonicalCapacityStatus": true,
+        "requireFreshCapacityObservation": true,
+        "requireSupervisedPhysicalAdmission": true,
+        "requireDigestBoundRouteAdmission": true,
+        "requireSameCapabilityReceiptAtDispatch": true,
         "freshWorkerPerJob": true,
         "freshWorkerPerRetry": true,
         "maximumAutomaticAttempts": 2,
@@ -46,22 +38,24 @@
         "allowReserveDrainNearReset": true,
         "onRateLimit": "backoff-and-retain-ready-job",
         "onExhausted": "retain-ready-job",
-        "onMissingPhysicalAdmission": "retain-ready-job",
+        "onMissingAdmission": "retain-ready-job",
+        "onAdmissionDrift": "reject-dispatch-and-reassemble-status",
         "onArchitectureUncertainty": "NEEDS_DEEP_WORKER",
         "runDeterministicValidationInsideModelSession": false
       },
-      "truthBoundary": "Codex transport or authentication availability is distinct from Spark capacity and both are distinct from physical worker-class admission. Until a fresh supervised route admission exists, capacity state alone cannot authorize Spark dispatch. A started model turn is not completion, and model output never grants Git publication authority."
+      "truthBoundary": "Codex transport/authentication, raw Spark capacity and supervised physical admission are independent evidence classes. A started model turn is not completion, model output never grants deterministic-validation or Git publication authority, and only test-generation at concurrency one is currently physically admitted."
     },
     {
       "id": "local-classification-default",
       "runtime": "local-ai",
       "modelPreference": "model-lab-admitted-local-text",
-      "workerClasses": ["local-classification"],
+      "workerClasses": [
+        "local-classification"
+      ],
       "capacityClass": "local-compute",
       "routineCost": "local-compute",
       "paidFallbackAllowed": false,
-      "maximumAutomaticConcurrency": 2,
-      "physicalAdmissionRequired": false
+      "maximumAutomaticConcurrency": 2
     }
   ],
   "selection": {
@@ -71,24 +65,31 @@
       "paidFallbackAllowed",
       "jobPriority",
       "repository",
-      "sourceRevision"
+      "sourceRevision",
+      "canonicalCapacityStatus",
+      "routeAdmissionSha256"
     ],
     "factors": [
       "eligibility",
-      "physicalAdmission",
       "qualityFit",
-      "capacityState",
+      "rawCapacityState",
+      "physicalAdmissionState",
+      "workerClassAdmission",
+      "admittedConcurrency",
       "costClass",
       "observedSuccessRate",
       "jobPriority"
     ],
-    "rule": "Prefer an eligible zero-incremental-cost route that fits the worker class and, where required, has a fresh supervised physical admission for that class. Never silently convert included-capacity maintenance work into paid API usage."
+    "rule": "Prefer an eligible zero-incremental-cost route that fits the worker class only when current raw capacity and a short-lived supervised physical route admission agree. Never infer admission from availability and never silently convert included-capacity maintenance work into paid API usage."
   },
   "telemetry": {
     "record": [
       "routeId",
       "workerClass",
-      "physicalAdmissionSha256",
+      "capacityObservationSha256",
+      "supervisedAcceptanceSha256",
+      "capabilityReceiptSha256",
+      "routeAdmissionSha256",
       "startedAt",
       "finishedAt",
       "resultState",
