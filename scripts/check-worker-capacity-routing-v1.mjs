@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, "utf8"));
@@ -116,17 +117,51 @@ const requiredFiles = [
   "scripts/compile-codex-test-builder-completion.mjs",
   "scripts/test-codex-test-builder-completion.mjs",
 ];
-for (const file of requiredFiles) if (!exists(file)) errors.push(`Required Spark governance source is unavailable or linked: ${file}`);
+for (const file of requiredFiles) {
+  if (!exists(file)) {
+    errors.push(`Required Spark governance source is unavailable or linked: ${file}`);
+    continue;
+  }
+  const syntax = spawnSync(process.execPath, ["--check", file], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 256 * 1024,
+  });
+  if (syntax.error || syntax.status !== 0) {
+    const detail = String(syntax.stderr || syntax.stdout || syntax.error?.message || "syntax validation failed")
+      .trim()
+      .slice(0, 1000);
+    errors.push(`Required Spark governance source failed Node syntax validation: ${file}: ${detail}`);
+  }
+}
 
 if (requiredFiles.every(exists)) {
+  const capacityCore = readText("scripts/codex-spark-capacity-status-core.mjs");
   const assembler = readText("scripts/assemble-codex-spark-capacity-status.mjs");
   const planner = readText("scripts/plan-worker-route.mjs");
   const compiler = readText("scripts/compile-codex-worker-dispatch.mjs");
   const runner = readText("scripts/run-codex-worker-dispatch.mjs");
   const completion = readText("scripts/codex-test-builder-completion-core.mjs");
 
-  for (const marker of ["verify-codex-spark-safe-physical-acceptance.mjs", "compileCodexSparkCapacityStatus", "providerCapacityQueryPerformed"]) {
+  for (const marker of [
+    "verify-codex-spark-safe-physical-acceptance.mjs",
+    "compileCodexSparkCapacityStatus",
+    "verification.accepted",
+    "contradicts its accepted decision",
+  ]) {
     if (!assembler.includes(marker)) errors.push(`Spark capacity assembler is missing ${marker}.`);
+  }
+  for (const marker of [
+    "providerCapacityQueryPerformed",
+    "capacityAloneIsExecutionAuthority",
+    "sameCapabilityReceiptRequiredAtDispatch",
+    "routeAdmissionSha256",
+  ]) {
+    if (!capacityCore.includes(marker)) errors.push(`Spark capacity status core is missing ${marker}.`);
   }
   for (const marker of ["evavo-worker-capacity-status-v1", "routeAdmissionSha256", "NO_CURRENT_PHYSICAL_ROUTE_ADMISSION", "WORKER_CLASS_NOT_PHYSICALLY_ADMITTED"]) {
     if (!planner.includes(marker)) errors.push(`Spark route planner is missing ${marker}.`);
@@ -161,6 +196,7 @@ if (errors.length) {
 }
 
 console.log("Worker capacity routing v1 check passed.");
+console.log("- Spark governance JavaScript is syntax-checked before its contracts are trusted");
 console.log("- Spark raw capacity, physical admission and dispatch eligibility remain separate evidence classes");
 console.log("- Test Builder is the sole admitted Spark worker class and concurrency remains one");
 console.log("- routing, dispatch, process start and completion preserve exact admission identities");
