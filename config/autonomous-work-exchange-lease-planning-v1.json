@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-autonomous-work-exchange-lease-planning-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Compile one short-lived, route-bound lease transition for an exact READY Work Exchange item after current physical route admission, without starting a model or granting Git, validation, publication, deployment or paid-fallback authority.",
+  "acceptedWorkerClasses": [
+    "test-generation",
+    "documentation-truth"
+  ],
+  "acceptedRoutePlanKind": "evavo-worker-route-plan-v1",
+  "outputPlanKind": "evavo-autonomous-work-exchange-lease-plan-v2",
+  "action": "storage.autonomous_work_exchange_lease",
+  "maximumRoutePlanAgeSeconds": 600,
+  "maximumFutureClockSkewSeconds": 120,
+  "maximumLeaseTtlSeconds": 600,
+  "minimumLeaseTtlSeconds": 30,
+  "routeExpirySafetyMarginSeconds": 5,
+  "maximumItemsLeased": 1,
+  "oneWriterPerRepository": true,
+  "documentationTruth": {
+    "workClass": "capability-manifest-maintenance",
+    "category": "capability-manifest-gap",
+    "canonicalAllowedPaths": [
+      "evavo.capabilities.json",
+      ".evavo/capabilities.json"
+    ],
+    "maximumChangedFiles": 1,
+    "maximumChangedLines": 600,
+    "maximumAutomaticAttempts": 1,
+    "requiresCurrentHeadMatch": true,
+    "noActionAccepted": true
+  },
+  "nonAuthorities": {
+    "modelExecution": true,
+    "deterministicValidation": true,
+    "repositoryMutation": true,
+    "commit": true,
+    "push": true,
+    "publication": true,
+    "deployment": true,
+    "paidFallback": true
+  },
+  "truthBoundary": "A valid plan may transition one exact READY item to LEASED only while its physical route admission and Work Exchange snapshot remain current. It cannot start Codex, validate a candidate, mutate Git, publish, deploy or use paid capacity."
+}
