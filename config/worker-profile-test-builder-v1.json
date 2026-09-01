@@ -16,6 +16,7 @@
     "requiresExistingOrDerivableBehaviorContract": true,
     "requiresAllowedPaths": true,
     "requiresExplicitValidation": true,
+    "requiresZeroIgnoredWorkspaceFiles": true,
     "maximumAutomaticAttempts": 2
   },
   "mutation": {
@@ -32,6 +33,7 @@
     "packageManifestMutationDefault": false,
     "lockfileMutationDefault": false,
     "workflowMutationDefault": false,
+    "ignoredFileMutation": false,
     "creativeAssetMutation": false,
     "ownerAuthoredCopyMutation": false,
     "gitMetadataMutation": false,
@@ -44,6 +46,7 @@
     "Add the smallest meaningful regression, boundary, failure-path or state-transition coverage that materially improves confidence.",
     "Do not create tautological tests, snapshot churn, implementation-copy tests or assertions that merely restate constants.",
     "Do not change production behavior to make the new test pass unless the work item explicitly changes class and is re-admitted.",
+    "Do not create ignored, hidden-cache, temporary, generated, dependency or build-output files; any ignored workspace residue rejects the worker result.",
     "Do not stage, commit, push, publish or change Git metadata.",
     "Do not claim deterministic validation passed; validation belongs to the independent validation queue.",
     "Return NO_ACTION when existing coverage is already sufficient.",
@@ -66,6 +69,7 @@
     ],
     "exactFieldSetRequired": true,
     "workerMayClaimTestsPassed": false,
+    "workerMayCreateIgnoredFiles": false,
     "workerMayStage": false,
     "workerMayCommit": false,
     "workerMayPush": false,
@@ -77,6 +81,7 @@
     "godotAuthorityWhenApplicable": "EVAVO-STUDIO/godot-game-test-lab",
     "physicalExecution": "EVAVO-STUDIO/evavo-local-compute",
     "requireExactCandidateStateSha256": true,
+    "requireZeroIgnoredWorkspaceFiles": true,
     "requireMatchingPhysicalReceiptForRuntimeClaims": true,
     "requireIndependentDeterministicValidation": true
   }
