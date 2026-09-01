@@ -47,7 +47,7 @@ if (files.every(regular)) {
   const tombstone = readText("scripts/compile-codex-spark-route-admission.mjs");
 
   for (const marker of [
-    "git diff",
+    "runGit(candidateRoot, [\"diff\"",
     "--name-only",
     "--no-renames",
     "--cached",
