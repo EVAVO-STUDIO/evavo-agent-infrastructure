@@ -1,0 +1,68 @@
+#!/usr/bin/env node
+
+import fs from "node:fs";
+import path from "node:path";
+
+import { compileCodexTestBuilderCompletion } from "./codex-test-builder-completion-core.mjs";
+
+const [workItemInput, routePlanInput, dispatchPlanInput, runReceiptInput] = process.argv.slice(2);
+if (!workItemInput || !routePlanInput || !dispatchPlanInput || !runReceiptInput || process.argv.slice(2).length !== 4) {
+  console.error("Usage: node scripts/compile-codex-test-builder-completion.mjs <leased-work.json> <route-plan.json> <dispatch-plan.json> <run-receipt.json>");
+  process.exit(2);
+}
+
+function safeError(value) {
+  let text = String(value ?? "Test Builder completion compilation failed");
+  text = text.replace(/\b[A-Za-z]:[\\/][^\r\n]*/g, "<windows-path>");
+  text = text.replace(/(?<![A-Za-z0-9])\/(?:[^\s/:]+\/)+[^\s:]*/g, "<path>");
+  text = text.replace(/(?:token|secret|password|authorization|credential)\s*[:=]\s*[^\s;]+/gi, "credential=<redacted>");
+  return text.slice(0, 1000);
+}
+
+function readEvidence(value, label) {
+  const resolved = fs.realpathSync.native(path.resolve(value));
+  const stat = fs.lstatSync(resolved);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file.`);
+  const bytes = fs.readFileSync(resolved);
+  if (bytes.length < 2 || bytes.length > 8 * 1024 * 1024) throw new Error(`${label} is outside the bounded 8 MiB evidence limit.`);
+  let document;
+  try {
+    document = JSON.parse(bytes.toString("utf8"));
+  } catch {
+    throw new Error(`${label} is not valid UTF-8 JSON.`);
+  }
+  if (document === null || typeof document !== "object" || Array.isArray(document)) throw new Error(`${label} must contain a JSON object.`);
+  return { bytes, document };
+}
+
+try {
+  const workItem = readEvidence(workItemInput, "leased work item");
+  const routePlan = readEvidence(routePlanInput, "worker route plan");
+  const dispatchPlan = readEvidence(dispatchPlanInput, "Codex dispatch plan");
+  const runReceipt = readEvidence(runReceiptInput, "Codex run receipt");
+  const completion = compileCodexTestBuilderCompletion({
+    workItem: workItem.document,
+    workItemBytes: workItem.bytes,
+    routePlan: routePlan.document,
+    routePlanBytes: routePlan.bytes,
+    dispatchPlan: dispatchPlan.document,
+    dispatchPlanBytes: dispatchPlan.bytes,
+    runReceipt: runReceipt.document,
+    runReceiptBytes: runReceipt.bytes,
+  });
+  process.stdout.write(`${JSON.stringify(completion, null, 2)}\n`);
+} catch (error) {
+  process.stderr.write(`${JSON.stringify({
+    schemaVersion: 1,
+    kind: "evavo-codex-test-builder-completion-error-v1",
+    ok: false,
+    errorType: error?.constructor?.name ?? "Error",
+    errorMessage: safeError(error?.message ?? error),
+    physicalPathsReturned: false,
+    credentialValuesReturned: false,
+    deterministicValidationPerformed: false,
+    repositoryMutationPerformed: false,
+    publicationPerformed: false,
+  }, null, 2)}\n`);
+  process.exitCode = 2;
+}
