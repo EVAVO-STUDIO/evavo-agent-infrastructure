@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 
 import {
   canonicalJson,
@@ -96,6 +97,38 @@ function compile({ capacityDocument = capacity(), acceptanceDocument = acceptanc
     acceptanceVerificationBytes: bytes(verificationDocument),
     now: NOW,
   });
+}
+
+{
+  const syntax = spawnSync(process.execPath, ["--check", "scripts/assemble-codex-spark-capacity-status.mjs"], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 256 * 1024,
+  });
+  assert.equal(syntax.status, 0, syntax.stderr || syntax.stdout || syntax.error?.message);
+
+  const missingArguments = spawnSync(process.execPath, ["scripts/assemble-codex-spark-capacity-status.mjs"], {
+    cwd: process.cwd(),
+    env: process.env,
+    encoding: "utf8",
+    shell: false,
+    windowsHide: true,
+    timeout: 30_000,
+    maxBuffer: 256 * 1024,
+  });
+  assert.equal(missingArguments.status, 2);
+  const error = JSON.parse(String(missingArguments.stderr).trim());
+  assert.equal(error.kind, "evavo-worker-capacity-status-assembly-error-v1");
+  assert.equal(error.ok, false);
+  assert.equal(error.physicalPathsReturned, false);
+  assert.equal(error.credentialValuesReturned, false);
+  assert.equal(error.modelTurnPerformed, false);
+  assert.equal(error.repositoryMutationPerformed, false);
+  assert.equal(error.publicationPerformed, false);
 }
 
 {
@@ -203,6 +236,7 @@ function compile({ capacityDocument = capacity(), acceptanceDocument = acceptanc
 }
 
 console.log("Codex Spark capacity status tests passed.");
+console.log("- the capacity assembler parses and emits a bounded pathless error envelope on invalid invocation");
 console.log("- raw capacity remains separate from supervised physical admission");
 console.log("- available capacity cannot bypass rejected, stale, broadened or over-concurrent admission evidence");
 console.log("- exhausted capacity remains exhausted even when physical admission is valid");
