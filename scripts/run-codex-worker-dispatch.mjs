@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { createHash } from "node:crypto";
 import { spawnSync, execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -80,7 +81,11 @@ const beforeStatus = git(["status", "--porcelain=v1", "--untracked-files=all"]);
 if (beforeStatus) throw new Error("Candidate must be clean immediately before the Codex model turn.");
 
 const env = {...process.env};
-for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? []) delete env[name];
+const removedEnvironment = [];
+for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? []) {
+  if (Object.prototype.hasOwnProperty.call(env, name)) removedEnvironment.push(name);
+  delete env[name];
+}
 env.GIT_TERMINAL_PROMPT = "0";
 env.GCM_INTERACTIVE = "Never";
 env.EVAVO_AUTONOMOUS_WORKER = "1";
@@ -101,6 +106,18 @@ const finishedAt = new Date().toISOString();
 const afterHead = git(["rev-parse", "HEAD^{commit}"]).toLowerCase();
 const afterStatus = git(["status", "--porcelain=v1", "--untracked-files=all"]);
 
+const stdout = typeof result.stdout === "string" ? result.stdout : "";
+const stderr = typeof result.stderr === "string" ? result.stderr : "";
+const hash = (value) => createHash("sha256").update(value, "utf8").digest("hex");
+const retain = (value, maximum) => {
+  const encoded = Buffer.from(value, "utf8");
+  if (encoded.length <= maximum) return {text:value, truncated:false, bytes:encoded.length, sha256:hash(value)};
+  const clipped = encoded.subarray(0, maximum).toString("utf8");
+  return {text:clipped, truncated:true, bytes:encoded.length, retainedBytes:Buffer.byteLength(clipped, "utf8"), sha256:hash(value)};
+};
+const stdoutReceipt = retain(stdout, adapter.dispatch.maximumRetainedStdoutBytes ?? 262144);
+const stderrReceipt = retain(stderr, adapter.dispatch.maximumRetainedStderrBytes ?? 131072);
+
 const receipt = {
   schemaVersion: 1,
   kind: "evavo-codex-worker-run-v1",
@@ -114,20 +131,20 @@ const receipt = {
   exitCode: result.status,
   signal: result.signal ?? null,
   error: result.error?.message ?? null,
-  stdout: typeof result.stdout === "string" ? result.stdout : "",
-  stderr: typeof result.stderr === "string" ? result.stderr : "",
+  stdout: stdoutReceipt,
+  stderr: stderrReceipt,
   modelTurnCompleted: result.status === 0,
   candidateHeadBefore: beforeHead,
   candidateHeadAfter: afterHead,
   candidateHeadChanged: afterHead !== beforeHead,
   candidateDirtyAfter: Boolean(afterStatus),
-  apiKeyEnvironmentRemoved: adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [],
+  apiKeyOrProviderEnvironmentRemoved: removedEnvironment,
   sandboxMode: plan.sandboxMode,
   approvalPolicy: plan.approvalPolicy,
   paidFallbackUsed: false,
   deterministicValidationPerformed: false,
   publicationPerformed: false,
-  truthBoundary: "This is the direct Codex process receipt. A zero exit code is not candidate acceptance, deterministic validation, review, commit, push or publication. Candidate changes must pass Development Studio audit and independent validation next."
+  truthBoundary: "This is the bounded direct Codex process receipt. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated in this receipt. A zero exit code is not candidate acceptance, deterministic validation, review, commit, push or publication. Candidate changes must pass Development Studio audit and independent validation next."
 };
 
 console.log(JSON.stringify(receipt, null, 2));
