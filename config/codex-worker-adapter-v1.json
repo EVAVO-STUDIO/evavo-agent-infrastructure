@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-worker-adapter-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "runtime": "codex",
+  "purpose": "Safely admit the locally installed Codex CLI for bounded EVAVO worker execution. Runtime help/version evidence must prove supported flags before any model turn is dispatched.",
+  "executable": "codex",
+  "mode": "exec",
+  "requiredCapabilities": [
+    "non-interactive-exec",
+    "structured-json-output",
+    "explicit-model-selection"
+  ],
+  "probe": {
+    "versionArgv": ["--version"],
+    "helpArgv": ["exec", "--help"],
+    "networkModelTurnPerformed": false,
+    "repositoryMutationPerformed": false,
+    "acceptedJsonFlags": ["--json"],
+    "acceptedModelFlags": ["--model", "-m"]
+  },
+  "dispatch": {
+    "stdinPromptPreferred": true,
+    "freshProcessPerJob": true,
+    "workingDirectoryMustEqualAdmittedRepository": true,
+    "exactSourceRevisionRequired": true,
+    "structuredOutputRequired": true,
+    "maximumAutomaticAttempts": 2,
+    "paidFallbackAllowed": false,
+    "publicationAuthority": false,
+    "validationAuthority": false
+  },
+  "spark": {
+    "routeId": "codex-spark-pro",
+    "preferredModel": "gpt-5.3-codex-spark",
+    "capacityClass": "included-consumer",
+    "availabilityMustBeObservedAtDispatch": true,
+    "rateLimitRetainsReadyJob": true,
+    "exhaustionRetainsReadyJob": true
+  },
+  "truthBoundary": "CLI presence and supported flags do not prove authentication, Spark availability or remaining allowance. A capability probe performs no model turn."
+}
