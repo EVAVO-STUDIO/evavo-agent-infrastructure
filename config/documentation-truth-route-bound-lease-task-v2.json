@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 2,
+  "kind": "evavo-documentation-truth-route-bound-lease-task-registry-v2",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Expose route-bound documentation-truth lease planning and its source contract as read-only tasks. This registry does not register the Local Storage lease effect or any model, repository, Git, publication, deployment or financial effect.",
+  "tasks": {
+    "documentation-truth-route-bound-lease-check": {
+      "runtime": "node-script",
+      "entry": "scripts/check-documentation-truth-route-bound-lease-v2.mjs",
+      "arguments": [],
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "effect": "read-only-tests"
+    },
+    "documentation-truth-route-bound-lease-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-documentation-truth-route-bound-lease-v2.mjs",
+      "arguments": [
+        "leaseReadinessPath",
+        "activationRunPath",
+        "workerRoutePlanPath",
+        "repositoryHeadObservationPath",
+        "workerId",
+        "optionalLeaseSeconds"
+      ],
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-compiler"
+    }
+  },
+  "policy": "config/documentation-truth-route-bound-lease-v2.json",
+  "compiler": "scripts/compile-documentation-truth-route-bound-lease-v2.mjs",
+  "leasePlanKind": "evavo-documentation-truth-route-bound-lease-plan-v2",
+  "leaseRequiredDecision": "LEASE_REQUIRED",
+  "retainReadyDecision": "RETAIN_READY",
+  "rejectedDecision": "REJECTED",
+  "physicalLeaseRegistered": false,
+  "physicalModelExecutionRegistered": false,
+  "queueMutationAuthority": false,
+  "leaseAuthority": false,
+  "modelAuthority": false,
+  "repositoryMutationAuthority": false,
+  "commitAuthority": false,
+  "pushAuthority": false,
+  "publicationAuthority": false,
+  "deploymentAuthority": false,
+  "financialAuthority": false,
+  "paidFallbackAllowed": false,
+  "truthBoundary": "The compiler creates a short-lived exact-byte request only. Local Storage remains the sole authority capable of considering a canonical lease transaction under its exclusive lock."
+}
