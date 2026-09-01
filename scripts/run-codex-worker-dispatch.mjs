@@ -86,6 +86,9 @@ for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [
   if (Object.prototype.hasOwnProperty.call(env, name)) removedEnvironment.push(name);
   delete env[name];
 }
+const sanitizedEnvironmentNames = adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [];
+const environmentSanitized = sanitizedEnvironmentNames.every((name) => !Object.prototype.hasOwnProperty.call(env, name));
+if (!environmentSanitized) throw new Error("Codex child environment still contains a forbidden provider/API override.");
 env.GIT_TERMINAL_PROMPT = "0";
 env.GCM_INTERACTIVE = "Never";
 env.EVAVO_AUTONOMOUS_WORKER = "1";
@@ -165,17 +168,20 @@ const receipt = {
     parsedWorkerSummary: workerSummary,
   },
   modelTurnCompleted: structuredTurnCompleted,
+  structuredTurnCompleted,
   candidateHeadBefore: beforeHead,
   candidateHeadAfter: afterHead,
   candidateHeadChanged: afterHead !== beforeHead,
   candidateDirtyAfter: Boolean(afterStatus),
   apiKeyOrProviderEnvironmentRemoved: removedEnvironment,
+  apiKeyEnvironmentSanitized: environmentSanitized,
+  sanitizedEnvironmentNames,
   sandboxMode: plan.sandboxMode,
   approvalPolicy: plan.approvalPolicy,
   paidFallbackUsed: false,
   deterministicValidationPerformed: false,
   publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Completion requires a zero process exit plus a valid structured turn.completed event. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
+  truthBoundary: "This is the bounded direct Codex process receipt. Completion requires a zero process exit plus a valid structured turn.completed event. Provider/API override variables are removed before spawning Codex. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
 };
 
 console.log(JSON.stringify(receipt, null, 2));
