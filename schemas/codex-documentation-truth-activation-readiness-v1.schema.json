@@ -1,0 +1,114 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Activation Readiness v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "ready",
+    "decision",
+    "sourceActivationReviewRequired",
+    "automaticActivationAllowed",
+    "leaseAcquired",
+    "normalRouteMutationPerformed",
+    "modelTurnPerformedByCompiler",
+    "repositoryMutationPerformedByCompiler",
+    "commitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "paidFallbackUsed",
+    "financialActionPerformed"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-activation-readiness-v1" },
+    "ready": { "type": "boolean" },
+    "decision": { "enum": ["READY_FOR_SOURCE_ACTIVATION_REVIEW", "RETAIN_STAGED_ONLY"] },
+    "routeId": { "const": "codex-spark-pro" },
+    "modelPreference": { "const": "gpt-5.3-codex-spark" },
+    "capacityClass": { "const": "included-consumer" },
+    "workerClass": { "const": "documentation-truth" },
+    "workClass": { "const": "capability-manifest-maintenance" },
+    "currentNormalWorkerClasses": {
+      "type": "array",
+      "prefixItems": [{ "const": "test-generation" }],
+      "items": false,
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "acceptanceSha256": { "$ref": "#/$defs/sha256" },
+    "acceptanceBytesSha256": { "$ref": "#/$defs/sha256" },
+    "capabilityReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "policySha256": { "$ref": "#/$defs/sha256" },
+    "currentBindings": {
+      "type": "object",
+      "minProperties": 5,
+      "additionalProperties": { "$ref": "#/$defs/fileBinding" }
+    },
+    "sourceActivationReviewRequired": { "const": true },
+    "automaticActivationAllowed": { "const": false },
+    "leaseAcquired": { "const": false },
+    "normalRouteMutationPerformed": { "const": false },
+    "modelTurnPerformedByCompiler": { "const": false },
+    "repositoryMutationPerformedByCompiler": { "const": false },
+    "commitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "truthBoundary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "readinessSha256": { "$ref": "#/$defs/sha256" },
+    "errors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "ready": { "const": true },
+        "decision": { "const": "READY_FOR_SOURCE_ACTIVATION_REVIEW" }
+      },
+      "required": [
+        "routeId",
+        "modelPreference",
+        "capacityClass",
+        "workerClass",
+        "workClass",
+        "currentNormalWorkerClasses",
+        "acceptanceSha256",
+        "acceptanceBytesSha256",
+        "capabilityReceiptSha256",
+        "policySha256",
+        "currentBindings",
+        "truthBoundary",
+        "readinessSha256"
+      ],
+      "not": { "required": ["errors"] }
+    },
+    {
+      "properties": {
+        "ready": { "const": false },
+        "decision": { "const": "RETAIN_STAGED_ONLY" }
+      },
+      "required": ["errors"]
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "byteLength"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteLength": { "type": "integer", "minimum": 2, "maximum": 4194304 }
+      }
+    }
+  }
+}
