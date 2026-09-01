@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Physical Acceptance v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "accepted",
+    "acceptedAt",
+    "routeId",
+    "modelPreference",
+    "capacityClass",
+    "authenticationClass",
+    "workerClass",
+    "workClass",
+    "codexVersion",
+    "fixtureId",
+    "capabilityReceiptSha256",
+    "policySha256",
+    "supervisionReceiptSha256",
+    "supervisionBytesSha256",
+    "currentBindings",
+    "scenarios",
+    "scenarioBytesSha256",
+    "fixtureOnly",
+    "fixtureRepositoryRemoteCount",
+    "fixturePrimaryCheckoutClean",
+    "fixtureMainUnchanged",
+    "candidateCleanupComplete",
+    "registeredWorktreesAfterCleanup",
+    "normalRouteWasUnchanged",
+    "workerCommitPerformed",
+    "leaseAcquired",
+    "normalRouteMutationPerformed",
+    "modelTurnPerformedByCompiler",
+    "repositoryMutationPerformedByCompiler",
+    "commitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "paidFallbackUsed",
+    "financialActionPerformed",
+    "truthBoundary",
+    "acceptanceSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-physical-acceptance-v1" },
+    "accepted": { "const": true },
+    "acceptedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "routeId": { "const": "codex-spark-pro" },
+    "modelPreference": { "const": "gpt-5.3-codex-spark" },
+    "capacityClass": { "const": "included-consumer" },
+    "authenticationClass": { "const": "chatgpt-consumer" },
+    "workerClass": { "const": "documentation-truth" },
+    "workClass": { "const": "capability-manifest-maintenance" },
+    "codexVersion": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "fixtureId": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "capabilityReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "policySha256": { "$ref": "#/$defs/sha256" },
+    "supervisionReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "supervisionBytesSha256": { "$ref": "#/$defs/sha256" },
+    "currentBindings": {
+      "type": "object",
+      "minProperties": 5,
+      "additionalProperties": false,
+      "required": [
+        "config/worker-capacity-routing-v1.json",
+        "config/codex-spark-capacity-status-v1.json",
+        "config/codex-spark-physical-acceptance-v1.json",
+        "config/codex-worker-adapter-v1.json",
+        "config/worker-profiles/documentation-truth-v1.json"
+      ],
+      "properties": {
+        "config/worker-capacity-routing-v1.json": { "$ref": "#/$defs/fileBinding" },
+        "config/codex-spark-capacity-status-v1.json": { "$ref": "#/$defs/fileBinding" },
+        "config/codex-spark-physical-acceptance-v1.json": { "$ref": "#/$defs/fileBinding" },
+        "config/codex-worker-adapter-v1.json": { "$ref": "#/$defs/fileBinding" },
+        "config/worker-profiles/documentation-truth-v1.json": { "$ref": "#/$defs/fileBinding" }
+      }
+    },
+    "scenarios": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validated-success",
+        "validated-no-action",
+        "forbidden-path-rejection",
+        "stale-head-rejection"
+      ],
+      "properties": {
+        "validated-success": { "$ref": "codex-documentation-truth-fixture-scenario-v1.schema.json" },
+        "validated-no-action": { "$ref": "codex-documentation-truth-fixture-scenario-v1.schema.json" },
+        "forbidden-path-rejection": { "$ref": "codex-documentation-truth-fixture-scenario-v1.schema.json" },
+        "stale-head-rejection": { "$ref": "codex-documentation-truth-fixture-scenario-v1.schema.json" }
+      }
+    },
+    "scenarioBytesSha256": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validated-success",
+        "validated-no-action",
+        "forbidden-path-rejection",
+        "stale-head-rejection"
+      ],
+      "properties": {
+        "validated-success": { "$ref": "#/$defs/sha256" },
+        "validated-no-action": { "$ref": "#/$defs/sha256" },
+        "forbidden-path-rejection": { "$ref": "#/$defs/sha256" },
+        "stale-head-rejection": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "fixtureOnly": { "const": true },
+    "fixtureRepositoryRemoteCount": { "const": 0 },
+    "fixturePrimaryCheckoutClean": { "const": true },
+    "fixtureMainUnchanged": { "const": true },
+    "candidateCleanupComplete": { "const": true },
+    "registeredWorktreesAfterCleanup": { "const": 1 },
+    "normalRouteWasUnchanged": { "const": true },
+    "workerCommitPerformed": { "const": false },
+    "leaseAcquired": { "const": false },
+    "normalRouteMutationPerformed": { "const": false },
+    "modelTurnPerformedByCompiler": { "const": false },
+    "repositoryMutationPerformedByCompiler": { "const": false },
+    "commitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "truthBoundary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "acceptanceSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "byteLength"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteLength": { "type": "integer", "minimum": 2, "maximum": 4194304 }
+      }
+    }
+  }
+}
