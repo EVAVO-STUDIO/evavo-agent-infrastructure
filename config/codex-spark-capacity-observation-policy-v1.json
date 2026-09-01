@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-capacity-observation-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "paidFallbackAllowed": false,
+  "rawCapacityFreshSeconds": 600,
+  "fixtureProbe": {
+    "enabledAfterPhysicalAcceptance": true,
+    "requiresReadyWork": true,
+    "minimumReadyWorkCount": 1,
+    "maximumConcurrency": 1,
+    "maximumModelTurns": 1,
+    "fixtureOnly": true,
+    "remoteCountRequired": 0,
+    "workspaceMustRemainClean": true,
+    "headMustRemainUnchanged": true,
+    "minimumIntervalSeconds": 1800,
+    "maximumPromptBytes": 8192,
+    "networkIntent": "codex-consumer-model-transport-only",
+    "repositoryNetworkAuthority": false,
+    "repositoryMutationAuthority": false,
+    "commitAuthority": false,
+    "pushAuthority": false,
+    "publicationAuthority": false
+  },
+  "backoffSeconds": {
+    "RATE_LIMITED": 1800,
+    "EXHAUSTED": 7200,
+    "AUTH_REQUIRED": 3600,
+    "OFFLINE": 900,
+    "UNKNOWN": 300
+  },
+  "admittedObservationSources": [
+    "successful-spark-model-turn",
+    "explicit-result-classification",
+    "explicit-account-status",
+    "fixture-only-capacity-heartbeat"
+  ],
+  "prohibitedInferences": [
+    "codex-cli-installed",
+    "codex-exec-flags-present",
+    "chatgpt-auth-policy-accepted",
+    "physical-acceptance-valid",
+    "route-admission-valid"
+  ],
+  "rule": "When READY work exists but raw capacity is stale or unknown, one fixture-only heartbeat may observe Spark availability after every transport, authentication, physical-acceptance and route-admission gate is independently fresh. No heartbeat runs while work is absent, during backoff, or with paid fallback."
+}
