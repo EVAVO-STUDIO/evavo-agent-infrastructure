@@ -61,15 +61,19 @@
     "docs:generate": "typedoc --out docs src",
     "check:spark-governance": "node scripts/check-worker-capacity-routing-v1.mjs",
     "check:spark-candidate-observation": "node scripts/check-codex-candidate-observation-contract.mjs",
+    "compile:spark-bound-dispatch": "node scripts/compile-codex-worker-dispatch-bound.mjs",
+    "compile:spark-test-builder-completion": "node scripts/compile-codex-test-builder-completion.mjs",
     "test:spark-routing": "node scripts/test-worker-capacity-routing.mjs",
     "test:spark-capacity-status": "node scripts/test-codex-spark-capacity-status.mjs",
     "test:spark-candidate-observer": "node scripts/test-codex-candidate-change-observer.mjs",
+    "test:spark-dispatch-binding": "node scripts/test-codex-worker-dispatch-binding.mjs",
     "test:spark-test-builder-completion": "node scripts/test-codex-test-builder-completion.mjs",
+    "test:spark-test-builder-boundary": "node scripts/test-codex-test-builder-boundary.mjs",
     "test:spark-runner-safety": "node scripts/test-codex-worker-runner-safety.mjs",
     "test:spark-result-classifier": "node scripts/test-codex-worker-result-classifier.mjs",
     "test:spark-auth-policy": "node scripts/test-codex-chatgpt-auth-policy.mjs",
     "test:spark-safe-certification": "node scripts/test-codex-spark-safe-certification-contract.mjs && node scripts/test-codex-spark-safe-physical-acceptance.mjs",
-    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-test-builder-completion && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification"
+    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
