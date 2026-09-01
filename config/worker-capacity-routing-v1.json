@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "evavo-worker-capacity-routing",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Select an eligible worker/model route only after Development Studio has admitted a bounded work packet and Agent Infrastructure has assembled current capacity plus physical-admission evidence. This contract creates neither engineering scope nor publication authority.",
+  "purpose": "Select an eligible worker/model route only after Development Studio has admitted a bounded work packet and Agent Infrastructure has assembled current capacity plus physical-admission evidence. Dispatch, execution and completion must preserve exact work, route, process and candidate-content identities. This contract creates neither engineering scope nor validation, commit or publication authority.",
   "workerRoutes": [
     {
       "id": "codex-spark-pro",
@@ -31,6 +31,14 @@
         "requireSupervisedPhysicalAdmission": true,
         "requireDigestBoundRouteAdmission": true,
         "requireSameCapabilityReceiptAtDispatch": true,
+        "requireExactWorkItemBytes": true,
+        "requireBoundDispatchPlan": true,
+        "requireExactDispatchBytesAtProcessStart": true,
+        "requireExactAllowedPathEnvelope": true,
+        "requireExactValidationRequest": true,
+        "requireIndependentCandidateObservation": true,
+        "requireStableCandidateContentDigest": true,
+        "rejectStagedOrUnmergedCandidate": true,
         "freshWorkerPerJob": true,
         "freshWorkerPerRetry": true,
         "maximumAutomaticAttempts": 2,
@@ -40,10 +48,11 @@
         "onExhausted": "retain-ready-job",
         "onMissingAdmission": "retain-ready-job",
         "onAdmissionDrift": "reject-dispatch-and-reassemble-status",
+        "onCandidateIdentityDrift": "reject-completion-and-reobserve-candidate",
         "onArchitectureUncertainty": "NEEDS_DEEP_WORKER",
         "runDeterministicValidationInsideModelSession": false
       },
-      "truthBoundary": "Codex transport/authentication, raw Spark capacity and supervised physical admission are independent evidence classes. A started model turn is not completion, model output never grants deterministic-validation or Git publication authority, and only test-generation at concurrency one is currently physically admitted."
+      "truthBoundary": "Codex transport/authentication, raw Spark capacity and supervised physical admission are independent evidence classes. A started model turn is not completion. Completion requires the exact bound dispatch bytes and a stable independent candidate-content digest. Model output never grants deterministic-validation, staging, commit, push or publication authority, and only test-generation at concurrency one is currently physically admitted."
     },
     {
       "id": "local-classification-default",
@@ -90,6 +99,12 @@
       "supervisedAcceptanceSha256",
       "capabilityReceiptSha256",
       "routeAdmissionSha256",
+      "workItemBytesSha256",
+      "routePlanSha256",
+      "dispatchPlanSha256",
+      "candidateStateSha256",
+      "trackedPatchSha256",
+      "candidateFileManifestSha256",
       "startedAt",
       "finishedAt",
       "resultState",
