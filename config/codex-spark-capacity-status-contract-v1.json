@@ -1,0 +1,88 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-capacity-status-contract-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "purpose": "Keep raw Spark capacity, Codex transport capability, ChatGPT-only authentication, supervised physical acceptance and short-lived route admission as distinct evidence. Capacity alone never authorizes dispatch.",
+  "rawObservation": {
+    "kind": "evavo-codex-spark-capacity-observation-v1",
+    "states": [
+      "AVAILABLE",
+      "DEGRADED",
+      "RATE_LIMITED",
+      "EXHAUSTED",
+      "AUTH_REQUIRED",
+      "OFFLINE",
+      "UNKNOWN"
+    ],
+    "dispatchableStates": ["AVAILABLE", "DEGRADED"],
+    "maximumAgeSeconds": 600,
+    "mustComeFromObservedOutcome": true,
+    "installationAloneIsCapacity": false,
+    "authenticationAloneIsCapacity": false,
+    "accountUsageScrapingAllowed": false,
+    "paidFallbackUsedMustEqual": false
+  },
+  "compiledStatus": {
+    "kind": "evavo-worker-capacity-status-v1",
+    "maximumAgeSeconds": 600,
+    "requiredEvidence": [
+      "capacityObservationSha256",
+      "capabilityReceiptSha256",
+      "authenticationReceiptSha256"
+    ],
+    "requiredForDispatch": [
+      "supervisedAcceptanceSha256",
+      "routeAdmissionSha256",
+      "routeAdmissionExpiresAt",
+      "admittedWorkerClasses",
+      "admittedMaximumConcurrency"
+    ],
+    "capacityAloneGrantsDispatch": false,
+    "paidFallbackAllowed": false
+  },
+  "routeAdmission": {
+    "kind": "evavo-codex-spark-route-admission-identity-v1",
+    "maximumAgeSeconds": 600,
+    "initialWorkerClasses": ["test-generation"],
+    "initialMaximumConcurrency": 1,
+    "bind": [
+      "routeId",
+      "rawCapacityState",
+      "workerClasses",
+      "maximumConcurrency",
+      "capacityClass",
+      "paidFallbackAllowed",
+      "capacityObservationSha256",
+      "capabilityReceiptSha256",
+      "authenticationReceiptSha256",
+      "supervisedAcceptanceSha256",
+      "admittedAt",
+      "expiresAt"
+    ]
+  },
+  "routePlanner": {
+    "requiredWorkState": "READY",
+    "requiredCapacityClass": "included-consumer",
+    "paidFallbackAllowed": false,
+    "onUnavailable": "RETAIN_READY_JOB",
+    "mustBindIntoDispatchPlan": [
+      "workerClass",
+      "routeAdmissionSha256",
+      "routeAdmissionExpiresAt",
+      "supervisedAcceptanceSha256",
+      "capabilityReceiptSha256",
+      "maximumConcurrency"
+    ]
+  },
+  "runtime": {
+    "mustRehashSupervisedAcceptance": true,
+    "mustUseSameFreshCapabilityReceipt": true,
+    "mustReverifySupervisedAcceptance": true,
+    "mustRejectExpiredRouteAdmission": true,
+    "mustRejectWorkerClassEscalation": true,
+    "mustRejectConcurrencyEscalation": true,
+    "modelTurnIsCompletion": false,
+    "publicationAuthority": false
+  }
+}
