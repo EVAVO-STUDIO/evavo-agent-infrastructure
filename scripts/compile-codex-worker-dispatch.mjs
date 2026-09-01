@@ -27,7 +27,12 @@ if (work.workerClass !== profile.workerClass) errors.push(`Initial dispatcher on
 if (work.paidFallbackAllowed !== false) errors.push("Paid fallback must be false.");
 if (route.eligible !== true || route.decision !== "DISPATCH_ELIGIBLE") errors.push("Route plan is not dispatch eligible.");
 if (route.routeId !== adapter.spark.routeId) errors.push("Route plan is not the admitted Spark route.");
+if (route.physicalAdmissionRequired !== true || route.physicalAdmissionVerified !== true) errors.push("Spark route plan must contain a verified physical admission.");
+if (!/^[0-9a-f]{64}$/.test(String(route.physicalAdmissionSha256 ?? ""))) errors.push("Spark route plan lacks a valid supervised physical-admission digest.");
+if (route.maximumAutomaticConcurrency !== 1) errors.push("Initial Spark dispatch is physically admitted at concurrency one only.");
 if (capability.eligibleForWorkerDispatch !== true) errors.push("Codex capability probe is not eligible for dispatch.");
+const capabilityObservedAt = Date.parse(capability.observedAt ?? "");
+if (!Number.isFinite(capabilityObservedAt) || Date.now() - capabilityObservedAt > 10 * 60_000 || capabilityObservedAt - Date.now() > 120_000) errors.push("Codex capability receipt is stale or future-dated.");
 for (const key of ["jsonFlag", "modelFlag", "sandboxFlag", "approvalFlag"]) {
   if (!capability.capabilities?.[key]) errors.push(`Codex capability receipt lacks ${key}.`);
 }
@@ -67,9 +72,17 @@ console.log(JSON.stringify({
   eligible: true,
   workerId,
   workItemId: work.id,
+  workerClass: work.workerClass,
   repository: work.repository,
   sourceRevision: work.sourceRevision,
   fixtureOnly: work.fixtureOnly === true,
+  routeId: route.routeId,
+  modelPreference: route.modelPreference,
+  physicalAdmissionRequired: true,
+  physicalAdmissionVerifiedAtCompile: true,
+  physicalAdmissionSha256: route.physicalAdmissionSha256,
+  maximumAutomaticConcurrency: 1,
+  capabilityObservedAt: capability.observedAt,
   executable: adapter.executable,
   argv,
   stdinPrompt: prompt,
@@ -88,5 +101,5 @@ console.log(JSON.stringify({
   publicationAuthority: false,
   validationAuthority: false,
   paidFallbackUsed: false,
-  truthBoundary: "This plan compiles a bounded Codex Exec invocation inside an isolated candidate worktree but does not execute it. Runtime dispatch must recheck candidate identity, exact HEAD, clean pre-turn state, lease validity, capability freshness and route capacity. fixtureOnly is propagated solely for one-time physical certification gating."
+  truthBoundary: "This plan compiles one bounded Test Builder Codex Exec invocation and is cryptographically bound to the supervised Spark admission selected by route planning. It does not execute the model. Runtime must recompute the supervised acceptance digest, re-run the supervised verifier against the same fresh capability receipt, recheck candidate identity and refuse any admission/class/concurrency drift before Codex starts."
 }, null, 2));
