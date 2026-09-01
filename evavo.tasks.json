@@ -10,6 +10,20 @@
       "timeoutSeconds": 300,
       "description": "Certify zero-cost Spark route selection, exhausted-capacity retention and paid-fallback rejection without starting a model turn."
     },
+    "codex-spark-capacity-status-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-spark-capacity-status.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify that raw Spark capacity, supervised physical admission and short-lived dispatch eligibility remain separate exact-byte evidence classes. Available capacity cannot bypass rejected, stale, broadened or over-concurrent admission; exhausted capacity remains exhausted and paid fallback remains forbidden."
+    },
+    "codex-test-builder-completion-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-test-builder-completion.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify route-admission, supervised-acceptance and capability identity continuity through one Test Builder model turn. Only allowlisted uncommitted test changes can become ready for external deterministic validation; model output cannot claim tests passed, commit, publish or complete fixture certification as normal work."
+    },
     "codex-worker-result-classifier-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-codex-worker-result-classifier.mjs",
