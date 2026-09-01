@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-documentation-truth-activation-task-registry-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "workerClass": "documentation-truth",
+  "workClass": "capability-manifest-maintenance",
+  "state": "dormant-awaiting-physical-campaign",
+  "tasks": {
+    "documentation-truth-activation-contract-suite": {
+      "runtime": "node-script",
+      "entry": "scripts/run-codex-documentation-truth-activation-contract-suite.mjs",
+      "network": "disabled",
+      "effect": "read-only-tests",
+      "timeoutSeconds": 1200,
+      "routineSchedulingAllowed": true
+    },
+    "documentation-truth-activation-contract-check": {
+      "runtime": "node-script",
+      "entry": "scripts/check-codex-documentation-truth-activation-contract-suite.mjs",
+      "network": "disabled",
+      "effect": "read-only-checker",
+      "timeoutSeconds": 1500,
+      "routineSchedulingAllowed": true
+    },
+    "documentation-truth-dormant-fixture-campaign": {
+      "runtime": "node-script",
+      "entry": "scripts/run-codex-documentation-truth-dormant-fixture-campaign.mjs",
+      "network": "required-for-chatgpt-consumer-codex-only",
+      "effect": "guarded-remote-less-fixture-model-campaign",
+      "timeoutSeconds": 3600,
+      "routineSchedulingAllowed": false,
+      "explicitEnvironmentGate": {
+        "name": "EVAVO_DOCUMENTATION_TRUTH_FIXTURE_CAMPAIGN_ENABLED",
+        "requiredValue": "1"
+      },
+      "productRepositoryMutationAllowed": false,
+      "normalRouteMutationAllowed": false,
+      "queueMutationAllowed": false,
+      "leaseAllowed": false,
+      "workerCommitAllowed": false,
+      "pushAllowed": false,
+      "publicationAllowed": false,
+      "deploymentAllowed": false,
+      "paidFallbackAllowed": false
+    }
+  },
+  "normalRouteRegistered": false,
+  "normalLeaseRegistered": false,
+  "normalModelExecutionRegistered": false,
+  "runtimeActivationGrantRequired": true,
+  "runtimeActivationGrantStoredInRepository": false,
+  "maximumRuntimeGrantLifetimeSeconds": 900,
+  "maximumRuntimeGrantUses": 1,
+  "maximumRuntimeConcurrency": 1,
+  "paidFallbackAllowed": false,
+  "publicationAuthority": false,
+  "truthBoundary": "Source checks are routine and effect-free. The physical task is non-routine, explicitly gated and limited to a new remote-less fixture. The normal documentation-truth route, lease and model remain unregistered."
+}
