@@ -1,0 +1,58 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-documentation-truth-runtime-route-planner-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "workerClass": "documentation-truth",
+  "workClass": "capability-manifest-maintenance",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "dispatchableRawCapacityStates": ["AVAILABLE", "DEGRADED"],
+  "maximumVerificationAgeSeconds": 120,
+  "maximumCapacityAdmissionAgeSeconds": 120,
+  "maximumRoutePlanLifetimeSeconds": 120,
+  "maximumFutureClockSkewSeconds": 30,
+  "maximumConcurrency": 1,
+  "paidFallbackAllowed": false,
+  "requiredGrantVerification": {
+    "clientPolicyVersion": 3,
+    "pathSafetyVerified": true,
+    "parentComponentSymlinkSafetyVerified": true,
+    "exactRequestIdentityVerified": true,
+    "grantConsumed": false,
+    "leaseAcquired": false,
+    "modelTurnPerformed": false
+  },
+  "requiredCapacityAdmission": {
+    "kind": "evavo-documentation-truth-runtime-capacity-admission-v1",
+    "decision": "ADMITTED",
+    "physicalAcceptanceAccepted": true,
+    "candidateCampaignAccepted": true,
+    "signedRuntimeGrantRequired": true,
+    "admittedWorkerClasses": ["documentation-truth"],
+    "maximumConcurrency": 1,
+    "paidFallbackAllowed": false
+  },
+  "physicalRegistration": {
+    "normalWorkerRouteRegistered": false,
+    "normalModelExecutionRegistered": false,
+    "capacityAdmissionProducerRegistered": false,
+    "physicalAcceptanceCampaignCompleted": false
+  },
+  "authority": {
+    "capacityObservation": false,
+    "physicalAcceptance": false,
+    "grantConsumption": false,
+    "queueMutation": false,
+    "lease": false,
+    "modelExecution": false,
+    "repositoryMutation": false,
+    "commit": false,
+    "push": false,
+    "publication": false,
+    "deployment": false,
+    "financial": false,
+    "paidFallback": false
+  },
+  "rule": "The planner can compile a short-lived route only from exact READY work, a Local Storage v3 grant verification receipt and a separately sealed documentation-truth capacity admission. No live capacity admission producer or normal model route is registered."
+}
