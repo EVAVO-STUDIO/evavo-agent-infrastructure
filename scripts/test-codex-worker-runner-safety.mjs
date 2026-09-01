@@ -10,7 +10,7 @@ const dir = fs.mkdtempSync(path.join(os.tmpdir(), "evavo-codex-runner-safety-"))
 try {
   const plan = path.join(dir, "plan.json");
   const capability = path.join(dir, "capability.json");
-  fs.writeFileSync(plan, JSON.stringify({
+  const basePlan = {
     kind:"evavo-codex-worker-dispatch-plan-v1",
     eligible:true,
     executable:"codex",
@@ -25,8 +25,10 @@ try {
     sourceRevision:"a".repeat(40),
     workItemId:"work:fixture",
     workerId:"spark-fixture",
-    repository:"EVAVO-STUDIO/example"
-  }));
+    repository:"EVAVO-STUDIO/example",
+    fixtureOnly:false,
+  };
+  fs.writeFileSync(plan, JSON.stringify(basePlan));
   fs.writeFileSync(capability, JSON.stringify({
     kind:"evavo-codex-worker-capability-probe-v1",
     eligibleForWorkerDispatch:true,
@@ -34,21 +36,52 @@ try {
     capabilities:{jsonFlag:"--json",modelFlag:"--model",sandboxFlag:"--sandbox",approvalFlag:"--ask-for-approval"}
   }));
 
-  const env = {...process.env};
-  delete env.EVAVO_CODEX_SPARK_EXECUTION_ENABLED;
-  delete env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED;
-  const result = spawnSync(process.execPath, ["scripts/run-codex-worker-dispatch.mjs", plan, capability], {
-    encoding:"utf8", shell:false, env
+  const run = (envPatch = {}, planPatch = {}) => {
+    fs.writeFileSync(plan, JSON.stringify({...basePlan, ...planPatch}));
+    const env = {...process.env, ...envPatch};
+    for (const name of ["EVAVO_CODEX_SPARK_EXECUTION_ENABLED","EVAVO_CODEX_SPARK_PROFILE_ACCEPTED","EVAVO_CODEX_SPARK_CERTIFICATION_MODE","EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED"]) {
+      if (envPatch[name] === null) delete env[name];
+    }
+    return spawnSync(process.execPath, ["scripts/run-codex-worker-dispatch.mjs", plan, capability], {encoding:"utf8", shell:false, env});
+  };
+
+  let result = run({
+    EVAVO_CODEX_SPARK_EXECUTION_ENABLED:null,
+    EVAVO_CODEX_SPARK_PROFILE_ACCEPTED:null,
+    EVAVO_CODEX_SPARK_CERTIFICATION_MODE:null,
+    EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED:null,
   });
   assert.equal(result.status, 1);
-  const receipt = JSON.parse(result.stderr);
+  let receipt = JSON.parse(result.stderr);
   assert.equal(receipt.started, false);
   assert.ok(receipt.errors.some((entry) => entry.includes("EXECUTION_ENABLED")));
   assert.ok(receipt.errors.some((entry) => entry.includes("PROFILE_ACCEPTED")));
 
+  result = run({
+    EVAVO_CODEX_SPARK_EXECUTION_ENABLED:"1",
+    EVAVO_CODEX_SPARK_PROFILE_ACCEPTED:null,
+    EVAVO_CODEX_SPARK_CERTIFICATION_MODE:"1",
+    EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED:"1",
+  }, {fixtureOnly:false});
+  assert.equal(result.status, 1);
+  receipt = JSON.parse(result.stderr);
+  assert.ok(receipt.errors.some((entry) => entry.includes("fixtureOnly")));
+
+  result = run({
+    EVAVO_CODEX_SPARK_EXECUTION_ENABLED:"1",
+    EVAVO_CODEX_SPARK_PROFILE_ACCEPTED:null,
+    EVAVO_CODEX_SPARK_CERTIFICATION_MODE:"1",
+    EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED:null,
+  }, {fixtureOnly:true});
+  assert.equal(result.status, 1);
+  receipt = JSON.parse(result.stderr);
+  assert.ok(receipt.errors.some((entry) => entry.includes("AUTH_POLICY_ACCEPTED")));
+
   console.log("Codex worker runner safety tests passed.");
-  console.log("- the effectful runner is disabled without both explicit runtime gates");
-  console.log("- no Codex executable or model turn is needed to prove the default-deny boundary");
+  console.log("- normal execution remains disabled without physical profile acceptance");
+  console.log("- certification mode cannot admit non-fixture work");
+  console.log("- fixture certification additionally requires positive ChatGPT-auth policy evidence");
+  console.log("- no Codex executable or model turn is needed to prove these default-deny boundaries");
 } finally {
   fs.rmSync(dir, {recursive:true, force:true});
 }
