@@ -11,24 +11,30 @@ if (!dispatchPlanPath || !capabilityReceiptPath) {
   process.exit(2);
 }
 
-const plan = JSON.parse(fs.readFileSync(path.resolve(dispatchPlanPath), "utf8"));
-const capability = JSON.parse(fs.readFileSync(path.resolve(capabilityReceiptPath), "utf8"));
+const dispatchResolved = path.resolve(dispatchPlanPath);
+const capabilityResolved = path.resolve(capabilityReceiptPath);
+for (const [file, label] of [[dispatchResolved, "dispatch plan"], [capabilityResolved, "Codex capability receipt"]]) {
+  const stat = fs.lstatSync(file);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file.`);
+}
+const plan = JSON.parse(fs.readFileSync(dispatchResolved, "utf8"));
+const capability = JSON.parse(fs.readFileSync(capabilityResolved, "utf8"));
 const adapter = JSON.parse(fs.readFileSync("config/codex-worker-adapter-v1.json", "utf8"));
 const errors = [];
 const executionEnabled = process.env.EVAVO_CODEX_SPARK_EXECUTION_ENABLED === "1";
-const profileAccepted = process.env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED === "1";
+const legacyProfileFlagPresent = process.env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED === "1";
 const certificationMode = process.env.EVAVO_CODEX_SPARK_CERTIFICATION_MODE === "1";
 const chatgptAuthPolicyAccepted = process.env.EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED === "1";
+const acceptanceReceiptInput = process.env.EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT ?? "";
+let acceptanceVerification = null;
+let acceptanceReceiptResolved = null;
 
-if (!executionEnabled) {
-  errors.push("EVAVO_CODEX_SPARK_EXECUTION_ENABLED=1 is required for a model turn.");
-}
-if (!profileAccepted && !certificationMode) {
-  errors.push("EVAVO_CODEX_SPARK_PROFILE_ACCEPTED=1 is required after physical sandbox/auth acceptance; only explicit fixture certification may precede it.");
-}
+if (!executionEnabled) errors.push("EVAVO_CODEX_SPARK_EXECUTION_ENABLED=1 is required for a model turn.");
 if (certificationMode) {
   if (plan.fixtureOnly !== true) errors.push("Certification mode only admits a fixtureOnly dispatch plan.");
   if (!chatgptAuthPolicyAccepted) errors.push("Certification mode requires EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED=1 from the read-only ChatGPT auth-policy probe.");
+} else if (!acceptanceReceiptInput) {
+  errors.push("Normal Spark execution requires EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT pointing to a current physical-acceptance receipt; the legacy PROFILE_ACCEPTED boolean is not authority.");
 }
 if (plan.kind !== "evavo-codex-worker-dispatch-plan-v1" || plan.eligible !== true) errors.push("Dispatch plan is not eligible.");
 if (plan.executable !== adapter.executable) errors.push("Dispatch executable differs from the admitted adapter.");
@@ -46,12 +52,55 @@ if (!Number.isFinite(observedAt) || Date.now() - observedAt > 10 * 60_000 || obs
 for (const key of ["jsonFlag", "modelFlag", "sandboxFlag", "approvalFlag"]) {
   if (!capability.capabilities?.[key]) errors.push(`Codex capability receipt lacks ${key}.`);
 }
-if (!Array.isArray(plan.argv) || plan.argv.length < 8 || plan.argv[0] !== "exec" || plan.argv.at(-1) !== "-") {
-  errors.push("Dispatch argv shape is invalid.");
-}
+if (!Array.isArray(plan.argv) || plan.argv.length < 8 || plan.argv[0] !== "exec" || plan.argv.at(-1) !== "-") errors.push("Dispatch argv shape is invalid.");
 if (typeof plan.stdinPrompt !== "string" || !plan.stdinPrompt.trim()) errors.push("Dispatch prompt is missing.");
+
+if (!certificationMode && acceptanceReceiptInput) {
+  try {
+    acceptanceReceiptResolved = fs.realpathSync.native(path.resolve(acceptanceReceiptInput));
+    const acceptanceStat = fs.lstatSync(acceptanceReceiptResolved);
+    if (!acceptanceStat.isFile() || acceptanceStat.isSymbolicLink()) throw new Error("Physical acceptance must be a regular non-symlink file.");
+    const verifierPath = fs.realpathSync.native(path.resolve("scripts/verify-codex-spark-physical-acceptance.mjs"));
+    const verifierStat = fs.lstatSync(verifierPath);
+    if (!verifierStat.isFile() || verifierStat.isSymbolicLink()) throw new Error("Physical acceptance verifier must be a regular non-symlink file.");
+    const verificationProcess = spawnSync(process.execPath, [verifierPath, acceptanceReceiptResolved, capabilityResolved], {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: "utf8",
+      shell: false,
+      windowsHide: true,
+      timeout: 120_000,
+      maxBuffer: 4 * 1024 * 1024,
+    });
+    let verification;
+    try {
+      verification = JSON.parse(String(verificationProcess.stdout ?? "").trim());
+    } catch {
+      throw new Error(`Physical acceptance verifier did not return valid JSON: ${String(verificationProcess.stderr ?? "").trim().slice(0, 2048)}`);
+    }
+    if (verificationProcess.status !== 0 || verification.accepted !== true) {
+      const detail = Array.isArray(verification.errors) ? verification.errors.join("; ") : "verification rejected";
+      throw new Error(`Physical acceptance verification failed: ${detail}`);
+    }
+    if (verification.routeId !== "codex-spark-pro" || verification.paidFallbackAllowed !== false || verification.maximumConcurrency < 1 || !Array.isArray(verification.workerClasses) || !verification.workerClasses.includes("test-generation")) {
+      throw new Error("Physical acceptance verification does not admit the required zero-paid-fallback Test Builder route.");
+    }
+    acceptanceVerification = verification;
+  } catch (error) {
+    errors.push(String(error?.message ?? error));
+  }
+}
+
+const profileAccepted = acceptanceVerification?.accepted === true;
 if (errors.length) {
-  console.error(JSON.stringify({kind:"evavo-codex-worker-run-v1",started:false,certificationMode,errors}, null, 2));
+  console.error(JSON.stringify({
+    kind: "evavo-codex-worker-run-v1",
+    started: false,
+    certificationMode,
+    legacyProfileFlagPresent,
+    physicalAcceptanceVerified: profileAccepted,
+    errors,
+  }, null, 2));
   process.exit(1);
 }
 
@@ -97,6 +146,7 @@ for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [
 for (const controlName of [
   "EVAVO_CODEX_SPARK_EXECUTION_ENABLED",
   "EVAVO_CODEX_SPARK_PROFILE_ACCEPTED",
+  "EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT",
   "EVAVO_CODEX_SPARK_CERTIFICATION_MODE",
   "EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED"
 ]) delete env[controlName];
@@ -169,7 +219,10 @@ const receipt = {
   sourceRevision: plan.sourceRevision,
   fixtureOnly: plan.fixtureOnly === true,
   certificationMode,
-  profileAcceptedAtStart: profileAccepted,
+  legacyProfileFlagPresentAtStart: legacyProfileFlagPresent,
+  physicalAcceptanceVerifiedAtStart: profileAccepted,
+  physicalAcceptanceRouteId: acceptanceVerification?.routeId ?? null,
+  physicalAcceptanceWorkerClasses: acceptanceVerification?.workerClasses ?? [],
   chatgptAuthPolicyGateAtStart: certificationMode ? chatgptAuthPolicyAccepted : null,
   startedAt,
   finishedAt,
@@ -200,7 +253,7 @@ const receipt = {
   paidFallbackUsed: false,
   deterministicValidationPerformed: false,
   publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Certification mode can bypass prior profile acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Completion requires a zero process exit plus a valid structured turn.completed event. Provider/API override variables are removed before spawning Codex. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
+  truthBoundary: "This is the bounded direct Codex process receipt. Normal execution requires the runner itself to verify a current physical-acceptance receipt against the same fresh capability receipt; the legacy PROFILE_ACCEPTED boolean is not authority. Certification mode can precede acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Provider/API override and outer authorization variables are removed before spawning Codex. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
 };
 
 console.log(JSON.stringify(receipt, null, 2));
