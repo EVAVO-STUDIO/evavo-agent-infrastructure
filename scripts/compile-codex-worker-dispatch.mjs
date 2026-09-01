@@ -69,6 +69,7 @@ console.log(JSON.stringify({
   workItemId: work.id,
   repository: work.repository,
   sourceRevision: work.sourceRevision,
+  fixtureOnly: work.fixtureOnly === true,
   executable: adapter.executable,
   argv,
   stdinPrompt: prompt,
@@ -87,5 +88,5 @@ console.log(JSON.stringify({
   publicationAuthority: false,
   validationAuthority: false,
   paidFallbackUsed: false,
-  truthBoundary: "This plan compiles a bounded Codex Exec invocation inside an isolated candidate worktree but does not execute it. Runtime dispatch must recheck candidate identity, exact HEAD, clean pre-turn state, lease validity, capability freshness and route capacity."
+  truthBoundary: "This plan compiles a bounded Codex Exec invocation inside an isolated candidate worktree but does not execute it. Runtime dispatch must recheck candidate identity, exact HEAD, clean pre-turn state, lease validity, capability freshness and route capacity. fixtureOnly is propagated solely for one-time physical certification gating."
 }, null, 2));
