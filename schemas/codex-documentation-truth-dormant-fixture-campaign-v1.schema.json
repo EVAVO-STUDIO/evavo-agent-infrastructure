@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Dormant Fixture Campaign v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "fixtureId",
+    "startedAt",
+    "completedAt",
+    "designSha256",
+    "publicationAttestationSha256",
+    "agentInfrastructureMainSha",
+    "localStorageMainSha",
+    "capabilityReceiptSha256",
+    "policySha256",
+    "adapterSha256",
+    "scenarioReceiptSha256",
+    "supervisionReceiptSha256",
+    "fixtureOnly",
+    "productRepositoryTouched",
+    "normalRouteMutationPerformed",
+    "workerCommitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "financialActionPerformed",
+    "paidFallbackUsed",
+    "truthBoundary",
+    "campaignSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-dormant-fixture-campaign-v1" },
+    "fixtureId": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "startedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "completedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "designSha256": { "$ref": "#/$defs/sha256" },
+    "publicationAttestationSha256": { "$ref": "#/$defs/sha256" },
+    "agentInfrastructureMainSha": { "$ref": "#/$defs/gitSha" },
+    "localStorageMainSha": { "$ref": "#/$defs/gitSha" },
+    "capabilityReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "policySha256": { "$ref": "#/$defs/sha256" },
+    "adapterSha256": { "$ref": "#/$defs/sha256" },
+    "scenarioReceiptSha256": { "$ref": "#/$defs/scenarioDigestMap" },
+    "supervisionReceiptSha256": { "$ref": "#/$defs/sha256" },
+    "fixtureOnly": { "const": true },
+    "productRepositoryTouched": { "const": false },
+    "normalRouteMutationPerformed": { "const": false },
+    "workerCommitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "truthBoundary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "campaignSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "scenarioDigestMap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "validated-success",
+        "validated-no-action",
+        "forbidden-path-rejection",
+        "stale-head-rejection"
+      ],
+      "properties": {
+        "validated-success": { "$ref": "#/$defs/sha256" },
+        "validated-no-action": { "$ref": "#/$defs/sha256" },
+        "forbidden-path-rejection": { "$ref": "#/$defs/sha256" },
+        "stale-head-rejection": { "$ref": "#/$defs/sha256" }
+      }
+    }
+  }
+}
