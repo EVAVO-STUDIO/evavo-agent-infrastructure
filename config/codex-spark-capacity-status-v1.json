@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-capacity-status-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "allowedRawCapacityStates": [
+    "AVAILABLE",
+    "DEGRADED",
+    "RATE_LIMITED",
+    "EXHAUSTED",
+    "AUTH_REQUIRED",
+    "OFFLINE"
+  ],
+  "dispatchableRawCapacityStates": [
+    "AVAILABLE",
+    "DEGRADED"
+  ],
+  "admittedWorkerClasses": [
+    "test-generation"
+  ],
+  "maximumConcurrency": 1,
+  "maximumCapacityObservationAgeSeconds": 600,
+  "maximumCapabilityReceiptAgeSeconds": 600,
+  "maximumRouteAdmissionAgeSeconds": 600,
+  "maximumPhysicalAcceptanceAgeSeconds": 604800,
+  "maximumFutureClockSkewSeconds": 120,
+  "requireSupervisedPhysicalAcceptance": true,
+  "requireSameCapabilityReceiptForVerificationAndDispatch": true,
+  "preserveRawCapacityStateSeparately": true,
+  "paidFallbackAllowed": false,
+  "modelTurnPerformed": false,
+  "repositoryMutationAuthority": false,
+  "publicationAuthority": false,
+  "rule": "A raw capacity signal is never execution authority. Dispatch requires a fresh raw capacity observation, a fresh eligible Codex capability receipt and a supervised physical acceptance verified against that same capability receipt. Raw capacity, physical admission and per-route dispatch eligibility remain separate evidence classes."
+}
