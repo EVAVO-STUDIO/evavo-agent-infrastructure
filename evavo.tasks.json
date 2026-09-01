@@ -29,14 +29,28 @@
       "entry": "scripts/test-codex-candidate-change-observer.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Create a disposable local Git fixture and independently observe tracked, untracked, staged and unmerged candidate state with NUL-safe Git commands. Proves pathless read-only observation, exact source revision, dirty-state continuity and rejection of worker-authored HEAD movement without Codex or a model turn."
+      "description": "Create a disposable local Git fixture and independently observe exact tracked patch bytes, tracked and untracked file content, index identity, staged state and unmerged state in two stable passes. Same-path byte drift, links, dirty-state drift and worker-authored HEAD movement fail closed without Codex or a model turn."
+    },
+    "codex-worker-dispatch-binding-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-worker-dispatch-binding.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify that the final Test Builder dispatch digest binds exact leased-work bytes, canonical route-plan bytes, allowed and forbidden path envelopes and the external deterministic-validation request while preserving zero validation, publication and paid-fallback authority."
     },
     "codex-test-builder-completion-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-codex-test-builder-completion.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Certify route-admission, supervised-acceptance and capability identity continuity through one Test Builder model turn plus independent post-turn Git observation. The model-reported changed-path set must exactly match unstaged, unmerged, uncommitted allowlisted candidate changes before external deterministic validation."
+      "description": "Certify the base Test Builder completion state machine, model-summary contract, admitted path set, route-admission continuity and pre-validation authority boundary."
+    },
+    "codex-test-builder-boundary-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-test-builder-boundary.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify exact-byte continuity from leased work through route plan, bound dispatch, run receipt and stable two-pass candidate state. Patch, file-content, index, validation-request or observation-time drift fails closed before deterministic validation."
     },
     "codex-worker-result-classifier-certify": {
       "runtime": "node-script",
