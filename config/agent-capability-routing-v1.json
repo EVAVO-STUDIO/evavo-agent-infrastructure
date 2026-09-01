@@ -31,7 +31,8 @@
     "transports": "agent-capability-transports-v1.json",
     "routes": [
       "agent-capability-routes-core-v1.json",
-      "agent-capability-routes-specialists-v1.json"
+      "agent-capability-routes-specialists-v1.json",
+      "agent-capability-routes-devices-v1.json"
     ]
   }
 }

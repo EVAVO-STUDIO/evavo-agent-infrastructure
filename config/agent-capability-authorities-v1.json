@@ -70,5 +70,29 @@
     "effects": ["read"],
     "exclusiveEffects": [],
     "description": "Bounded historical context, preference intelligence, evidence-backed memory retrieval and the canonical cross-system workstation control operating model."
+  },
+  "workstation-manager": {
+    "repository": "EVAVO-STUDIO/evavo-workstation-manager",
+    "effects": ["read", "execute", "control"],
+    "exclusiveEffects": [],
+    "description": "Canonical workstation, hardware and driver truth; controller lease; exact device transaction assembly; rollback and postcondition verification. It does not directly implement every device protocol."
+  },
+  "universal-manipulator": {
+    "repository": "EVAVO-STUDIO/universal-manipulator",
+    "effects": ["read", "control"],
+    "exclusiveEffects": [],
+    "description": "Planned canonical device asset, enrollment, connector-manifest, capability-grant and typed-command broker. It is not eligible until its unresolved source is restored, reviewed, configured, transport-online and physically accepted."
+  },
+  "forensic-studio": {
+    "repository": "EVAVO-STUDIO/evavo-forensic-studio",
+    "effects": ["read", "write"],
+    "exclusiveEffects": [],
+    "description": "Tamper-evident evidence and receipt preservation. It never becomes a remediation or device-control authority."
+  },
+  "the-warrior": {
+    "repository": "EVAVO-STUDIO/the-warrior",
+    "effects": ["read", "execute"],
+    "exclusiveEffects": [],
+    "description": "Explicitly authorized, owned-scope security assessment with engagement, target and rate boundaries. It is never an implicit nearby-device scanner."
   }
 }
