@@ -3,6 +3,13 @@
   "kind": "evavo-repository-task-manifest",
   "repository": "evavo-agent-infrastructure",
   "tasks": {
+    "capability-manifest-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/check-evavo-capability-manifest.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "description": "Validate the strict Brain-discoverable Agent Infrastructure capability manifest, including effect declarations, required routing surfaces and explicit absence of publication or financial authority."
+    },
     "autonomous-worker-routing-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-worker-capacity-routing.mjs",
