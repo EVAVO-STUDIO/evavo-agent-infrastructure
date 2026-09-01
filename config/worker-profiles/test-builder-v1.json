@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-worker-profile-v1",
+  "id": "test-builder-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "workerClass": "test-generation",
+  "preferredRoute": "codex-spark-pro",
+  "objective": "Add focused, meaningful regression, boundary, failure-path or state-transition coverage for one already-admitted repository slice without changing product behavior.",
+  "mutation": {
+    "testsOnlyByDefault": true,
+    "productionSourceAllowed": false,
+    "creativeAssetsAllowed": false,
+    "ownerAuthoredCopyAllowed": false,
+    "dependencyChangesAllowed": false,
+    "schemaChangesAllowed": false,
+    "publicApiChangesAllowed": false,
+    "publicationAllowed": false
+  },
+  "completion": {
+    "validResults": ["SUCCESS", "NO_ACTION", "BLOCKED", "NEEDS_DEEP_WORKER", "NEEDS_HUMAN"],
+    "requireMeaningfulAssertion": true,
+    "requireFailureModeOrBehavioralPurpose": true,
+    "requireDeterministicValidationOutsideModelSession": true,
+    "testsRequestedDoNotEqualTestsPassed": true,
+    "workerOutputDoesNotEqualCompletion": true
+  },
+  "escalateWhen": [
+    "required behavior is ambiguous",
+    "test requires production-source mutation",
+    "existing architecture must change",
+    "repository policy conflicts with requested coverage",
+    "two automatic attempts fail with the same first cause"
+  ]
+}
