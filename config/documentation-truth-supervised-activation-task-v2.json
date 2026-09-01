@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 2,
+  "kind": "evavo-documentation-truth-supervised-activation-task-registry-v2",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Expose the documentation-truth supervised activation compiler and its source contract as read-only tasks. This registry does not activate the worker or register lease, model, Git, publication, deployment or financial effects.",
+  "tasks": {
+    "documentation-truth-supervised-activation-check": {
+      "runtime": "node-script",
+      "entry": "scripts/check-documentation-truth-supervised-activation-v2.mjs",
+      "arguments": [],
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "effect": "read-only-tests"
+    },
+    "documentation-truth-supervised-activation-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-documentation-truth-supervised-activation-v2.mjs",
+      "arguments": [
+        "sealedWaveManifestPath",
+        "sealedWaveValidationReceiptPath",
+        "repositoryHeadObservationPath",
+        "workExchangeDeploymentReceiptPath",
+        "codexCapabilityReceiptPath",
+        "canonicalCapacityStatusPath",
+        "supervisedFixtureAcceptancePath",
+        "candidateValidationReceiptPath",
+        "primaryCheckoutAttestationPath"
+      ],
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-compiler"
+    }
+  },
+  "activationPolicy": "config/documentation-truth-supervised-activation-v2.json",
+  "activationDecisionKind": "evavo-documentation-truth-supervised-activation-decision-v2",
+  "activationEligibleDecision": "ACTIVATE_ELIGIBLE",
+  "retainReadyDecision": "RETAIN_READY",
+  "rejectedDecision": "REJECTED",
+  "physicalActivationRegistered": false,
+  "documentationTruthLeasePhysicallyRegistered": false,
+  "documentationTruthModelExecutionPhysicallyRegistered": false,
+  "configurationMutationAuthority": false,
+  "queueMutationAuthority": false,
+  "leaseAuthority": false,
+  "modelAuthority": false,
+  "repositoryMutationAuthority": false,
+  "commitAuthority": false,
+  "pushAuthority": false,
+  "publicationAuthority": false,
+  "deploymentAuthority": false,
+  "financialAuthority": false,
+  "paidFallbackAllowed": false,
+  "truthBoundary": "The compiler can state that exact evidence is eligible for a separately governed activation step, but it cannot perform that step or create any downstream authority."
+}
