@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-worker-capacity-routing",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Select an eligible worker/model route after Development Studio has admitted a bounded work packet. This contract does not create engineering scope or publication authority.",
+  "workerRoutes": [
+    {
+      "id": "codex-spark-pro",
+      "runtime": "codex",
+      "modelPreference": "gpt-5.3-codex-spark",
+      "workerClasses": [
+        "fast-coding",
+        "test-generation",
+        "documentation-truth",
+        "migration",
+        "robustness",
+        "cross-platform",
+        "contract-hardening"
+      ],
+      "capacityClass": "included-consumer",
+      "routineCost": "included-plan-capacity",
+      "paidFallbackAllowed": false,
+      "maximumAutomaticConcurrency": 4,
+      "statusStates": [
+        "AVAILABLE",
+        "DEGRADED",
+        "RATE_LIMITED",
+        "EXHAUSTED",
+        "AUTH_REQUIRED",
+        "OFFLINE"
+      ],
+      "dispatchPolicy": {
+        "requireReadyWorkPacket": true,
+        "requireExactSourceRevision": true,
+        "freshWorkerPerJob": true,
+        "freshWorkerPerRetry": true,
+        "maximumAutomaticAttempts": 2,
+        "defaultReservePercent": 10,
+        "allowReserveDrainNearReset": true,
+        "onRateLimit": "backoff-and-retain-ready-job",
+        "onExhausted": "retain-ready-job",
+        "onArchitectureUncertainty": "NEEDS_DEEP_WORKER",
+        "runDeterministicValidationInsideModelSession": false
+      },
+      "truthBoundary": "Codex transport or authentication availability is distinct from Spark capacity. A started model turn is not completion, and model output never grants Git publication authority."
+    },
+    {
+      "id": "local-classification-default",
+      "runtime": "local-ai",
+      "modelPreference": "model-lab-admitted-local-text",
+      "workerClasses": ["local-classification"],
+      "capacityClass": "local-compute",
+      "routineCost": "local-compute",
+      "paidFallbackAllowed": false,
+      "maximumAutomaticConcurrency": 2
+    }
+  ],
+  "selection": {
+    "requiredInputs": [
+      "workerClass",
+      "capacityClass",
+      "paidFallbackAllowed",
+      "jobPriority",
+      "repository",
+      "sourceRevision"
+    ],
+    "factors": [
+      "eligibility",
+      "qualityFit",
+      "capacityState",
+      "costClass",
+      "observedSuccessRate",
+      "jobPriority"
+    ],
+    "rule": "Prefer an eligible zero-incremental-cost route that fits the worker class. Never silently convert included-capacity maintenance work into paid API usage."
+  },
+  "telemetry": {
+    "record": [
+      "routeId",
+      "workerClass",
+      "startedAt",
+      "finishedAt",
+      "resultState",
+      "rateLimitObserved",
+      "validationOutcome",
+      "reviewOutcome"
+    ],
+    "useForRouting": [
+      "rollingSuccessRateByWorkerClass",
+      "rollingRejectionRate",
+      "rollingRegressionRate",
+      "rateLimitFrequency",
+      "meanJobDuration"
+    ]
+  }
+}
