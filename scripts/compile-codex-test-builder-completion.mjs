@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { observeCodexCandidateChanges } from "./codex-candidate-change-observer.mjs";
 import { compileCodexTestBuilderCompletion } from "./codex-test-builder-completion-core.mjs";
 
 const [workItemInput, routePlanInput, dispatchPlanInput, runReceiptInput] = process.argv.slice(2);
@@ -40,6 +41,11 @@ try {
   const routePlan = readEvidence(routePlanInput, "worker route plan");
   const dispatchPlan = readEvidence(dispatchPlanInput, "Codex dispatch plan");
   const runReceipt = readEvidence(runReceiptInput, "Codex run receipt");
+  const candidateObservation = observeCodexCandidateChanges({
+    dispatchPlan: dispatchPlan.document,
+    runReceipt: runReceipt.document,
+  });
+  const candidateObservationBytes = Buffer.from(`${JSON.stringify(candidateObservation)}\n`, "utf8");
   const completion = compileCodexTestBuilderCompletion({
     workItem: workItem.document,
     workItemBytes: workItem.bytes,
@@ -49,6 +55,8 @@ try {
     dispatchPlanBytes: dispatchPlan.bytes,
     runReceipt: runReceipt.document,
     runReceiptBytes: runReceipt.bytes,
+    candidateObservation,
+    candidateObservationBytes,
   });
   process.stdout.write(`${JSON.stringify(completion, null, 2)}\n`);
 } catch (error) {
