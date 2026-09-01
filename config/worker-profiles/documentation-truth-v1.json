@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-worker-profile-v1",
+  "id": "documentation-truth-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "workerClass": "documentation-truth",
+  "workClass": "capability-manifest-maintenance",
+  "preferredRoute": "codex-spark-pro",
+  "activationState": "staged-only",
+  "objective": "Maintain one repository capability manifest from current repository evidence without changing production behavior, dependencies, schemas, public APIs, creative assets, owner-authored copy or Git history.",
+  "allowedPaths": [
+    "evavo.capabilities.json",
+    ".evavo/capabilities.json"
+  ],
+  "limits": {
+    "maximumChangedFiles": 1,
+    "maximumChangedLines": 600,
+    "maximumAutomaticAttempts": 1,
+    "maximumConcurrency": 1
+  },
+  "mutation": {
+    "documentationMetadataOnly": true,
+    "productionSourceAllowed": false,
+    "creativeAssetsAllowed": false,
+    "ownerAuthoredCopyAllowed": false,
+    "dependencyChangesAllowed": false,
+    "schemaChangesAllowed": false,
+    "publicApiChangesAllowed": false,
+    "gitMetadataAllowed": false,
+    "commitAllowed": false,
+    "pushAllowed": false,
+    "publicationAllowed": false,
+    "deploymentAllowed": false
+  },
+  "capacity": {
+    "class": "included-consumer",
+    "paidFallbackAllowed": false
+  },
+  "completion": {
+    "validResults": [
+      "SUCCESS",
+      "NO_ACTION",
+      "BLOCKED",
+      "NEEDS_DEEP_WORKER",
+      "NEEDS_HUMAN"
+    ],
+    "requireCurrentHeadMatch": true,
+    "requireExternalManifestValidation": true,
+    "requireExactChangedPathAudit": true,
+    "requireDeterministicValidationOutsideModelSession": true,
+    "workerOutputDoesNotEqualCompletion": true,
+    "noActionAccepted": true
+  },
+  "physicalActivation": {
+    "normalRouteEnabled": false,
+    "leaseEnabled": false,
+    "modelExecutionEnabled": false,
+    "requiresSupervisedFixtureAcceptance": true,
+    "requiredScenarios": [
+      "validated-success",
+      "validated-no-action",
+      "forbidden-path-rejection",
+      "stale-head-rejection"
+    ]
+  },
+  "truthBoundary": "This profile describes a staged worker class only. It grants no lease, model, repository, Git, publication, deployment or paid-fallback authority until a separate fresh physical acceptance and source activation review both pass."
+}
