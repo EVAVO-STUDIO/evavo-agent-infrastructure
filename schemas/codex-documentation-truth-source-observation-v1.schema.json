@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Source Observation v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "networkUsed",
+    "modelTurnPerformed",
+    "leaseAcquired",
+    "repositoryMutationPerformed",
+    "commitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "paidFallbackUsed",
+    "financialActionPerformed"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-source-observation-v1" },
+    "repository": { "const": "EVAVO-STUDIO/evavo-agent-infrastructure" },
+    "branch": { "const": "main" },
+    "sourceRevision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "sourceTreeSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "observedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "clean": { "const": true },
+    "originVerified": { "const": true },
+    "normalWorkerClasses": {
+      "type": "array",
+      "prefixItems": [{ "const": "test-generation" }],
+      "items": false,
+      "minItems": 1,
+      "maxItems": 1
+    },
+    "documentationTruthActivationState": { "const": "staged-only" },
+    "currentBindings": {
+      "type": "object",
+      "minProperties": 5,
+      "additionalProperties": { "$ref": "#/$defs/fileBinding" }
+    },
+    "policySha256": { "$ref": "#/$defs/sha256" },
+    "networkUsed": { "const": false },
+    "modelTurnPerformed": { "const": false },
+    "leaseAcquired": { "const": false },
+    "repositoryMutationPerformed": { "const": false },
+    "commitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "truthBoundary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+    "sourceObservationSha256": { "$ref": "#/$defs/sha256" },
+    "observed": { "const": false },
+    "errors": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "type": "string", "minLength": 1, "maxLength": 2000 }
+    }
+  },
+  "oneOf": [
+    {
+      "required": [
+        "repository",
+        "branch",
+        "sourceRevision",
+        "sourceTreeSha",
+        "observedAt",
+        "clean",
+        "originVerified",
+        "normalWorkerClasses",
+        "documentationTruthActivationState",
+        "currentBindings",
+        "policySha256",
+        "truthBoundary",
+        "sourceObservationSha256"
+      ],
+      "not": { "required": ["observed", "errors"] }
+    },
+    {
+      "required": ["observed", "errors"]
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "fileBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sha256", "byteLength"],
+      "properties": {
+        "sha256": { "$ref": "#/$defs/sha256" },
+        "byteLength": { "type": "integer", "minimum": 2, "maximum": 4194304 }
+      }
+    }
+  }
+}
