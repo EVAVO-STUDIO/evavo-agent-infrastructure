@@ -8,7 +8,7 @@
       "entry": "scripts/test-worker-capacity-routing.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Certify zero-cost Spark route selection, exhausted-capacity retention and paid-fallback rejection without starting a model turn."
+      "description": "Certify zero-cost Spark route selection, exhausted-capacity retention, supervised-admission continuity and paid-fallback rejection without starting a model turn."
     },
     "codex-spark-capacity-status-certify": {
       "runtime": "node-script",
@@ -17,12 +17,19 @@
       "timeoutSeconds": 300,
       "description": "Certify that raw Spark capacity, supervised physical admission and short-lived dispatch eligibility remain separate exact-byte evidence classes. Available capacity cannot bypass rejected, stale, broadened or over-concurrent admission; exhausted capacity remains exhausted and paid fallback remains forbidden."
     },
+    "codex-candidate-change-observer-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-candidate-change-observer.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Create a disposable local Git fixture and independently observe tracked, untracked, staged and unmerged candidate state with NUL-safe Git commands. Proves pathless read-only observation, exact source revision, dirty-state continuity and rejection of worker-authored HEAD movement without Codex or a model turn."
+    },
     "codex-test-builder-completion-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-codex-test-builder-completion.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Certify route-admission, supervised-acceptance and capability identity continuity through one Test Builder model turn. Only allowlisted uncommitted test changes can become ready for external deterministic validation; model output cannot claim tests passed, commit, publish or complete fixture certification as normal work."
+      "description": "Certify route-admission, supervised-acceptance and capability identity continuity through one Test Builder model turn plus independent post-turn Git observation. The model-reported changed-path set must exactly match unstaged, unmerged, uncommitted allowlisted candidate changes before external deterministic validation."
     },
     "codex-worker-result-classifier-certify": {
       "runtime": "node-script",
@@ -36,7 +43,7 @@
       "entry": "scripts/test-codex-worker-runner-safety.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Prove normal Codex Spark execution remains disabled without an explicit runtime gate and a supervised physical-acceptance envelope verified against the same fresh capability receipt. Certification remains fixture-only. Does not require Codex or start a model turn."
+      "description": "Prove normal Codex Spark execution remains disabled without an explicit runtime gate, digest-bound short-lived route admission and supervised physical-acceptance envelope verified against the same fresh capability receipt. Certification remains fixture-only and does not require Codex or a model turn."
     },
     "codex-worker-capability-probe": {
       "runtime": "node-script",
