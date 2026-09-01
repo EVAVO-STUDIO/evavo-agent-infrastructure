@@ -1,0 +1,99 @@
+{
+  "schemaVersion": 2,
+  "kind": "evavo-documentation-truth-supervised-activation-policy-v2",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Compile a short-lived activation decision for the documentation-truth worker only after exact source, package, Work Exchange, Codex capability, supervised fixture and independent validation evidence agree. The compiler performs no lease, model, Git, publication, deployment or financial effect.",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "workerClass": "documentation-truth",
+  "workClass": "capability-manifest-maintenance",
+  "maximumConcurrency": 1,
+  "maximumAutomaticAttempts": 1,
+  "maximumChangedFiles": 1,
+  "maximumChangedLines": 600,
+  "allowedPaths": [
+    "evavo.capabilities.json",
+    ".evavo/capabilities.json"
+  ],
+  "requiredResultStates": [
+    "SUCCESS",
+    "NO_ACTION",
+    "BLOCKED",
+    "NEEDS_HUMAN"
+  ],
+  "maximumEvidenceAgeSeconds": {
+    "repositoryHead": 300,
+    "codexCapability": 300,
+    "capacityStatus": 300,
+    "supervisedFixtureAcceptance": 604800,
+    "packageValidation": 2592000,
+    "workExchangeEffect": 86400,
+    "activationDecision": 300
+  },
+  "requiredEvidence": [
+    "sealedWaveManifest",
+    "sealedWaveValidationReceipt",
+    "exactRepositoryHeadObservation",
+    "canonicalWorkExchangeDeploymentReceipt",
+    "freshCodexCapabilityReceipt",
+    "freshCanonicalCapacityStatus",
+    "supervisedDocumentationTruthFixtureAcceptance",
+    "independentCandidateValidationReceipt",
+    "primaryCheckoutUnchangedAttestation"
+  ],
+  "requiredFixtureScenarios": [
+    "success-one-manifest-file-only",
+    "no-action-already-correct",
+    "forbidden-path-rejected",
+    "stale-head-rejected",
+    "second-file-rejected",
+    "line-limit-rejected",
+    "publication-attempt-rejected",
+    "paid-fallback-rejected"
+  ],
+  "requiredTruth": {
+    "exactCurrentHeadMatched": true,
+    "packageChecksumsPassed": true,
+    "canonicalWorkExchangeEffectPassed": true,
+    "supervisedFixtureScenariosPassed": true,
+    "candidateValidationIndependent": true,
+    "primaryCheckoutUnchanged": true,
+    "workerCommitPerformed": false,
+    "workerPushPerformed": false,
+    "workerPublicationPerformed": false,
+    "workerDeploymentPerformed": false,
+    "productionSourceMutationAllowed": false,
+    "dependencyChangeAllowed": false,
+    "schemaChangeAllowed": false,
+    "publicApiChangeAllowed": false,
+    "paidFallbackUsed": false
+  },
+  "activation": {
+    "decision": "evidence-compiled-only",
+    "requiresExactEvidenceBytes": true,
+    "requiresCanonicalSha256": true,
+    "requiresCurrentHeadRecheckAtLease": true,
+    "requiresCurrentRouteAdmissionAtDispatch": true,
+    "requiresOneWriterPerRepository": true,
+    "automaticallyChangesConfiguration": false,
+    "automaticallyAcquiresLease": false,
+    "automaticallyStartsModel": false,
+    "automaticallyCommits": false,
+    "automaticallyPushes": false,
+    "automaticallyPublishes": false
+  },
+  "prohibitedAuthority": [
+    "arbitrary-shell",
+    "credential-access",
+    "financial-actions",
+    "customer-communications",
+    "production-data",
+    "driver-or-firmware-changes",
+    "repository-history-rewrite",
+    "force-push",
+    "github-actions-dispatch",
+    "paid-api-fallback"
+  ],
+  "truthBoundary": "An ACTIVATE decision proves only that a separately governed documentation-truth lease may be considered while the exact evidence remains fresh. It is not a lease, model turn, repository mutation, validation result, commit, push, publication, deployment or financial authorization."
+}
