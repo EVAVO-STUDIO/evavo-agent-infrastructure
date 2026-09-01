@@ -11,8 +11,13 @@ if (!source) {
 
 const input = JSON.parse(fs.readFileSync(path.resolve(source), "utf8"));
 const exitCode = Number.isInteger(input.exitCode) ? input.exitCode : null;
-const text = [input.stderr, input.stdout, input.error, input.message]
-  .filter((value) => typeof value === "string")
+const textValue = (value) => {
+  if (typeof value === "string") return value;
+  if (value && typeof value === "object" && typeof value.text === "string") return value.text;
+  return "";
+};
+const text = [textValue(input.stderr), textValue(input.stdout), textValue(input.error), textValue(input.message)]
+  .filter(Boolean)
   .join("\n")
   .toLowerCase();
 
@@ -83,5 +88,6 @@ console.log(JSON.stringify({
   paidFallbackUsed: false,
   exactUsageRemainingKnown: false,
   sourceExitCode: exitCode,
-  truthBoundary: "This classifier derives route health only from the supplied runtime result. It does not query or estimate the user's remaining ChatGPT/Codex allowance and never authorizes paid fallback."
+  structuredTurnCompleted: input.modelTurnCompleted === true,
+  truthBoundary: "This classifier derives route health only from the supplied runtime result. It does not query or estimate remaining ChatGPT/Codex allowance and never authorizes paid fallback."
 }, null, 2));
