@@ -15,12 +15,20 @@ const plan = JSON.parse(fs.readFileSync(path.resolve(dispatchPlanPath), "utf8"))
 const capability = JSON.parse(fs.readFileSync(path.resolve(capabilityReceiptPath), "utf8"));
 const adapter = JSON.parse(fs.readFileSync("config/codex-worker-adapter-v1.json", "utf8"));
 const errors = [];
+const executionEnabled = process.env.EVAVO_CODEX_SPARK_EXECUTION_ENABLED === "1";
+const profileAccepted = process.env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED === "1";
+const certificationMode = process.env.EVAVO_CODEX_SPARK_CERTIFICATION_MODE === "1";
+const chatgptAuthPolicyAccepted = process.env.EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED === "1";
 
-if (process.env.EVAVO_CODEX_SPARK_EXECUTION_ENABLED !== "1") {
+if (!executionEnabled) {
   errors.push("EVAVO_CODEX_SPARK_EXECUTION_ENABLED=1 is required for a model turn.");
 }
-if (process.env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED !== "1") {
-  errors.push("EVAVO_CODEX_SPARK_PROFILE_ACCEPTED=1 is required after physical sandbox/auth acceptance.");
+if (!profileAccepted && !certificationMode) {
+  errors.push("EVAVO_CODEX_SPARK_PROFILE_ACCEPTED=1 is required after physical sandbox/auth acceptance; only explicit fixture certification may precede it.");
+}
+if (certificationMode) {
+  if (plan.fixtureOnly !== true) errors.push("Certification mode only admits a fixtureOnly dispatch plan.");
+  if (!chatgptAuthPolicyAccepted) errors.push("Certification mode requires EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED=1 from the read-only ChatGPT auth-policy probe.");
 }
 if (plan.kind !== "evavo-codex-worker-dispatch-plan-v1" || plan.eligible !== true) errors.push("Dispatch plan is not eligible.");
 if (plan.executable !== adapter.executable) errors.push("Dispatch executable differs from the admitted adapter.");
@@ -43,7 +51,7 @@ if (!Array.isArray(plan.argv) || plan.argv.length < 8 || plan.argv[0] !== "exec"
 }
 if (typeof plan.stdinPrompt !== "string" || !plan.stdinPrompt.trim()) errors.push("Dispatch prompt is missing.");
 if (errors.length) {
-  console.error(JSON.stringify({kind:"evavo-codex-worker-run-v1",started:false,errors}, null, 2));
+  console.error(JSON.stringify({kind:"evavo-codex-worker-run-v1",started:false,certificationMode,errors}, null, 2));
   process.exit(1);
 }
 
@@ -86,6 +94,12 @@ for (const name of adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [
   if (Object.prototype.hasOwnProperty.call(env, name)) removedEnvironment.push(name);
   delete env[name];
 }
+for (const controlName of [
+  "EVAVO_CODEX_SPARK_EXECUTION_ENABLED",
+  "EVAVO_CODEX_SPARK_PROFILE_ACCEPTED",
+  "EVAVO_CODEX_SPARK_CERTIFICATION_MODE",
+  "EVAVO_CODEX_CHATGPT_AUTH_POLICY_ACCEPTED"
+]) delete env[controlName];
 const sanitizedEnvironmentNames = adapter.dispatch.apiKeyEnvironmentVariablesMustBeRemoved ?? [];
 const environmentSanitized = sanitizedEnvironmentNames.every((name) => !Object.prototype.hasOwnProperty.call(env, name));
 if (!environmentSanitized) throw new Error("Codex child environment still contains a forbidden provider/API override.");
@@ -93,6 +107,7 @@ env.GIT_TERMINAL_PROMPT = "0";
 env.GCM_INTERACTIVE = "Never";
 env.EVAVO_AUTONOMOUS_WORKER = "1";
 env.EVAVO_AUTONOMOUS_WORKER_CLASS = "test-generation";
+env.EVAVO_AUTONOMOUS_FIXTURE_ONLY = plan.fixtureOnly === true ? "1" : "0";
 
 const startedAt = new Date().toISOString();
 const result = spawnSync(plan.executable, plan.argv, {
@@ -152,6 +167,10 @@ const receipt = {
   workerId: plan.workerId,
   repository: plan.repository,
   sourceRevision: plan.sourceRevision,
+  fixtureOnly: plan.fixtureOnly === true,
+  certificationMode,
+  profileAcceptedAtStart: profileAccepted,
+  chatgptAuthPolicyGateAtStart: certificationMode ? chatgptAuthPolicyAccepted : null,
   startedAt,
   finishedAt,
   exitCode: result.status,
@@ -181,7 +200,7 @@ const receipt = {
   paidFallbackUsed: false,
   deterministicValidationPerformed: false,
   publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Completion requires a zero process exit plus a valid structured turn.completed event. Provider/API override variables are removed before spawning Codex. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
+  truthBoundary: "This is the bounded direct Codex process receipt. Certification mode can bypass prior profile acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Completion requires a zero process exit plus a valid structured turn.completed event. Provider/API override variables are removed before spawning Codex. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
 };
 
 console.log(JSON.stringify(receipt, null, 2));
