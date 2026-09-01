@@ -8,117 +8,42 @@
       "id": "agent.capabilities.route",
       "title": "Plan provider-neutral capability routes",
       "description": "Select the narrowest fresh eligible specialist, local execution, worker or fixed relay route from typed capability and transport evidence without granting the selected route additional authority.",
-      "interfaces": [
-        "automation",
-        "cli",
-        "library",
-        "mcp"
-      ],
-      "effects": [
-        "read",
-        "compute"
-      ],
-      "entrypoints": [
-        "pnpm plan:capability-routing",
-        "scripts/plan-agent-capability-route.mjs",
-        "config/agent-capability-routing-v1.json"
-      ],
-      "tags": [
-        "routing",
-        "capabilities",
-        "provider-neutral",
-        "authority",
-        "receipts"
-      ],
-      "requires": [
-        "Fresh route status",
-        "Canonical capability-owner map"
-      ]
+      "interfaces": ["automation", "cli", "library", "mcp"],
+      "effects": ["read", "compute"],
+      "entrypoints": ["pnpm plan:capability-routing", "scripts/plan-agent-capability-route.mjs", "config/agent-capability-routing-v1.json"],
+      "tags": ["routing", "capabilities", "provider-neutral", "authority", "receipts"],
+      "requires": ["Fresh route status", "Canonical capability-owner map"]
     },
     {
       "id": "agent.windows.execution-route",
       "title": "Route governed Windows execution",
       "description": "Route structured workstation work to Local Compute, Local Storage or another typed specialist using exact source, task and receipt contracts. The route itself is not an unrestricted shell and does not prove physical completion.",
-      "interfaces": [
-        "automation",
-        "cli",
-        "mcp"
-      ],
-      "effects": [
-        "read",
-        "compute",
-        "network"
-      ],
-      "entrypoints": [
-        "evavo-windows-workstation-bridge",
-        "storage.repository_task_plan",
-        "storage.repository_task_run"
-      ],
-      "tags": [
-        "windows",
-        "local-execution",
-        "workstation",
-        "routing",
-        "physical-receipts"
-      ],
-      "requires": [
-        "Fresh Local Compute or Local Storage acceptance",
-        "Typed task manifest",
-        "Matching terminal receipt"
-      ]
+      "interfaces": ["automation", "cli", "mcp"],
+      "effects": ["read", "compute", "network"],
+      "entrypoints": ["evavo-windows-workstation-bridge", "storage.repository_task_plan", "storage.repository_task_run"],
+      "tags": ["windows", "local-execution", "workstation", "routing", "physical-receipts"],
+      "requires": ["Fresh Local Compute or Local Storage acceptance", "Typed task manifest", "Matching terminal receipt"]
     },
     {
       "id": "agent.codex.spark-capacity",
       "title": "Assemble canonical Spark capacity and admission status",
       "description": "Keep raw included-plan capacity, Codex capability, supervised physical acceptance and short-lived route admission as separate digest-bound evidence classes before any worker selection.",
-      "interfaces": [
-        "automation",
-        "cli",
-        "library",
-        "testing"
-      ],
-      "effects": [
-        "read",
-        "compute",
-        "execute"
-      ],
-      "entrypoints": [
-        "scripts/assemble-codex-spark-capacity-status.mjs",
-        "scripts/plan-worker-route.mjs",
-        "config/codex-spark-capacity-status-v1.json"
-      ],
-      "tags": [
-        "codex",
-        "spark",
-        "capacity",
-        "physical-admission",
-        "zero-cost"
-      ],
-      "requires": [
-        "Fresh capacity observation",
-        "Fresh Codex capability receipt",
-        "Supervised physical acceptance"
-      ]
+      "interfaces": ["automation", "cli", "library", "testing"],
+      "effects": ["read", "compute", "execute"],
+      "entrypoints": ["scripts/assemble-codex-spark-capacity-status.mjs", "scripts/plan-worker-route.mjs", "config/codex-spark-capacity-status-v1.json"],
+      "tags": ["codex", "spark", "capacity", "physical-admission", "zero-cost"],
+      "requires": ["Fresh capacity observation", "Fresh Codex capability receipt", "Supervised physical acceptance"]
     },
     {
       "id": "agent.codex.test-builder",
-      "title": "Run the bounded Codex Test Builder",
-      "description": "Compile an exact-bound dispatch, run one test-generation-only Codex worker in an isolated candidate worktree at concurrency one, and independently bind the exact patch, changed-file bytes and Git index into a pre-validation completion receipt, with no paid fallback, no provider override environment, no commit, no publication and no deterministic-validation authority.",
-      "interfaces": [
-        "automation",
-        "cli",
-        "testing"
-      ],
-      "effects": [
-        "read",
-        "compute",
-        "execute",
-        "write"
-      ],
+      "title": "Run the contained Codex Test Builder",
+      "description": "Compile a contained exact-bound dispatch, run one test-generation-only Codex worker in an isolated candidate worktree at concurrency one, prove zero ignored workspace files before and after the model turn, and independently bind the exact patch, changed-file bytes and Git index into a pre-validation completion receipt. Paid fallback, provider overrides, staging, commit, publication and deterministic-validation authority remain forbidden.",
+      "interfaces": ["automation", "cli", "testing"],
+      "effects": ["read", "compute", "execute", "write"],
       "entrypoints": [
-        "scripts/compile-codex-worker-dispatch-bound.mjs",
-        "scripts/run-codex-worker-dispatch.mjs",
-        "scripts/compile-codex-test-builder-completion.mjs"
+        "scripts/compile-codex-worker-dispatch-contained.mjs",
+        "scripts/run-codex-worker-dispatch-contained.mjs",
+        "scripts/compile-codex-test-builder-completion-contained.mjs"
       ],
       "tags": [
         "codex",
@@ -126,13 +51,15 @@
         "sandbox",
         "candidate-worktree",
         "exact-byte-binding",
+        "ignored-workspace-containment",
         "completion-receipts"
       ],
       "requires": [
         "LEASED test-generation work item",
         "Digest-bound unexpired route admission",
         "Exact candidate receipt",
-        "Final bound dispatch receipt",
+        "Zero ignored files at dispatch, process boundaries and completion",
+        "Final contained dispatch and run receipts",
         "Stable two-pass candidateStateSha256 observation",
         "External deterministic validation after SUCCESS"
       ]
@@ -141,59 +68,21 @@
       "id": "agent.remote.typed-relay",
       "title": "Expose bounded remote status and typed dispatch",
       "description": "Provide read-only remote MCP status plus a separately authenticated fixed-action relay without exposing a public arbitrary command endpoint or treating queue acceptance as execution.",
-      "interfaces": [
-        "api",
-        "mcp"
-      ],
-      "effects": [
-        "read",
-        "compute",
-        "network"
-      ],
-      "entrypoints": [
-        "packages/remote-mcp-relay",
-        "docs/AI_AGENT_GATEWAY.md"
-      ],
-      "tags": [
-        "remote-mcp",
-        "relay",
-        "typed-dispatch",
-        "cloudflare",
-        "zero-cost"
-      ],
-      "requires": [
-        "Separate workstation and dispatch credentials",
-        "Correlated physical receipt for completion claims"
-      ]
+      "interfaces": ["api", "mcp"],
+      "effects": ["read", "compute", "network"],
+      "entrypoints": ["packages/remote-mcp-relay", "docs/AI_AGENT_GATEWAY.md"],
+      "tags": ["remote-mcp", "relay", "typed-dispatch", "cloudflare", "zero-cost"],
+      "requires": ["Separate workstation and dispatch credentials", "Correlated physical receipt for completion claims"]
     },
     {
       "id": "agent.github.estate-observe",
       "title": "Observe and route the GitHub repository estate",
       "description": "Compile immutable repository and source evidence for capability routing and governance without inferring write, publication or deployment authority from repository visibility.",
-      "interfaces": [
-        "automation",
-        "cli",
-        "library",
-        "mcp"
-      ],
-      "effects": [
-        "read",
-        "compute",
-        "network"
-      ],
-      "entrypoints": [
-        "pnpm route:github-estate",
-        "scripts/route-github-estate-snapshot.mjs"
-      ],
-      "tags": [
-        "github",
-        "repository-estate",
-        "immutable-evidence",
-        "routing"
-      ],
-      "requires": [
-        "Trusted read-only GitHub evidence"
-      ]
+      "interfaces": ["automation", "cli", "library", "mcp"],
+      "effects": ["read", "compute", "network"],
+      "entrypoints": ["pnpm route:github-estate", "scripts/route-github-estate-snapshot.mjs"],
+      "tags": ["github", "repository-estate", "immutable-evidence", "routing"],
+      "requires": ["Trusted read-only GitHub evidence"]
     }
   ],
   "brain": {
@@ -205,11 +94,12 @@
       "Windows execution routing",
       "zero-cost worker capacity",
       "Codex Spark physical admission",
-      "Codex Test Builder exact-bound execution",
+      "Codex Test Builder contained exact-bound execution",
+      "ignored workspace containment",
       "remote typed relay",
       "GitHub estate routing",
       "execution receipt truth"
     ]
   },
-  "reviewedAt": "2026-09-01T23:00:00+10:00"
+  "reviewedAt": "2026-09-01T23:55:00+10:00"
 }
