@@ -45,6 +45,16 @@
       "AZURE_OPENAI_API_KEY",
       "AZURE_OPENAI_ENDPOINT"
     ],
+    "ignoredWorkspacePolicy": {
+      "requireZeroIgnoredFilesBeforeDispatch": true,
+      "requireZeroIgnoredFilesImmediatelyBeforeModelTurn": true,
+      "requireZeroIgnoredFilesImmediatelyAfterModelTurn": true,
+      "requireZeroIgnoredFilesAtCompletion": true,
+      "stableObservationPasses": 2,
+      "returnIgnoredPathNames": false,
+      "returnIgnoredFileContents": false,
+      "ignoredFilesAccepted": false
+    },
     "maximumAutomaticAttempts": 2,
     "maximumRetainedStdoutBytes": 262144,
     "maximumRetainedStderrBytes": 131072,
@@ -60,5 +70,5 @@
     "rateLimitRetainsReadyJob": true,
     "exhaustionRetainsReadyJob": true
   },
-  "truthBoundary": "CLI presence and supported flags do not prove authentication, Spark availability or remaining allowance. A capability probe performs no model turn. The effectful runner must strip API-key/provider override environment variables and run only in an isolated Development Studio candidate worktree."
+  "truthBoundary": "CLI presence and supported flags do not prove authentication, Spark availability or remaining allowance. A capability probe performs no model turn. The effectful contained runner must strip API-key/provider override variables, run only in an isolated Development Studio candidate worktree, and prove zero ignored files before dispatch, immediately before and after the model turn, and at completion."
 }
