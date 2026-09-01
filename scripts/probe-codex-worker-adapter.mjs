@@ -23,9 +23,18 @@ function run(args) {
 const version = run(config.probe.versionArgv);
 const help = run(config.probe.helpArgv);
 const helpText = `${help.stdout}\n${help.stderr}`;
-const jsonFlag = (config.probe.acceptedJsonFlags ?? []).find((flag) => helpText.includes(flag)) ?? null;
-const modelFlag = (config.probe.acceptedModelFlags ?? []).find((flag) => helpText.includes(flag)) ?? null;
-const available = version.status === 0 && help.status === 0 && Boolean(jsonFlag) && Boolean(modelFlag);
+const findFlag = (flags) => (flags ?? []).find((flag) => helpText.includes(flag)) ?? null;
+const jsonFlag = findFlag(config.probe.acceptedJsonFlags);
+const modelFlag = findFlag(config.probe.acceptedModelFlags);
+const sandboxFlag = findFlag(config.probe.acceptedSandboxFlags);
+const approvalFlag = findFlag(config.probe.acceptedApprovalFlags);
+const available =
+  version.status === 0 &&
+  help.status === 0 &&
+  Boolean(jsonFlag) &&
+  Boolean(modelFlag) &&
+  Boolean(sandboxFlag) &&
+  Boolean(approvalFlag);
 
 const receipt = {
   schemaVersion: 1,
@@ -39,15 +48,19 @@ const receipt = {
     nonInteractiveExec: help.status === 0,
     structuredJsonOutput: Boolean(jsonFlag),
     explicitModelSelection: Boolean(modelFlag),
+    explicitSandboxSelection: Boolean(sandboxFlag),
+    explicitApprovalSelection: Boolean(approvalFlag),
     jsonFlag,
     modelFlag,
+    sandboxFlag,
+    approvalFlag,
   },
   eligibleForWorkerDispatch: available,
   modelTurnPerformed: false,
   repositoryMutationPerformed: false,
   publicationPerformed: false,
   error: version.error ?? help.error,
-  truthBoundary: "This receipt proves only local Codex CLI presence and supported command-line capabilities. It does not prove ChatGPT authentication, Spark availability, remaining usage, or a successful model turn.",
+  truthBoundary: "This receipt proves only local Codex CLI presence and supported command-line capabilities. It does not prove ChatGPT authentication, Spark availability, remaining usage, sandbox effectiveness on this machine, or a successful model turn.",
 };
 
 console.log(JSON.stringify(receipt, null, 2));
