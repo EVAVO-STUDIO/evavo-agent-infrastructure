@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "evavo-autonomous-spark-task-registry-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Expose reviewed Spark capacity, route-bound lease, exact-bound Test Builder and documentation-truth source contracts while keeping physical worker admission, scheduling, deterministic validation and publication separate.",
+  "purpose": "Expose reviewed Spark capacity, route-bound lease, contained exact-bound Test Builder and documentation-truth source contracts while keeping physical worker admission, scheduling, deterministic validation and publication separate.",
   "tasks": {
     "spark-capacity-source-contract-suite": {
       "runtime": "node-script",
@@ -17,9 +17,7 @@
       "network": "disabled",
       "timeoutSeconds": 120,
       "effect": "read-only-compiler",
-      "arguments": [
-        "codexOutcomePath"
-      ]
+      "arguments": ["codexOutcomePath"]
     },
     "spark-capacity-status-compile": {
       "runtime": "node-script",
@@ -27,12 +25,7 @@
       "network": "disabled",
       "timeoutSeconds": 180,
       "effect": "read-only-compiler",
-      "arguments": [
-        "capacityObservationPath",
-        "codexCapabilityPath",
-        "chatgptAuthPolicyPath",
-        "optionalSupervisedAcceptancePath"
-      ]
+      "arguments": ["capacityObservationPath", "codexCapabilityPath", "chatgptAuthPolicyPath", "optionalSupervisedAcceptancePath"]
     },
     "spark-admitted-route-plan": {
       "runtime": "node-script",
@@ -40,10 +33,7 @@
       "network": "disabled",
       "timeoutSeconds": 120,
       "effect": "read-only-planner",
-      "arguments": [
-        "readyWorkItemPath",
-        "capacityStatusPath"
-      ]
+      "arguments": ["readyWorkItemPath", "capacityStatusPath"]
     },
     "codex-worker-capability-probe": {
       "runtime": "node-script",
@@ -73,36 +63,35 @@
       "timeoutSeconds": 180,
       "effect": "canonical-local-storage-lease"
     },
-    "test-builder-bound-dispatch-compile": {
+    "test-builder-contained-dispatch-compile": {
       "runtime": "node-script",
-      "entry": "scripts/compile-codex-worker-dispatch-bound.mjs",
-      "network": "disabled",
-      "timeoutSeconds": 120,
-      "effect": "read-only-compiler",
-      "arguments": [
-        "leasedWorkItemPath",
-        "routePlanPath",
-        "codexCapabilityPath",
-        "candidateWorktreeReceiptPath",
-        "workerId"
-      ]
-    },
-    "test-builder-exact-completion-compile": {
-      "runtime": "node-script",
-      "entry": "scripts/compile-codex-test-builder-completion.mjs",
+      "entry": "scripts/compile-codex-worker-dispatch-contained.mjs",
       "network": "disabled",
       "timeoutSeconds": 180,
-      "effect": "read-only-candidate-observer-compiler",
-      "arguments": [
-        "leasedWorkItemPath",
-        "routePlanPath",
-        "boundDispatchPlanPath",
-        "runReceiptPath"
-      ]
+      "effect": "read-only-ignored-workspace-observer-compiler",
+      "arguments": ["leasedWorkItemPath", "routePlanPath", "codexCapabilityPath", "candidateWorktreeReceiptPath", "workerId"]
     },
-    "test-builder-exact-bound-contract-suite": {
+    "test-builder-contained-run": {
       "runtime": "node-script",
-      "entry": "scripts/check-codex-candidate-observation-contract.mjs",
+      "entry": "scripts/run-codex-worker-dispatch-contained.mjs",
+      "network": "disabled-by-worker-contract",
+      "timeoutSeconds": 1500,
+      "effect": "guarded-candidate-worktree-model-run",
+      "routineSchedulingAllowed": false,
+      "requiresSupervisedPhysicalAcceptance": true,
+      "requiresZeroIgnoredWorkspaceFiles": true
+    },
+    "test-builder-contained-completion-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-codex-test-builder-completion-contained.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "effect": "read-only-candidate-and-ignored-workspace-observer-compiler",
+      "arguments": ["leasedWorkItemPath", "routePlanPath", "containedDispatchPlanPath", "containedRunReceiptPath"]
+    },
+    "test-builder-contained-contract-suite": {
+      "runtime": "node-script",
+      "entry": "scripts/check-codex-ignored-workspace-boundary-contract.mjs",
       "network": "disabled",
       "timeoutSeconds": 900,
       "effect": "read-only-tests"
@@ -140,16 +129,14 @@
   },
   "physicalCodexExecutionRegistered": false,
   "normalSparkExecutionRequiresSupervisedPhysicalAcceptance": true,
-  "initialWorkerClasses": [
-    "test-generation"
-  ],
-  "sourceReadyWorkerClasses": [
-    "test-generation",
-    "documentation-truth"
-  ],
-  "testBuilderBoundDispatchCompilerRegistered": true,
-  "testBuilderExactCandidateObserverRegistered": true,
-  "testBuilderExactCompletionCompilerRegistered": true,
+  "initialWorkerClasses": ["test-generation"],
+  "sourceReadyWorkerClasses": ["test-generation", "documentation-truth"],
+  "testBuilderContainedDispatchCompilerRegistered": true,
+  "testBuilderContainedRunnerSourceRegistered": true,
+  "testBuilderContainedCompletionCompilerRegistered": true,
+  "testBuilderZeroIgnoredWorkspaceRequired": true,
+  "testBuilderPhysicalExecutionRegistered": false,
+  "testBuilderAutomaticSchedulingEnabled": false,
   "testBuilderDeterministicValidationRegistered": false,
   "testBuilderCommitOrPublicationRegistered": false,
   "documentationTruthLeaseSourceRegistered": true,
@@ -166,5 +153,5 @@
   "deterministicValidationAuthority": false,
   "publicationAuthority": false,
   "deploymentAuthority": false,
-  "truthBoundary": "The Test Builder source lane now has an exact-bound dispatch compiler, stable two-pass candidate observer and exact-bound pre-validation completion compiler, but physical execution remains separately gated and deterministic validation, commit, push, publication and deployment remain unregistered. The documentation-truth source lane remains physically inactive. A checked-in compiler, verifier or runner is not acceptance."
+  "truthBoundary": "The Test Builder source lane now has contained dispatch, process and completion wrappers that prove zero ignored workspace files alongside exact candidate-content evidence. Physical execution and automatic scheduling remain separately gated; deterministic validation, commit, push, publication and deployment remain unregistered. The documentation-truth source lane remains physically inactive. A checked-in compiler, verifier or runner is not acceptance."
 }
