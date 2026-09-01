@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-documentation-truth-activation-state-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "observedAt": null,
+  "sourceContractsImplemented": true,
+  "leasePlannerImplemented": true,
+  "canonicalLeaseEffectImplemented": true,
+  "dispatchCompilerImplemented": true,
+  "physicalAcceptanceVerifierImplemented": true,
+  "effectfulRunnerImplemented": true,
+  "workerRoutePhysicallyAdmitted": false,
+  "supervisedPhysicalAcceptanceRecorded": false,
+  "capacityStatusAdmitsWorkerClass": false,
+  "normalModelExecutionRegistered": false,
+  "automaticSchedulingEnabled": false,
+  "deterministicValidationIntegrated": false,
+  "publicationIntegrated": false,
+  "paidFallbackAllowed": false,
+  "decision": "SOURCE_READY_PHYSICAL_ADMISSION_REQUIRED",
+  "remainingPrerequisites": [
+    "Run a supervised remote-less fixture through SUCCESS, NO_ACTION, forbidden-path and stale-HEAD cases.",
+    "Seal exact capability, auth, run, audit, validation, cleanup and unchanged-primary evidence into a temporary acceptance receipt.",
+    "Extend the current Spark capacity-status physical admission to documentation-truth using that exact acceptance and concurrency one.",
+    "Only then add documentation-truth to the live worker route and enable bounded scheduling."
+  ],
+  "truthBoundary": "Source code, tests and a verifier do not constitute physical acceptance. Until a fresh supervised receipt and route admission agree, documentation-truth cannot be selected, leased end to end, scheduled or executed in normal operation."
+}
