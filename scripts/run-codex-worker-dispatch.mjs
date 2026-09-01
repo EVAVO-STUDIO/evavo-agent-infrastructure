@@ -108,6 +108,28 @@ const afterStatus = git(["status", "--porcelain=v1", "--untracked-files=all"]);
 
 const stdout = typeof result.stdout === "string" ? result.stdout : "";
 const stderr = typeof result.stderr === "string" ? result.stderr : "";
+const events = [];
+let malformedJsonLines = 0;
+for (const line of stdout.split(/\r?\n/).filter((value) => value.trim())) {
+  try {
+    events.push(JSON.parse(line));
+  } catch {
+    malformedJsonLines += 1;
+  }
+}
+const turnCompleted = [...events].reverse().find((event) => event?.type === "turn.completed") ?? null;
+const agentMessage = [...events].reverse().find((event) => event?.type === "item.completed" && event?.item?.type === "agent_message")?.item?.text ?? null;
+let workerSummary = null;
+if (typeof agentMessage === "string") {
+  try {
+    const parsed = JSON.parse(agentMessage);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) workerSummary = parsed;
+  } catch {
+    // The candidate diff remains authoritative; an unstructured summary is retained only as text evidence.
+  }
+}
+const structuredTurnCompleted = result.status === 0 && Boolean(turnCompleted) && malformedJsonLines === 0;
+
 const hash = (value) => createHash("sha256").update(value, "utf8").digest("hex");
 const retain = (value, maximum) => {
   const encoded = Buffer.from(value, "utf8");
@@ -117,6 +139,7 @@ const retain = (value, maximum) => {
 };
 const stdoutReceipt = retain(stdout, adapter.dispatch.maximumRetainedStdoutBytes ?? 262144);
 const stderrReceipt = retain(stderr, adapter.dispatch.maximumRetainedStderrBytes ?? 131072);
+const agentMessageReceipt = typeof agentMessage === "string" ? retain(agentMessage, 32768) : null;
 
 const receipt = {
   schemaVersion: 1,
@@ -133,7 +156,15 @@ const receipt = {
   error: result.error?.message ?? null,
   stdout: stdoutReceipt,
   stderr: stderrReceipt,
-  modelTurnCompleted: result.status === 0,
+  jsonl: {
+    parsedEvents: events.length,
+    malformedLines: malformedJsonLines,
+    turnCompleted: Boolean(turnCompleted),
+    usage: turnCompleted?.usage ?? null,
+    finalAgentMessage: agentMessageReceipt,
+    parsedWorkerSummary: workerSummary,
+  },
+  modelTurnCompleted: structuredTurnCompleted,
   candidateHeadBefore: beforeHead,
   candidateHeadAfter: afterHead,
   candidateHeadChanged: afterHead !== beforeHead,
@@ -144,8 +175,8 @@ const receipt = {
   paidFallbackUsed: false,
   deterministicValidationPerformed: false,
   publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated in this receipt. A zero exit code is not candidate acceptance, deterministic validation, review, commit, push or publication. Candidate changes must pass Development Studio audit and independent validation next."
+  truthBoundary: "This is the bounded direct Codex process receipt. Completion requires a zero process exit plus a valid structured turn.completed event. Full stdout/stderr are represented by SHA-256 and byte counts and may be truncated. This is not candidate acceptance, deterministic validation, review, commit, push or publication."
 };
 
 console.log(JSON.stringify(receipt, null, 2));
-process.exit(result.status === 0 ? 0 : 1);
+process.exit(structuredTurnCompleted ? 0 : 1);
