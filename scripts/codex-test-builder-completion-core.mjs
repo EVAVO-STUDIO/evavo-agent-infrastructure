@@ -1,0 +1,299 @@
+#!/usr/bin/env node
+
+import { createHash } from "node:crypto";
+
+const OBJECT = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const SHA256 = /^[0-9a-f]{64}$/;
+const RESULT_STATES = new Set(["SUCCESS", "NO_ACTION", "BLOCKED", "NEEDS_DEEP_WORKER", "NEEDS_HUMAN"]);
+const SUMMARY_KEYS = ["resultState", "changedPaths", "assertionsAdded", "assumptions", "followUp"];
+const VALIDATION_CLAIM = /\b(?:tests?|validation|checks?|build|lint|typecheck)\s+(?:all\s+)?(?:passed|succeeded|green|successful)\b/i;
+
+function ordered(value) {
+  if (Array.isArray(value)) return value.map(ordered);
+  if (!OBJECT(value)) return value;
+  return Object.fromEntries(
+    Object.keys(value)
+      .sort((left, right) => left.localeCompare(right))
+      .map((key) => [key, ordered(value[key])]),
+  );
+}
+
+export function canonicalJson(value) {
+  return JSON.stringify(ordered(value));
+}
+
+export function sha256Bytes(value) {
+  const bytes = Buffer.isBuffer(value) ? value : Buffer.from(String(value), "utf8");
+  return createHash("sha256").update(bytes).digest("hex");
+}
+
+function exactBytes(value, fallback) {
+  if (Buffer.isBuffer(value)) return value;
+  if (value instanceof Uint8Array) return Buffer.from(value);
+  return Buffer.from(canonicalJson(fallback), "utf8");
+}
+
+function evidence(value, fallback) {
+  const bytes = exactBytes(value, fallback);
+  if (bytes.length < 2 || bytes.length > 8 * 1024 * 1024) throw new Error("Completion evidence is outside the bounded 8 MiB limit.");
+  return { sha256: sha256Bytes(bytes), byteLength: bytes.length };
+}
+
+function requireObject(value, label) {
+  if (!OBJECT(value)) throw new Error(`${label} must be a JSON object.`);
+  return value;
+}
+
+function requireSha(value, label) {
+  if (typeof value !== "string" || !SHA256.test(value)) throw new Error(`${label} must be an exact lowercase SHA-256 digest.`);
+  return value;
+}
+
+function requireIso(value, label) {
+  if (typeof value !== "string" || !value) throw new Error(`${label} is missing.`);
+  const milliseconds = Date.parse(value);
+  if (!Number.isFinite(milliseconds)) throw new Error(`${label} is invalid.`);
+  return { value: new Date(milliseconds).toISOString(), milliseconds };
+}
+
+function safePath(value) {
+  if (typeof value !== "string" || !value || value.length > 512) throw new Error("Worker changedPaths contains an invalid path.");
+  const normalized = value.replaceAll("\\", "/").replace(/^\.\//, "");
+  if (
+    !normalized ||
+    normalized.startsWith("/") ||
+    /^[A-Za-z]:\//.test(normalized) ||
+    normalized.includes("\0") ||
+    normalized.split("/").some((part) => part === "" || part === "." || part === ".." || part === ".git")
+  ) {
+    throw new Error(`Worker changed path is unsafe: ${value}`);
+  }
+  return normalized;
+}
+
+function escapeRegex(value) {
+  return value.replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+}
+
+function globRegex(pattern) {
+  const normalized = safePath(pattern);
+  let source = "";
+  for (let index = 0; index < normalized.length; index += 1) {
+    const character = normalized[index];
+    if (character === "*") {
+      if (normalized[index + 1] === "*") {
+        source += ".*";
+        index += 1;
+      } else {
+        source += "[^/]*";
+      }
+    } else {
+      source += escapeRegex(character);
+    }
+  }
+  return new RegExp(`^${source}$`);
+}
+
+function matchesAny(pathValue, patterns) {
+  return patterns.some((pattern) => globRegex(pattern).test(pathValue));
+}
+
+function stringArray(value, label, maximumItems = 256) {
+  if (!Array.isArray(value) || value.length > maximumItems || value.some((item) => typeof item !== "string" || item.length > 2048)) {
+    throw new Error(`${label} must be a bounded string array.`);
+  }
+  return value;
+}
+
+function routeEvidence(routePlan, field) {
+  return routePlan[field] ?? routePlan.routeAdmission?.[field] ?? null;
+}
+
+function assertSummary(summary) {
+  requireObject(summary, "Codex worker summary");
+  const keys = Object.keys(summary).sort();
+  const expected = [...SUMMARY_KEYS].sort();
+  if (keys.length !== expected.length || keys.some((key, index) => key !== expected[index])) {
+    throw new Error("Codex worker summary fields differ from the exact Test Builder contract.");
+  }
+  if (!RESULT_STATES.has(summary.resultState)) throw new Error("Codex worker summary resultState is invalid.");
+  for (const field of ["changedPaths", "assertionsAdded", "assumptions", "followUp"]) stringArray(summary[field], `Codex worker summary ${field}`);
+  const claims = [...summary.assertionsAdded, ...summary.assumptions, ...summary.followUp];
+  if (claims.some((value) => VALIDATION_CLAIM.test(value))) {
+    throw new Error("Codex worker summary claimed deterministic validation that the model session did not own.");
+  }
+}
+
+export function compileCodexTestBuilderCompletion({
+  workItem,
+  workItemBytes,
+  routePlan,
+  routePlanBytes,
+  dispatchPlan,
+  dispatchPlanBytes,
+  runReceipt,
+  runReceiptBytes,
+}) {
+  requireObject(workItem, "Leased work item");
+  requireObject(routePlan, "Worker route plan");
+  requireObject(dispatchPlan, "Codex dispatch plan");
+  requireObject(runReceipt, "Codex run receipt");
+
+  if (workItem.lifecycleState !== "LEASED") throw new Error("Test Builder completion requires a leased work item.");
+  if (workItem.workerClass !== "test-generation") throw new Error("Test Builder completion only admits the test-generation worker class.");
+  if (workItem.paidFallbackAllowed !== false) throw new Error("Test Builder work must explicitly forbid paid fallback.");
+  if (typeof workItem.id !== "string" || !workItem.id) throw new Error("Leased work item id is invalid.");
+  if (typeof workItem.repository !== "string" || !workItem.repository) throw new Error("Leased work item repository is invalid.");
+  if (typeof workItem.sourceRevision !== "string" || !/^[0-9a-f]{40}$/.test(workItem.sourceRevision)) {
+    throw new Error("Leased work item sourceRevision is invalid.");
+  }
+  const allowedPatterns = stringArray(workItem.allowedPaths, "Leased work item allowedPaths");
+  if (allowedPatterns.length === 0) throw new Error("Leased Test Builder work requires at least one allowed path.");
+  const forbiddenPatterns = stringArray(workItem.forbiddenPaths ?? [], "Leased work item forbiddenPaths");
+  const requiredValidation = workItem.requiredValidation;
+  if (!Array.isArray(requiredValidation) || requiredValidation.length === 0 || requiredValidation.length > 128) {
+    throw new Error("Leased Test Builder work requires bounded external deterministic validation.");
+  }
+
+  if (routePlan.kind !== "evavo-worker-route-plan-v1" || routePlan.eligible !== true || routePlan.decision !== "DISPATCH_ELIGIBLE") {
+    throw new Error("Worker route plan is not dispatch eligible.");
+  }
+  if (routePlan.routeId !== "codex-spark-pro") throw new Error("Worker route plan is not the admitted Spark route.");
+  if (routePlan.workerClass !== undefined && routePlan.workerClass !== workItem.workerClass) {
+    throw new Error("Worker route plan class differs from the leased work item.");
+  }
+  if (routePlan.paidFallbackUsed !== false) throw new Error("Worker route plan did not preserve zero-paid-fallback truth.");
+
+  if (dispatchPlan.kind !== "evavo-codex-worker-dispatch-plan-v1" || dispatchPlan.eligible !== true) {
+    throw new Error("Codex dispatch plan is not eligible.");
+  }
+  if (dispatchPlan.workItemId !== workItem.id || dispatchPlan.repository !== workItem.repository || dispatchPlan.sourceRevision !== workItem.sourceRevision) {
+    throw new Error("Codex dispatch identity differs from the leased work item.");
+  }
+  if (dispatchPlan.workerClass !== undefined && dispatchPlan.workerClass !== workItem.workerClass) {
+    throw new Error("Codex dispatch worker class differs from the leased work item.");
+  }
+  if (dispatchPlan.publicationAuthority !== false || dispatchPlan.validationAuthority !== false || dispatchPlan.paidFallbackUsed !== false) {
+    throw new Error("Codex dispatch plan exceeds Test Builder authority.");
+  }
+  if (dispatchPlan.maximumConcurrency !== undefined && dispatchPlan.maximumConcurrency !== 1) {
+    throw new Error("Codex dispatch plan exceeds the admitted Spark concurrency.");
+  }
+
+  if (runReceipt.kind !== "evavo-codex-worker-run-v1") throw new Error("Codex run receipt kind is invalid.");
+  if (runReceipt.workItemId !== workItem.id || runReceipt.repository !== workItem.repository || runReceipt.sourceRevision !== workItem.sourceRevision) {
+    throw new Error("Codex run receipt identity differs from the leased work item.");
+  }
+  if (runReceipt.certificationMode === true) throw new Error("Fixture certification receipts cannot complete normal Test Builder work.");
+  if (runReceipt.supervisedPhysicalAcceptanceVerifiedAtStart !== true) {
+    throw new Error("Codex run did not prove supervised physical acceptance at start.");
+  }
+  if (runReceipt.paidFallbackUsed !== false || runReceipt.publicationPerformed !== false || runReceipt.deterministicValidationPerformed !== false) {
+    throw new Error("Codex run receipt exceeds the model-session authority boundary.");
+  }
+  if (runReceipt.modelTurnCompleted !== true || runReceipt.structuredTurnCompleted !== true || Number(runReceipt.exitCode) !== 0) {
+    throw new Error("Codex model turn did not complete with valid structured output.");
+  }
+  if (runReceipt.candidateHeadChanged !== false) throw new Error("Codex worker changed candidate HEAD or committed during its turn.");
+
+  const routeAdmissionSha256 = requireSha(routeEvidence(routePlan, "routeAdmissionSha256"), "Route admission SHA-256");
+  const dispatchRouteAdmissionSha256 = requireSha(dispatchPlan.routeAdmissionSha256, "Dispatch route admission SHA-256");
+  const runRouteAdmissionSha256 = requireSha(runReceipt.routeAdmissionSha256, "Run route admission SHA-256");
+  if (new Set([routeAdmissionSha256, dispatchRouteAdmissionSha256, runRouteAdmissionSha256]).size !== 1) {
+    throw new Error("Route admission identity changed between routing, dispatch and execution.");
+  }
+
+  const supervisedAcceptanceSha256 = requireSha(routeEvidence(routePlan, "supervisedAcceptanceSha256"), "Supervised acceptance SHA-256");
+  const dispatchAcceptanceSha256 = requireSha(dispatchPlan.supervisedAcceptanceSha256, "Dispatch supervised acceptance SHA-256");
+  const runAcceptanceSha256 = requireSha(runReceipt.supervisedAcceptanceSha256, "Run supervised acceptance SHA-256");
+  if (new Set([supervisedAcceptanceSha256, dispatchAcceptanceSha256, runAcceptanceSha256]).size !== 1) {
+    throw new Error("Supervised acceptance identity changed between routing, dispatch and execution.");
+  }
+
+  const capabilityReceiptSha256 = requireSha(routeEvidence(routePlan, "capabilityReceiptSha256"), "Capability receipt SHA-256");
+  const dispatchCapabilitySha256 = requireSha(dispatchPlan.capabilityReceiptSha256, "Dispatch capability receipt SHA-256");
+  const runCapabilitySha256 = requireSha(runReceipt.capabilityReceiptSha256, "Run capability receipt SHA-256");
+  if (new Set([capabilityReceiptSha256, dispatchCapabilitySha256, runCapabilitySha256]).size !== 1) {
+    throw new Error("Codex capability identity changed between routing, dispatch and execution.");
+  }
+
+  const admissionExpiry = requireIso(
+    routePlan.routeAdmissionExpiresAt ?? routePlan.routeAdmission?.expiresAt ?? dispatchPlan.routeAdmissionExpiresAt,
+    "Route admission expiry",
+  );
+  const startedAt = requireIso(runReceipt.startedAt, "Codex run start timestamp");
+  const finishedAt = requireIso(runReceipt.finishedAt, "Codex run finish timestamp");
+  if (startedAt.milliseconds > admissionExpiry.milliseconds) throw new Error("Codex run began after route admission expired.");
+  if (finishedAt.milliseconds < startedAt.milliseconds) throw new Error("Codex run completion precedes its start.");
+
+  const summary = runReceipt.jsonl?.parsedWorkerSummary;
+  assertSummary(summary);
+  const changedPaths = [...new Set(summary.changedPaths.map(safePath))].sort();
+  for (const changedPath of changedPaths) {
+    if (!matchesAny(changedPath, allowedPatterns)) throw new Error(`Worker changed path is outside the admitted allowlist: ${changedPath}`);
+    if (matchesAny(changedPath, forbiddenPatterns)) throw new Error(`Worker changed path matches a forbidden path: ${changedPath}`);
+  }
+
+  if (summary.resultState === "SUCCESS") {
+    if (changedPaths.length === 0) throw new Error("SUCCESS requires at least one admitted changed path.");
+    if (runReceipt.candidateDirtyAfter !== true) throw new Error("SUCCESS requires observable uncommitted candidate changes.");
+  } else {
+    if (changedPaths.length !== 0) throw new Error(`${summary.resultState} may not retain worker-authored changed paths.`);
+    if (runReceipt.candidateDirtyAfter !== false) throw new Error(`${summary.resultState} requires a clean candidate after the turn.`);
+  }
+
+  const state = summary.resultState === "SUCCESS"
+    ? "READY_FOR_DETERMINISTIC_VALIDATION"
+    : summary.resultState === "NO_ACTION"
+      ? "NO_ACTION_REVIEW"
+      : summary.resultState;
+  const workerSummarySha256 = sha256Bytes(Buffer.from(canonicalJson(summary), "utf8"));
+  const completionBody = {
+    schemaVersion: 1,
+    kind: "evavo-codex-test-builder-completion-v1",
+    workItemId: workItem.id,
+    workerId: runReceipt.workerId,
+    repository: workItem.repository,
+    sourceRevision: workItem.sourceRevision,
+    workerClass: workItem.workerClass,
+    routeId: "codex-spark-pro",
+    resultState: summary.resultState,
+    lifecycleState: state,
+    changedPaths,
+    assertionsAdded: [...summary.assertionsAdded],
+    assumptions: [...summary.assumptions],
+    followUp: [...summary.followUp],
+    workerSummarySha256,
+    routeAdmissionSha256,
+    supervisedAcceptanceSha256,
+    capabilityReceiptSha256,
+    routeAdmissionExpiresAt: admissionExpiry.value,
+    modelTurnStartedAt: startedAt.value,
+    modelTurnFinishedAt: finishedAt.value,
+    validationRequired: summary.resultState === "SUCCESS",
+    requiredValidationCount: requiredValidation.length,
+    deterministicValidationPerformed: false,
+    deterministicValidationPassed: false,
+    modelSessionMayClaimValidation: false,
+    candidateHeadChanged: false,
+    workerCommitPerformed: false,
+    paidFallbackUsed: false,
+    publicationPerformed: false,
+    evidence: {
+      workItem: evidence(workItemBytes, workItem),
+      routePlan: evidence(routePlanBytes, routePlan),
+      dispatchPlan: evidence(dispatchPlanBytes, dispatchPlan),
+      runReceipt: evidence(runReceiptBytes, runReceipt),
+    },
+    physicalPathsReturned: false,
+    credentialValuesReturned: false,
+    repositoryMutationAuthorityGrantedByCompletion: false,
+    validationAuthorityGrantedByCompletion: false,
+    publicationAuthority: false,
+    truthBoundary: "This receipt proves continuity from one leased Test Builder work item through a short-lived Spark route admission, dispatch plan and completed structured model turn. SUCCESS means only that bounded uncommitted candidate changes are ready for external deterministic validation; it never means tests passed, approval was granted, Git was mutated or publication occurred.",
+  };
+  return {
+    ...completionBody,
+    completionSha256: sha256Bytes(Buffer.from(canonicalJson(completionBody), "utf8")),
+  };
+}
