@@ -30,6 +30,20 @@
       "network": "disabled",
       "timeoutSeconds": 60,
       "description": "Inspect the installed Codex CLI version and exec help, proving supported structured-output, model-selection, sandbox and approval controls without authentication mutation, model inference or repository effects."
+    },
+    "codex-chatgpt-auth-policy-probe": {
+      "runtime": "node-script",
+      "entry": "scripts/probe-codex-chatgpt-auth-policy.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "description": "Inspect only Codex config/requirements policy to prove ChatGPT-only login enforcement without reading credentials, API keys or starting a model turn."
+    },
+    "codex-chatgpt-auth-policy-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-chatgpt-auth-policy.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify ChatGPT-only Codex policy detection and rejection of API/mixed/unconfigured login policies using temporary fixtures only."
     }
   }
 }
