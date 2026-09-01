@@ -44,6 +44,13 @@
       "network": "disabled",
       "timeoutSeconds": 300,
       "description": "Certify ChatGPT-only Codex policy detection and rejection of API/mixed/unconfigured login policies using temporary fixtures only."
+    },
+    "codex-spark-safe-certification-contract-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-spark-safe-certification-contract.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Verify the fail-closed physical-certification supervisor and prove raw/supervised effectful Spark entrypoints remain absent from the routine worker task manifest. Does not start Codex or a model turn."
     }
   }
 }
