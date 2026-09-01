@@ -43,13 +43,22 @@ for (const id of requiredCapabilityIds) requireValue(ids.includes(id), `Required
 requireValue(manifest.brain?.consult === true, "brain.consult must be true.");
 requireValue(manifest.brain?.sanityCheck === true, "brain.sanityCheck must be true.");
 requireValue(Array.isArray(manifest.brain?.topics) && manifest.brain.topics.length > 0, "brain.topics must be non-empty.");
+requireValue(manifest.brain?.topics?.includes("ignored workspace containment") === true, "Brain topics must expose ignored-workspace containment.");
 requireValue(typeof manifest.reviewedAt === "string" && Number.isFinite(Date.parse(manifest.reviewedAt)), "reviewedAt must be a valid ISO-8601 timestamp.");
 requireValue(!credentialPattern.test(fs.readFileSync("evavo.capabilities.json", "utf8")), "Capability manifest contains credential-like material.");
 
 const testBuilder = manifest.capabilities?.find((entry) => entry.id === "agent.codex.test-builder");
+const containedEntrypoints = [
+  "scripts/compile-codex-worker-dispatch-contained.mjs",
+  "scripts/run-codex-worker-dispatch-contained.mjs",
+  "scripts/compile-codex-test-builder-completion-contained.mjs",
+];
 requireValue(testBuilder?.effects?.includes("execute") === true && testBuilder?.effects?.includes("write") === true, "Test Builder must truthfully declare execute and write effects.");
-requireValue(testBuilder?.description?.includes("no publication") === true, "Test Builder description must preserve the no-publication boundary.");
+requireValue(JSON.stringify(testBuilder?.entrypoints) === JSON.stringify(containedEntrypoints), "Test Builder must expose exactly the contained dispatch, run and completion lifecycle.");
+requireValue(/publication.*(?:forbidden|not granted)|no publication/i.test(testBuilder?.description ?? ""), "Test Builder description must preserve the no-publication boundary.");
+requireValue(testBuilder?.requires?.some((value) => value.includes("Zero ignored files")) === true, "Test Builder must require zero ignored workspace files.");
 requireValue(testBuilder?.requires?.some((value) => value.includes("External deterministic validation")) === true, "Test Builder must require independent deterministic validation.");
+requireValue(testBuilder?.tags?.includes("ignored-workspace-containment") === true, "Test Builder must advertise ignored-workspace containment.");
 
 if (errors.length) {
   console.error("EVAVO capability manifest check failed:\n");
@@ -59,5 +68,6 @@ if (errors.length) {
 
 console.log("EVAVO capability manifest check passed.");
 console.log("- Brain can discover Agent Infrastructure from a strict repository manifest");
+console.log("- Test Builder exposes only the contained zero-ignored dispatch, run and completion lifecycle");
 console.log("- effectful Test Builder capability is declared without publication or financial authority");
 console.log("- capability, Windows, Spark, relay and GitHub-estate routing surfaces are explicit");
