@@ -22,7 +22,7 @@
       "entry": "scripts/test-codex-worker-runner-safety.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Prove the effectful Codex worker runner remains disabled without both explicit runtime and physical-profile acceptance gates. Does not require Codex or start a model turn."
+      "description": "Prove normal Codex Spark execution remains disabled without an explicit runtime gate and a supervised physical-acceptance envelope verified against the same fresh capability receipt. Certification remains fixture-only. Does not require Codex or start a model turn."
     },
     "codex-worker-capability-probe": {
       "runtime": "node-script",
@@ -50,7 +50,14 @@
       "entry": "scripts/test-codex-spark-safe-certification-contract.mjs",
       "network": "disabled",
       "timeoutSeconds": 300,
-      "description": "Verify the fail-closed physical-certification supervisor and prove raw/supervised effectful Spark entrypoints remain absent from the routine worker task manifest. Does not start Codex or a model turn."
+      "description": "Verify the fail-closed physical-certification supervisor, supervised-envelope binding and absence of raw/supervised effectful Spark entrypoints from the routine worker task manifest. Does not start Codex or a model turn."
+    },
+    "codex-spark-supervised-acceptance-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-spark-safe-physical-acceptance.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Verify supervised Spark physical-acceptance envelopes, nested acceptance digests and post-cleanup truth using synthetic receipts only. Raw acceptance, tampered digests and missing cleanup evidence must fail closed."
     }
   }
 }
