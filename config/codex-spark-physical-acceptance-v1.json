@@ -22,6 +22,7 @@
   ],
   "requiredEvidence": [
     "fresh-codex-capability-probe",
+    "chatgpt-auth-policy-probe",
     "fixture-work-item",
     "isolated-candidate-receipt",
     "codex-run-receipt",
@@ -36,6 +37,7 @@
     "modelTurnCompleted": true,
     "structuredTurnCompleted": true,
     "authenticationClass": "chatgpt-consumer",
+    "authPolicyAccepted": true,
     "apiKeyEnvironmentAbsent": true,
     "paidFallbackUsed": false,
     "candidateAuditAccepted": true,
