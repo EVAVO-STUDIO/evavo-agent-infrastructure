@@ -31,6 +31,13 @@
       "timeoutSeconds": 300,
       "description": "Create a disposable local Git fixture and independently observe exact tracked patch bytes, tracked and untracked file content, index identity, staged state and unmerged state in two stable passes. Same-path byte drift, links, dirty-state drift and worker-authored HEAD movement fail closed without Codex or a model turn."
     },
+    "codex-ignored-workspace-boundary-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-codex-ignored-workspace-boundary.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Create a disposable Git fixture with ignored paths and certify the contained dispatch, process and completion boundary. Zero ignored files are required before and after the model boundary; ignored path names and file contents are never returned. Does not start Codex or a model turn."
+    },
     "codex-worker-dispatch-binding-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-codex-worker-dispatch-binding.mjs",
