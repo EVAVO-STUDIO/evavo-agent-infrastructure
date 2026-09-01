@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-effective-route-authority-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "canonicalPlanner": "scripts/plan-codex-spark-effective-route-v2.mjs",
+  "canonicalPlannerSchemaVersion": 2,
+  "requiredCapacityKind": "evavo-worker-capacity-status-v1",
+  "requiredCapacityAssembler": "scripts/assemble-codex-spark-effective-capacity.mjs",
+  "rawCapacityCompiler": "scripts/compile-codex-spark-raw-capacity-observation.mjs",
+  "supersededPlanners": [
+    "scripts/plan-codex-spark-effective-route.mjs"
+  ],
+  "genericPlannerMayAuthorizeSparkDirectly": false,
+  "rawCapacityMayAuthorizeSparkDirectly": false,
+  "capabilityProbeMayAuthorizeSparkDirectly": false,
+  "authenticationProbeMayAuthorizeSparkDirectly": false,
+  "physicalAcceptanceMayAuthorizeSparkDirectly": false,
+  "initialWorkerClasses": [
+    "test-generation"
+  ],
+  "initialMaximumConcurrency": 1,
+  "paidFallbackAllowed": false,
+  "rule": "Spark dispatch planning must use the schema-v2 canonical planner over one fresh assembled effective-capacity receipt. Superseded or generic planners, raw observations and individual probes are not dispatch authority."
+}
