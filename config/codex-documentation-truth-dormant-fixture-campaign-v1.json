@@ -1,0 +1,85 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-documentation-truth-dormant-fixture-campaign-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "purpose": "Physically exercise documentation-truth success and NO_ACTION with Codex in a remote-less fixture repository, then prove deterministic forbidden-path and stale-head rejection without touching product repositories.",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "authenticationClass": "chatgpt-consumer",
+  "workerClass": "documentation-truth",
+  "workClass": "capability-manifest-maintenance",
+  "sandboxMode": "workspace-write",
+  "approvalPolicy": "never",
+  "allowedManifestPaths": [
+    "evavo.capabilities.json",
+    ".evavo/capabilities.json"
+  ],
+  "maximumChangedFiles": 1,
+  "maximumChangedLines": 600,
+  "maximumScenarioSeconds": 1200,
+  "maximumCampaignSeconds": 3600,
+  "maximumRetainedStdoutBytes": 262144,
+  "maximumRetainedStderrBytes": 131072,
+  "requiredScenarios": [
+    "validated-success",
+    "validated-no-action",
+    "forbidden-path-rejection",
+    "stale-head-rejection"
+  ],
+  "modelScenarios": [
+    "validated-success",
+    "validated-no-action"
+  ],
+  "deterministicRejectionScenarios": [
+    "forbidden-path-rejection",
+    "stale-head-rejection"
+  ],
+  "requiredSourceBinding": {
+    "designSha256": true,
+    "agentInfrastructureMainSha": true,
+    "localStorageMainSha": true,
+    "freshCodexCapabilityBytes": true,
+    "currentAdapterBytes": true
+  },
+  "supervision": {
+    "fixtureOnly": true,
+    "fixtureRepositoryRemoteCount": 0,
+    "fixtureMainMustRemainUnchanged": true,
+    "primaryCheckoutMustRemainClean": true,
+    "candidateCleanupRequired": true,
+    "registeredWorktreesAfterCleanup": 1,
+    "normalRouteMutationAllowed": false,
+    "workerCommitAllowed": false,
+    "productRepositoryTouchAllowed": false
+  },
+  "environment": {
+    "explicitEnableVariable": "EVAVO_DOCUMENTATION_TRUTH_FIXTURE_CAMPAIGN_ENABLED",
+    "requiredEnableValue": "1",
+    "apiKeyAndProviderVariablesRemoved": [
+      "OPENAI_API_KEY",
+      "OPENAI_ORG_ID",
+      "OPENAI_ORGANIZATION",
+      "OPENAI_PROJECT_ID",
+      "OPENAI_PROJECT",
+      "OPENAI_BASE_URL",
+      "OPENAI_API_BASE",
+      "CODEX_API_KEY",
+      "AZURE_OPENAI_API_KEY",
+      "AZURE_OPENAI_ENDPOINT"
+    ]
+  },
+  "authority": {
+    "productRepositoryMutation": false,
+    "workerCommit": false,
+    "push": false,
+    "publication": false,
+    "deployment": false,
+    "queueMutation": false,
+    "lease": false,
+    "normalRouteActivation": false,
+    "financial": false,
+    "paidFallback": false
+  },
+  "rule": "The campaign may mutate and delete only its newly created remote-less fixture repository and external evidence directory. It must leave all product repositories and normal route configuration unchanged, strip provider/API override variables, commit nothing after the fixture base and retain no candidate worktree after cleanup."
+}
