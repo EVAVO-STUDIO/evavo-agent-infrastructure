@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "evavo-autonomous-spark-task-registry-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Expose reviewed Spark capacity observation, admission, routing and Codex dispatch contracts without granting repository scope, queue mutation, validation or publication authority.",
+  "purpose": "Expose reviewed Spark capacity, route-bound lease and documentation-truth source contracts while keeping physical worker admission, scheduling, deterministic validation and publication separate.",
   "tasks": {
     "spark-capacity-source-contract-suite": {
       "runtime": "node-script",
@@ -25,12 +25,7 @@
       "network": "disabled",
       "timeoutSeconds": 180,
       "effect": "read-only-compiler",
-      "arguments": [
-        "capacityObservationPath",
-        "codexCapabilityPath",
-        "chatgptAuthPolicyPath",
-        "optionalSupervisedAcceptancePath"
-      ]
+      "arguments": ["capacityObservationPath", "codexCapabilityPath", "chatgptAuthPolicyPath", "optionalSupervisedAcceptancePath"]
     },
     "spark-admitted-route-plan": {
       "runtime": "node-script",
@@ -53,12 +48,69 @@
       "network": "disabled",
       "timeoutSeconds": 60,
       "effect": "read-only-probe"
+    },
+    "autonomous-work-exchange-lease-plan-v2": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-autonomous-work-exchange-lease-plan.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "effect": "read-only-planner"
+    },
+    "autonomous-work-exchange-lease-runner-v2": {
+      "runtime": "node-script",
+      "entry": "scripts/run-autonomous-work-exchange-lease.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 180,
+      "effect": "canonical-local-storage-lease"
+    },
+    "documentation-truth-dispatch-compile": {
+      "runtime": "node-script",
+      "entry": "scripts/compile-codex-documentation-truth-dispatch.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-compiler"
+    },
+    "documentation-truth-physical-acceptance-verify": {
+      "runtime": "node-script",
+      "entry": "scripts/verify-codex-documentation-truth-physical-acceptance.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 120,
+      "effect": "read-only-verifier"
+    },
+    "documentation-truth-run": {
+      "runtime": "node-script",
+      "entry": "scripts/run-codex-documentation-truth-dispatch.mjs",
+      "network": "disabled-by-worker-contract",
+      "timeoutSeconds": 1200,
+      "effect": "guarded-candidate-worktree-model-run",
+      "routineSchedulingAllowed": false,
+      "requiresDedicatedPhysicalAcceptance": true
+    },
+    "documentation-truth-contract-suite": {
+      "runtime": "node-script",
+      "entry": "scripts/check-autonomous-work-exchange-lease-contract.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 900,
+      "effect": "read-only-tests"
     }
   },
   "physicalCodexExecutionRegistered": false,
   "normalSparkExecutionRequiresSupervisedPhysicalAcceptance": true,
   "initialWorkerClasses": ["test-generation"],
+  "sourceReadyWorkerClasses": ["documentation-truth"],
+  "documentationTruthLeaseSourceRegistered": true,
+  "documentationTruthDispatchCompilerRegistered": true,
+  "documentationTruthPhysicalAcceptanceVerifierRegistered": true,
+  "documentationTruthRunnerSourceRegistered": true,
+  "documentationTruthWorkerRoutePhysicallyAdmitted": false,
+  "documentationTruthSupervisedPhysicalAcceptanceRecorded": false,
+  "documentationTruthCapacityStatusAdmitted": false,
+  "documentationTruthNormalExecutionRegistered": false,
+  "documentationTruthAutomaticSchedulingEnabled": false,
   "initialMaximumConcurrency": 1,
   "paidFallbackAllowed": false,
-  "publicationAuthority": false
+  "deterministicValidationAuthority": false,
+  "publicationAuthority": false,
+  "deploymentAuthority": false,
+  "truthBoundary": "The documentation-truth source lane is complete but remains physically inactive. A checked-in compiler, verifier or runner is not acceptance. Normal execution requires fresh supervised fixture evidence, exact route admission, a route-bound lease and explicit execution enablement."
 }
