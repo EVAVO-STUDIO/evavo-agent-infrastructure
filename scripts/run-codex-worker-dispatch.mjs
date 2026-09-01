@@ -17,10 +17,13 @@ for (const [file, label] of [[dispatchResolved, "dispatch plan"], [capabilityRes
   const stat = fs.lstatSync(file);
   if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file.`);
 }
-const plan = JSON.parse(fs.readFileSync(dispatchResolved, "utf8"));
-const capability = JSON.parse(fs.readFileSync(capabilityResolved, "utf8"));
+const planBytes = fs.readFileSync(dispatchResolved);
+const capabilityBytes = fs.readFileSync(capabilityResolved);
+const plan = JSON.parse(planBytes.toString("utf8"));
+const capability = JSON.parse(capabilityBytes.toString("utf8"));
 const adapter = JSON.parse(fs.readFileSync("config/codex-worker-adapter-v1.json", "utf8"));
 const errors = [];
+const sha256Bytes = (value) => createHash("sha256").update(value).digest("hex");
 const executionEnabled = process.env.EVAVO_CODEX_SPARK_EXECUTION_ENABLED === "1";
 const legacyProfileFlagPresent = process.env.EVAVO_CODEX_SPARK_PROFILE_ACCEPTED === "1";
 const certificationMode = process.env.EVAVO_CODEX_SPARK_CERTIFICATION_MODE === "1";
@@ -28,6 +31,7 @@ const chatgptAuthPolicyAccepted = process.env.EVAVO_CODEX_CHATGPT_AUTH_POLICY_AC
 const acceptanceReceiptInput = process.env.EVAVO_CODEX_SPARK_ACCEPTANCE_RECEIPT ?? "";
 let acceptanceVerification = null;
 let acceptanceReceiptResolved = null;
+let acceptanceReceiptSha256 = null;
 
 if (!executionEnabled) errors.push("EVAVO_CODEX_SPARK_EXECUTION_ENABLED=1 is required for a model turn.");
 if (certificationMode) {
@@ -38,6 +42,11 @@ if (certificationMode) {
 }
 if (plan.kind !== "evavo-codex-worker-dispatch-plan-v1" || plan.eligible !== true) errors.push("Dispatch plan is not eligible.");
 if (plan.executable !== adapter.executable) errors.push("Dispatch executable differs from the admitted adapter.");
+if (plan.routeId !== "codex-spark-pro" || plan.modelPreference !== adapter.spark.preferredModel) errors.push("Dispatch route/model differs from the admitted Spark adapter.");
+if (plan.workerClass !== "test-generation") errors.push("Initial Spark runtime admits only test-generation.");
+if (plan.physicalAdmissionRequired !== true || plan.physicalAdmissionVerifiedAtCompile !== true) errors.push("Dispatch plan was not compiled from a physically admitted Spark route.");
+if (!/^[0-9a-f]{64}$/.test(String(plan.physicalAdmissionSha256 ?? ""))) errors.push("Dispatch plan lacks a valid physical admission digest.");
+if (plan.maximumAutomaticConcurrency !== 1) errors.push("Initial Spark runtime concurrency must remain exactly one.");
 if (plan.publicationAuthority !== false || plan.validationAuthority !== false) errors.push("Dispatch plan exceeds worker authority.");
 if (plan.paidFallbackUsed !== false) errors.push("Paid fallback is forbidden.");
 if (plan.sandboxMode !== adapter.dispatch.sandboxMode) errors.push("Sandbox mode mismatch.");
@@ -45,6 +54,7 @@ if (plan.approvalPolicy !== adapter.dispatch.approvalPolicy) errors.push("Approv
 if (capability.kind !== "evavo-codex-worker-capability-probe-v1" || capability.eligibleForWorkerDispatch !== true) errors.push("Fresh eligible Codex capability receipt is required.");
 const observedAt = Date.parse(capability.observedAt ?? "");
 if (!Number.isFinite(observedAt) || Date.now() - observedAt > 10 * 60_000 || observedAt - Date.now() > 120_000) errors.push("Codex capability receipt is stale or future-dated.");
+if (plan.capabilityObservedAt !== capability.observedAt) errors.push("Dispatch plan was compiled against a different Codex capability receipt timestamp.");
 for (const key of ["jsonFlag", "modelFlag", "sandboxFlag", "approvalFlag"]) if (!capability.capabilities?.[key]) errors.push(`Codex capability receipt lacks ${key}.`);
 if (!Array.isArray(plan.argv) || plan.argv.length < 8 || plan.argv[0] !== "exec" || plan.argv.at(-1) !== "-") errors.push("Dispatch argv shape is invalid.");
 if (typeof plan.stdinPrompt !== "string" || !plan.stdinPrompt.trim()) errors.push("Dispatch prompt is missing.");
@@ -54,6 +64,11 @@ if (!certificationMode && acceptanceReceiptInput) {
     acceptanceReceiptResolved = fs.realpathSync.native(path.resolve(acceptanceReceiptInput));
     const acceptanceStat = fs.lstatSync(acceptanceReceiptResolved);
     if (!acceptanceStat.isFile() || acceptanceStat.isSymbolicLink()) throw new Error("Supervised physical acceptance must be a regular non-symlink file.");
+    const acceptanceBytes = fs.readFileSync(acceptanceReceiptResolved);
+    acceptanceReceiptSha256 = sha256Bytes(acceptanceBytes);
+    if (acceptanceReceiptSha256 !== plan.physicalAdmissionSha256) {
+      throw new Error("Supervised physical acceptance digest does not match the admission selected during route planning.");
+    }
     const verifierPath = fs.realpathSync.native(path.resolve("scripts/verify-codex-spark-safe-physical-acceptance.mjs"));
     const verifierStat = fs.lstatSync(verifierPath);
     if (!verifierStat.isFile() || verifierStat.isSymbolicLink()) throw new Error("Supervised physical acceptance verifier must be a regular non-symlink file.");
@@ -64,14 +79,22 @@ if (!certificationMode && acceptanceReceiptInput) {
     try {
       verification = JSON.parse(String(verificationProcess.stdout ?? "").trim());
     } catch {
-      throw new Error(`Supervised physical acceptance verifier did not return valid JSON: ${String(verificationProcess.stderr ?? "").trim().slice(0, 2048)}`);
+      throw new Error("Supervised physical acceptance verifier did not return valid JSON.");
     }
     if (verificationProcess.status !== 0 || verification.accepted !== true) {
-      const detail = Array.isArray(verification.errors) ? verification.errors.join("; ") : "verification rejected";
-      throw new Error(`Supervised physical acceptance verification failed: ${detail}`);
+      throw new Error("Supervised physical acceptance verification failed.");
     }
-    if (verification.supervisedCleanupProven !== true || verification.routeId !== "codex-spark-pro" || verification.paidFallbackAllowed !== false || verification.maximumConcurrency < 1 || !Array.isArray(verification.workerClasses) || !verification.workerClasses.includes("test-generation")) {
-      throw new Error("Supervised physical acceptance does not admit the required zero-paid-fallback Test Builder route.");
+    if (
+      verification.supervisedCleanupProven !== true ||
+      verification.routeId !== "codex-spark-pro" ||
+      verification.modelPreference !== plan.modelPreference ||
+      verification.paidFallbackAllowed !== false ||
+      verification.maximumConcurrency !== 1 ||
+      !Array.isArray(verification.workerClasses) ||
+      verification.workerClasses.length !== 1 ||
+      verification.workerClasses[0] !== "test-generation"
+    ) {
+      throw new Error("Supervised physical acceptance no longer admits the exact Test Builder route/class/concurrency compiled into this dispatch.");
     }
     acceptanceVerification = verification;
   } catch (error) {
@@ -148,16 +171,17 @@ const stderrReceipt = retain(stderr, adapter.dispatch.maximumRetainedStderrBytes
 const agentMessageReceipt = typeof agentMessage === "string" ? retain(agentMessage, 32768) : null;
 
 const receipt = {
-  schemaVersion: 1, kind: "evavo-codex-worker-run-v1", routeId: "codex-spark-pro", workItemId: plan.workItemId, workerId: plan.workerId, repository: plan.repository, sourceRevision: plan.sourceRevision,
+  schemaVersion: 1, kind: "evavo-codex-worker-run-v1", routeId: "codex-spark-pro", workItemId: plan.workItemId, workerId: plan.workerId, workerClass: "test-generation", repository: plan.repository, sourceRevision: plan.sourceRevision,
   fixtureOnly: plan.fixtureOnly === true, certificationMode, legacyProfileFlagPresentAtStart: legacyProfileFlagPresent,
-  supervisedPhysicalAcceptanceVerifiedAtStart: profileAccepted, supervisedPhysicalAcceptanceRouteId: acceptanceVerification?.routeId ?? null, supervisedPhysicalAcceptanceWorkerClasses: acceptanceVerification?.workerClasses ?? [],
+  dispatchPlanSha256: sha256Bytes(planBytes), capabilityReceiptSha256: sha256Bytes(capabilityBytes), physicalAdmissionSha256: plan.physicalAdmissionSha256,
+  supervisedPhysicalAcceptanceVerifiedAtStart: profileAccepted, supervisedPhysicalAcceptanceSha256: acceptanceReceiptSha256, supervisedPhysicalAcceptanceRouteId: acceptanceVerification?.routeId ?? null, supervisedPhysicalAcceptanceWorkerClasses: acceptanceVerification?.workerClasses ?? [], supervisedPhysicalAcceptanceMaximumConcurrency: acceptanceVerification?.maximumConcurrency ?? null,
   chatgptAuthPolicyGateAtStart: certificationMode ? chatgptAuthPolicyAccepted : null, startedAt, finishedAt, exitCode: result.status, signal: result.signal ?? null, error: result.error?.message ?? null,
   stdout: stdoutReceipt, stderr: stderrReceipt,
   jsonl: { parsedEvents: events.length, malformedLines: malformedJsonLines, turnCompleted: Boolean(turnCompleted), usage: turnCompleted?.usage ?? null, finalAgentMessage: agentMessageReceipt, parsedWorkerSummary: workerSummary },
   modelTurnCompleted: structuredTurnCompleted, structuredTurnCompleted, candidateHeadBefore: beforeHead, candidateHeadAfter: afterHead, candidateHeadChanged: afterHead !== beforeHead, candidateDirtyAfter: Boolean(afterStatus),
   apiKeyOrProviderEnvironmentRemoved: removedEnvironment, apiKeyEnvironmentSanitized: environmentSanitized, sanitizedEnvironmentNames, sandboxMode: plan.sandboxMode, approvalPolicy: plan.approvalPolicy,
   paidFallbackUsed: false, deterministicValidationPerformed: false, publicationPerformed: false,
-  truthBoundary: "This is the bounded direct Codex process receipt. Normal execution requires the runner itself to verify a supervised physical-acceptance envelope against the same fresh capability receipt; a raw pre-cleanup acceptance or the legacy PROFILE_ACCEPTED boolean is not authority. Certification mode can precede acceptance only for an explicit fixtureOnly plan with a positive ChatGPT-auth-policy gate. Provider/API override and outer authorization variables are removed before spawning Codex."
+  truthBoundary: "This bounded Codex process can start only after runtime recomputes the exact supervised acceptance digest selected by route planning and re-verifies that envelope against the same fresh capability receipt. Initial authority is test-generation at concurrency one only. Certification mode remains fixture-only. Provider/API overrides and outer authorization variables are removed before Codex."
 };
 console.log(JSON.stringify(receipt, null, 2));
 process.exit(structuredTurnCompleted ? 0 : 1);
