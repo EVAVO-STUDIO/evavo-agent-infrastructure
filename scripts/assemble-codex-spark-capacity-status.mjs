@@ -52,7 +52,7 @@ function safeError(value) {
   let text = String(value ?? "capacity status assembly failed");
   text = text.replace(/\b[A-Za-z]:[\\/][^\r\n]*/g, "<windows-path>");
   text = text.replace(/(?<![A-Za-z0-9])\/(?:[^\s/:]+\/)+[^\s:]*/g, "<path>");
-  text = text.replace(/(?i:token|secret|password|authorization|credential)\s*[:=]\s*[^\s;]+/g, "credential=<redacted>");
+  text = text.replace(/\b(?:token|secret|password|authorization|credential)\s*[:=]\s*[^\s;]+/gi, "credential=<redacted>");
   return text.slice(0, 1000);
 }
 
@@ -88,6 +88,12 @@ try {
   }
   if (verification?.kind !== "evavo-codex-spark-safe-physical-acceptance-verification-v1") {
     throw new Error("Supervised acceptance verifier returned an unexpected receipt kind.");
+  }
+  if (typeof verification.accepted !== "boolean") {
+    throw new Error("Supervised acceptance verifier omitted its boolean accepted decision.");
+  }
+  if ((verifier.status === 0) !== verification.accepted) {
+    throw new Error("Supervised acceptance verifier exit status contradicts its accepted decision.");
   }
 
   const nowInput = args.get("--now");
