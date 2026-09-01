@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-effective-capacity-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "paidFallbackAllowed": false,
+  "eligibleEffectiveStates": [
+    "AVAILABLE",
+    "DEGRADED"
+  ],
+  "nonEligibleEffectiveStates": [
+    "RATE_LIMITED",
+    "EXHAUSTED",
+    "AUTH_REQUIRED",
+    "OFFLINE",
+    "UNKNOWN"
+  ],
+  "rawCapacityStates": [
+    "AVAILABLE",
+    "DEGRADED",
+    "RATE_LIMITED",
+    "EXHAUSTED",
+    "AUTH_REQUIRED",
+    "OFFLINE",
+    "UNKNOWN"
+  ],
+  "maximumAgeSeconds": {
+    "rawCapacityObservation": 600,
+    "codexCapabilityProbe": 600,
+    "chatgptAuthenticationProbe": 600,
+    "physicalAcceptanceVerification": 600,
+    "routeAdmission": 600
+  },
+  "initialAdmission": {
+    "workerClasses": [
+      "test-generation"
+    ],
+    "maximumConcurrency": 1
+  },
+  "requiredBindings": [
+    "routeId",
+    "modelPreference",
+    "capacityClass",
+    "supervisedAcceptanceSha256",
+    "codexCapabilityReceiptSha256",
+    "physicalAcceptanceVerificationSha256"
+  ],
+  "rules": {
+    "transportAvailabilityIsNotCapacity": true,
+    "authenticationIsNotCapacity": true,
+    "physicalAcceptanceIsNotCapacity": true,
+    "rawCapacityCannotGrantUnadmittedWorkerClasses": true,
+    "rawCapacityCannotRaiseConcurrency": true,
+    "rawRateLimitOrExhaustionMustBePreserved": true,
+    "unknownOrStaleEvidenceFailsClosed": true,
+    "paidFallbackCanNeverBeInferred": true,
+    "effectiveAvailabilityRequiresEveryIndependentLayer": true
+  },
+  "truthBoundary": "This policy combines independently observed Codex transport, ChatGPT authentication, raw Spark capacity, supervised physical acceptance and short-lived route admission. No one layer may be treated as evidence for another, and AVAILABLE is emitted only when every required layer is fresh, mutually bound and affirmative."
+}
