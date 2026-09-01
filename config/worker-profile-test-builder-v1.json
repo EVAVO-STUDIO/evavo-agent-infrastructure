@@ -34,28 +34,41 @@
     "workflowMutationDefault": false,
     "creativeAssetMutation": false,
     "ownerAuthoredCopyMutation": false,
-    "gitMetadataMutation": false
+    "gitMetadataMutation": false,
+    "workerMayStage": false,
+    "workerMayCommit": false,
+    "workerMayPush": false
   },
   "instructions": [
     "Inspect the supplied implementation and existing tests only within the admitted context.",
     "Add the smallest meaningful regression, boundary, failure-path or state-transition coverage that materially improves confidence.",
     "Do not create tautological tests, snapshot churn, implementation-copy tests or assertions that merely restate constants.",
     "Do not change production behavior to make the new test pass unless the work item explicitly changes class and is re-admitted.",
-    "Do not run publication commands.",
+    "Do not stage, commit, push, publish or change Git metadata.",
+    "Do not claim deterministic validation passed; validation belongs to the independent validation queue.",
     "Return NO_ACTION when existing coverage is already sufficient.",
     "Return NEEDS_DEEP_WORKER when behavior is ambiguous or the required fix exceeds the admitted scope."
   ],
   "result": {
-    "allowed": ["SUCCESS", "NO_ACTION", "BLOCKED", "NEEDS_DEEP_WORKER", "NEEDS_HUMAN"],
+    "allowed": [
+      "SUCCESS",
+      "NO_ACTION",
+      "BLOCKED",
+      "NEEDS_DEEP_WORKER",
+      "NEEDS_HUMAN"
+    ],
     "requiredFields": [
       "resultState",
       "changedPaths",
-      "testsAdded",
+      "assertionsAdded",
       "assumptions",
-      "uncertainties",
-      "validationRequested"
+      "followUp"
     ],
+    "exactFieldSetRequired": true,
     "workerMayClaimTestsPassed": false,
+    "workerMayStage": false,
+    "workerMayCommit": false,
+    "workerMayPush": false,
     "workerMayPublish": false
   },
   "validationHandoff": {
@@ -63,6 +76,8 @@
     "preferredIndependentAuthority": "EVAVO-STUDIO/automated-testing",
     "godotAuthorityWhenApplicable": "EVAVO-STUDIO/godot-game-test-lab",
     "physicalExecution": "EVAVO-STUDIO/evavo-local-compute",
-    "requireMatchingPhysicalReceiptForRuntimeClaims": true
+    "requireExactCandidateStateSha256": true,
+    "requireMatchingPhysicalReceiptForRuntimeClaims": true,
+    "requireIndependentDeterministicValidation": true
   }
 }
