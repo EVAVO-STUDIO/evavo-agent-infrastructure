@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Fixture Scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scenario",
+    "fixtureId",
+    "fixtureOnly",
+    "workerClass",
+    "workClass",
+    "routeId",
+    "modelPreference",
+    "capacityClass",
+    "codexVersion",
+    "evidenceSha256",
+    "commitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "paidFallbackUsed",
+    "financialActionPerformed",
+    "accepted",
+    "candidateMutationPersisted",
+    "receiptSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-fixture-scenario-v1" },
+    "scenario": {
+      "enum": [
+        "validated-success",
+        "validated-no-action",
+        "forbidden-path-rejection",
+        "stale-head-rejection"
+      ]
+    },
+    "fixtureId": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "fixtureOnly": { "const": true },
+    "workerClass": { "const": "documentation-truth" },
+    "workClass": { "const": "capability-manifest-maintenance" },
+    "routeId": { "const": "codex-spark-pro" },
+    "modelPreference": { "const": "gpt-5.3-codex-spark" },
+    "capacityClass": { "const": "included-consumer" },
+    "codexVersion": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "evidenceSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "commitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "accepted": { "type": "boolean" },
+    "rejected": { "type": "boolean" },
+    "rejectionReason": { "enum": ["FORBIDDEN_PATH", "STALE_HEAD"] },
+    "resultState": { "enum": ["SUCCESS", "NO_ACTION"] },
+    "externalValidationAccepted": { "type": "boolean" },
+    "changedFiles": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "changedLines": { "type": "integer", "minimum": 0, "maximum": 600 },
+    "changedPaths": {
+      "type": "array",
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": ["evavo.capabilities.json", ".evavo/capabilities.json"]
+      }
+    },
+    "modelTurnPerformed": { "type": "boolean" },
+    "candidateMutationPersisted": { "type": "boolean" },
+    "receiptSha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "scenario": { "const": "validated-success" } } },
+      "then": {
+        "required": [
+          "resultState",
+          "externalValidationAccepted",
+          "changedFiles",
+          "changedLines",
+          "changedPaths",
+          "modelTurnPerformed"
+        ],
+        "properties": {
+          "accepted": { "const": true },
+          "resultState": { "const": "SUCCESS" },
+          "externalValidationAccepted": { "const": true },
+          "changedFiles": { "const": 1 },
+          "changedLines": { "type": "integer", "minimum": 1, "maximum": 600 },
+          "changedPaths": { "minItems": 1, "maxItems": 1 },
+          "candidateMutationPersisted": { "const": true }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "validated-no-action" } } },
+      "then": {
+        "required": [
+          "resultState",
+          "externalValidationAccepted",
+          "changedFiles",
+          "changedLines",
+          "changedPaths",
+          "modelTurnPerformed"
+        ],
+        "properties": {
+          "accepted": { "const": true },
+          "resultState": { "const": "NO_ACTION" },
+          "externalValidationAccepted": { "const": true },
+          "changedFiles": { "const": 0 },
+          "changedLines": { "const": 0 },
+          "changedPaths": { "maxItems": 0 },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "forbidden-path-rejection" } } },
+      "then": {
+        "required": ["rejected", "rejectionReason", "externalValidationAccepted", "modelTurnPerformed"],
+        "properties": {
+          "accepted": { "const": false },
+          "rejected": { "const": true },
+          "rejectionReason": { "const": "FORBIDDEN_PATH" },
+          "externalValidationAccepted": { "const": false },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "stale-head-rejection" } } },
+      "then": {
+        "required": ["rejected", "rejectionReason", "modelTurnPerformed"],
+        "properties": {
+          "accepted": { "const": false },
+          "rejected": { "const": true },
+          "rejectionReason": { "const": "STALE_HEAD" },
+          "modelTurnPerformed": { "const": false },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    }
+  ]
+}
