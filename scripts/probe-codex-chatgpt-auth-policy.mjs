@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
@@ -36,43 +37,56 @@ function requirementsChatgptOnly(text) {
   return false;
 }
 
-const codexHome = process.env.CODEX_HOME
-  ? path.resolve(process.env.CODEX_HOME)
-  : path.join(os.homedir(), ".codex");
-const userConfigPath = path.join(codexHome, "config.toml");
-const systemRequirementsPath = process.platform === "win32"
-  ? path.join(process.env.ProgramData ?? "C:\\ProgramData", "OpenAI", "Codex", "requirements.toml")
-  : "/etc/codex/requirements.toml";
+export function probeCodexChatgptAuthPolicy({userConfigPath, systemRequirementsPath, now = new Date()}) {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) throw new Error("Auth-policy probe clock is invalid.");
+  let userConfig = null;
+  let requirements = null;
+  let error = null;
+  try {
+    userConfig = regularTextFile(userConfigPath);
+    requirements = regularTextFile(systemRequirementsPath);
+  } catch (caught) {
+    error = String(caught instanceof Error ? caught.message : caught).slice(0, 1024);
+  }
 
-let userConfig = null;
-let requirements = null;
-let error = null;
-try {
-  userConfig = regularTextFile(userConfigPath);
-  requirements = regularTextFile(systemRequirementsPath);
-} catch (caught) {
-  error = String(caught instanceof Error ? caught.message : caught).slice(0, 1024);
+  const userForced = userConfig ? forcedChatgpt(userConfig.text) : false;
+  const systemOnly = requirements ? requirementsChatgptOnly(requirements.text) : false;
+  const accepted = error === null && (systemOnly || userForced);
+  const enforcement = systemOnly ? "system-requirements-chatgpt-only" : userForced ? "user-config-forced-chatgpt" : "not-proven";
+
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: "evavo-codex-chatgpt-auth-policy-probe-v1",
+    observedAt: now.toISOString(),
+    accepted,
+    authenticationClass: accepted ? "chatgpt-consumer" : "unproven",
+    enforcement,
+    userConfig: userConfig ? {present:true, sha256:userConfig.sha256, bytes:userConfig.bytes, forcedLoginMethodChatgpt:userForced} : {present:false},
+    systemRequirements: requirements ? {present:true, sha256:requirements.sha256, bytes:requirements.bytes, chatgptOnly:systemOnly} : {present:false},
+    credentialsRead: false,
+    apiKeyRead: false,
+    modelTurnPerformed: false,
+    repositoryMutationPerformed: false,
+    error,
+    truthBoundary: "This probe reads only Codex policy/config text and never reads stored credentials. A ChatGPT-only policy plus a successful fixture model turn and absent API-key environment are required for physical Spark acceptance."
+  });
 }
 
-const userForced = userConfig ? forcedChatgpt(userConfig.text) : false;
-const systemOnly = requirements ? requirementsChatgptOnly(requirements.text) : false;
-const accepted = error === null && (systemOnly || userForced);
-const enforcement = systemOnly ? "system-requirements-chatgpt-only" : userForced ? "user-config-forced-chatgpt" : "not-proven";
+function defaultPaths() {
+  const codexHome = process.env.CODEX_HOME
+    ? path.resolve(process.env.CODEX_HOME)
+    : path.join(os.homedir(), ".codex");
+  return {
+    userConfigPath: path.join(codexHome, "config.toml"),
+    systemRequirementsPath: process.platform === "win32"
+      ? path.join(process.env.ProgramData ?? "C:\\ProgramData", "OpenAI", "Codex", "requirements.toml")
+      : "/etc/codex/requirements.toml",
+  };
+}
 
-console.log(JSON.stringify({
-  schemaVersion: 1,
-  kind: "evavo-codex-chatgpt-auth-policy-probe-v1",
-  observedAt: new Date().toISOString(),
-  accepted,
-  authenticationClass: accepted ? "chatgpt-consumer" : "unproven",
-  enforcement,
-  userConfig: userConfig ? {present:true, sha256:userConfig.sha256, bytes:userConfig.bytes, forcedLoginMethodChatgpt:userForced} : {present:false},
-  systemRequirements: requirements ? {present:true, sha256:requirements.sha256, bytes:requirements.bytes, chatgptOnly:systemOnly} : {present:false},
-  credentialsRead: false,
-  apiKeyRead: false,
-  modelTurnPerformed: false,
-  repositoryMutationPerformed: false,
-  error,
-  truthBoundary: "This probe reads only Codex policy/config text and never reads stored credentials. A ChatGPT-only policy plus a successful fixture model turn and absent API-key environment are required for physical Spark acceptance."
-}, null, 2));
-process.exit(accepted ? 0 : 1);
+const directInvocation = process.argv[1] !== undefined && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (directInvocation) {
+  const receipt = probeCodexChatgptAuthPolicy(defaultPaths());
+  console.log(JSON.stringify(receipt, null, 2));
+  process.exit(receipt.accepted ? 0 : 1);
+}
