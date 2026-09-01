@@ -1,0 +1,145 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Codex Documentation Truth Dormant Fixture Scenario v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "scenario",
+    "fixtureId",
+    "observedAt",
+    "designSha256",
+    "agentInfrastructureMainSha",
+    "localStorageMainSha",
+    "fixtureOnly",
+    "workerClass",
+    "workClass",
+    "routeId",
+    "modelPreference",
+    "capacityClass",
+    "codexVersion",
+    "evidenceSha256",
+    "modelTurnPerformed",
+    "candidateMutationPersisted",
+    "commitPerformed",
+    "pushPerformed",
+    "publicationPerformed",
+    "deploymentPerformed",
+    "financialActionPerformed",
+    "paidFallbackUsed",
+    "receiptSha256"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-codex-documentation-truth-dormant-fixture-scenario-v1" },
+    "scenario": {
+      "enum": [
+        "validated-success",
+        "validated-no-action",
+        "forbidden-path-rejection",
+        "stale-head-rejection"
+      ]
+    },
+    "fixtureId": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "observedAt": { "type": "string", "format": "date-time", "maxLength": 64 },
+    "designSha256": { "$ref": "#/$defs/sha256" },
+    "agentInfrastructureMainSha": { "$ref": "#/$defs/gitSha" },
+    "localStorageMainSha": { "$ref": "#/$defs/gitSha" },
+    "fixtureOnly": { "const": true },
+    "workerClass": { "const": "documentation-truth" },
+    "workClass": { "const": "capability-manifest-maintenance" },
+    "routeId": { "const": "codex-spark-pro" },
+    "modelPreference": { "const": "gpt-5.3-codex-spark" },
+    "capacityClass": { "const": "included-consumer" },
+    "codexVersion": { "type": "string", "minLength": 1, "maxLength": 160 },
+    "evidenceSha256": { "$ref": "#/$defs/sha256" },
+    "accepted": { "type": "boolean" },
+    "rejected": { "type": "boolean" },
+    "resultState": { "enum": ["SUCCESS", "NO_ACTION"] },
+    "rejectionReason": { "enum": ["FORBIDDEN_PATH", "STALE_HEAD"] },
+    "externalValidationAccepted": { "type": "boolean" },
+    "changedFiles": { "type": "integer", "minimum": 0, "maximum": 1 },
+    "changedLines": { "type": "integer", "minimum": 0, "maximum": 600 },
+    "changedPaths": {
+      "type": "array",
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": { "enum": ["evavo.capabilities.json", ".evavo/capabilities.json"] }
+    },
+    "modelTurnPerformed": { "type": "boolean" },
+    "candidateMutationPersisted": { "type": "boolean" },
+    "commitPerformed": { "const": false },
+    "pushPerformed": { "const": false },
+    "publicationPerformed": { "const": false },
+    "deploymentPerformed": { "const": false },
+    "financialActionPerformed": { "const": false },
+    "paidFallbackUsed": { "const": false },
+    "receiptSha256": { "$ref": "#/$defs/sha256" }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "scenario": { "const": "validated-success" } } },
+      "then": {
+        "required": ["accepted", "resultState", "externalValidationAccepted", "changedFiles", "changedLines", "changedPaths"],
+        "properties": {
+          "accepted": { "const": true },
+          "resultState": { "const": "SUCCESS" },
+          "externalValidationAccepted": { "const": true },
+          "changedFiles": { "const": 1 },
+          "changedLines": { "minimum": 1, "maximum": 600 },
+          "changedPaths": { "minItems": 1, "maxItems": 1 },
+          "modelTurnPerformed": { "const": true },
+          "candidateMutationPersisted": { "const": true }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "validated-no-action" } } },
+      "then": {
+        "required": ["accepted", "resultState", "externalValidationAccepted", "changedFiles", "changedLines", "changedPaths"],
+        "properties": {
+          "accepted": { "const": true },
+          "resultState": { "const": "NO_ACTION" },
+          "externalValidationAccepted": { "const": true },
+          "changedFiles": { "const": 0 },
+          "changedLines": { "const": 0 },
+          "changedPaths": { "maxItems": 0 },
+          "modelTurnPerformed": { "const": true },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "forbidden-path-rejection" } } },
+      "then": {
+        "required": ["accepted", "rejected", "rejectionReason", "externalValidationAccepted"],
+        "properties": {
+          "accepted": { "const": false },
+          "rejected": { "const": true },
+          "rejectionReason": { "const": "FORBIDDEN_PATH" },
+          "externalValidationAccepted": { "const": false },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    },
+    {
+      "if": { "properties": { "scenario": { "const": "stale-head-rejection" } } },
+      "then": {
+        "required": ["accepted", "rejected", "rejectionReason", "externalValidationAccepted"],
+        "properties": {
+          "accepted": { "const": false },
+          "rejected": { "const": true },
+          "rejectionReason": { "const": "STALE_HEAD" },
+          "externalValidationAccepted": { "const": false },
+          "modelTurnPerformed": { "const": false },
+          "candidateMutationPersisted": { "const": false }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "gitSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+  }
+}
