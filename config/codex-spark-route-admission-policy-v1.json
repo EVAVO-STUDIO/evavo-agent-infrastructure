@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-route-admission-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "requiredAuthenticationClass": "chatgpt-consumer",
+  "workerClasses": [
+    "test-generation"
+  ],
+  "maximumConcurrency": 1,
+  "maximumAdmissionAgeSeconds": 600,
+  "maximumInputAgeSeconds": 600,
+  "paidFallbackAllowed": false,
+  "requires": [
+    "supervised-physical-acceptance-envelope",
+    "fresh-codex-capability-probe",
+    "fresh-chatgpt-only-authentication-observation",
+    "fresh-hash-bound-physical-verification-observation",
+    "fresh-supervised-acceptance-reverification"
+  ],
+  "bindings": [
+    "supervisedAcceptanceSha256",
+    "codexCapabilityReceiptSha256",
+    "chatgptAuthenticationReceiptSha256",
+    "physicalAcceptanceVerificationSha256",
+    "basePhysicalVerificationSha256"
+  ],
+  "nonAuthorities": {
+    "capacityAvailability": true,
+    "accountUsage": true,
+    "repositoryMutation": true,
+    "commit": true,
+    "push": true,
+    "publication": true,
+    "deployment": true,
+    "paidApiFallback": true
+  },
+  "rule": "A short-lived route admission proves only that the certified Test Builder route may be considered if independently observed raw Spark capacity is also available. Admission never proves quota, never grants more than one concurrent Test Builder, and cannot authorize paid fallback or publication."
+}
