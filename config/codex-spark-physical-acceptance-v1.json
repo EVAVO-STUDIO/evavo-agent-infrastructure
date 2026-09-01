@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-physical-acceptance-policy-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "routeId": "codex-spark-pro",
+  "modelPreference": "gpt-5.3-codex-spark",
+  "capacityClass": "included-consumer",
+  "requiredAuthenticationClass": "chatgpt-consumer",
+  "paidFallbackAllowed": false,
+  "sandboxMode": "workspace-write",
+  "approvalPolicy": "never",
+  "initialWorkerClasses": ["test-generation"],
+  "initialMaximumConcurrency": 1,
+  "maximumAcceptanceAgeHours": 168,
+  "invalidateOn": [
+    "codex-version-change",
+    "adapter-contract-change",
+    "worker-route-change",
+    "sandbox-policy-change",
+    "authentication-class-change",
+    "fixture-evidence-mismatch"
+  ],
+  "requiredEvidence": [
+    "fresh-codex-capability-probe",
+    "fixture-work-item",
+    "isolated-candidate-receipt",
+    "codex-run-receipt",
+    "capacity-classification",
+    "accepted-candidate-audit",
+    "sealed-candidate-receipt",
+    "deterministic-validation-evidence",
+    "primary-checkout-unchanged-attestation"
+  ],
+  "requiredTruth": {
+    "fixtureOnly": true,
+    "modelTurnCompleted": true,
+    "structuredTurnCompleted": true,
+    "authenticationClass": "chatgpt-consumer",
+    "apiKeyEnvironmentAbsent": true,
+    "paidFallbackUsed": false,
+    "candidateAuditAccepted": true,
+    "deterministicValidationPassed": true,
+    "primaryCheckoutUnchanged": true,
+    "workerCommitPerformed": false,
+    "publicationPerformed": false
+  },
+  "rule": "Spark effectful execution remains disabled until a create-only physical acceptance receipt proves this complete fixture path. Acceptance is temporary and must be renewed after material Codex/adapter/route changes."
+}
