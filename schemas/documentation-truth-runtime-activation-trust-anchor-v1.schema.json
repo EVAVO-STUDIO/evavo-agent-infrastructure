@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EVAVO Documentation Truth Runtime Activation Trust Anchor v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "keyId",
+    "algorithm",
+    "publicKeySpkiBase64",
+    "privateKeyPresent",
+    "repositoryStored",
+    "modelAccessible"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "kind": { "const": "evavo-documentation-truth-runtime-activation-trust-anchor-v1" },
+    "keyId": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{2,255}$" },
+    "algorithm": { "const": "Ed25519" },
+    "publicKeySpkiBase64": { "type": "string", "pattern": "^[A-Za-z0-9+/]+={0,2}$", "minLength": 44, "maxLength": 32768 },
+    "privateKeyPresent": { "const": false },
+    "repositoryStored": { "const": false },
+    "modelAccessible": { "const": false }
+  }
+}
