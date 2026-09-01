@@ -56,8 +56,8 @@ function requireIso(value, label) {
   return { value: new Date(milliseconds).toISOString(), milliseconds };
 }
 
-function safePath(value) {
-  if (typeof value !== "string" || !value || value.length > 512) throw new Error("Worker changedPaths contains an invalid path.");
+function safePath(value, label = "Worker changedPaths") {
+  if (typeof value !== "string" || !value || value.length > 1024) throw new Error(`${label} contains an invalid path.`);
   const normalized = value.replaceAll("\\", "/").replace(/^\.\//, "");
   if (
     !normalized ||
@@ -66,7 +66,7 @@ function safePath(value) {
     normalized.includes("\0") ||
     normalized.split("/").some((part) => part === "" || part === "." || part === ".." || part === ".git")
   ) {
-    throw new Error(`Worker changed path is unsafe: ${value}`);
+    throw new Error(`${label} contains an unsafe repository path: ${value}`);
   }
   return normalized;
 }
@@ -76,7 +76,7 @@ function escapeRegex(value) {
 }
 
 function globRegex(pattern) {
-  const normalized = safePath(pattern);
+  const normalized = safePath(pattern, "Work-item path pattern");
   let source = "";
   for (let index = 0; index < normalized.length; index += 1) {
     const character = normalized[index];
@@ -105,6 +105,18 @@ function stringArray(value, label, maximumItems = 256) {
   return value;
 }
 
+function normalizedPathArray(value, label, maximumItems = 1024) {
+  const raw = stringArray(value, label, maximumItems);
+  const normalized = raw.map((item) => safePath(item, label));
+  const unique = [...new Set(normalized)].sort((left, right) => left.localeCompare(right));
+  if (unique.length !== normalized.length) throw new Error(`${label} contains duplicate normalized paths.`);
+  return unique;
+}
+
+function exactArrayEqual(left, right) {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
 function routeEvidence(routePlan, field) {
   return routePlan[field] ?? routePlan.routeAdmission?.[field] ?? null;
 }
@@ -124,6 +136,75 @@ function assertSummary(summary) {
   }
 }
 
+function assertCandidateObservation(candidateObservation, workItem, dispatchPlan, runReceipt) {
+  requireObject(candidateObservation, "Independent candidate observation");
+  if (candidateObservation.kind !== "evavo-codex-candidate-change-observation-v1" || candidateObservation.schemaVersion !== 1) {
+    throw new Error("Independent candidate observation kind/schema is invalid.");
+  }
+  for (const field of ["workItemId", "workerId", "repository", "sourceRevision"]) {
+    const expected = field === "workItemId"
+      ? workItem.id
+      : field === "workerId"
+        ? runReceipt.workerId
+        : workItem[field];
+    if (candidateObservation[field] !== expected || candidateObservation[field] !== dispatchPlan[field] || candidateObservation[field] !== runReceipt[field]) {
+      throw new Error(`Independent candidate observation identity differs from routing/execution: ${field}.`);
+    }
+  }
+  if (candidateObservation.candidateHead !== workItem.sourceRevision || candidateObservation.candidateHeadChanged !== false) {
+    throw new Error("Independent candidate observation does not prove unchanged candidate HEAD.");
+  }
+  if (candidateObservation.gitObservationPerformed !== true || candidateObservation.candidateBytesMutatedByObserver !== false) {
+    throw new Error("Independent candidate observation did not preserve its read-only Git boundary.");
+  }
+  if (candidateObservation.gitIndexMutationAccepted !== false || candidateObservation.workerCommitAccepted !== false) {
+    throw new Error("Independent candidate observation exceeds the Test Builder Git boundary.");
+  }
+  if (candidateObservation.deterministicValidationPerformed !== false || candidateObservation.publicationPerformed !== false) {
+    throw new Error("Independent candidate observation exceeds the pre-validation authority boundary.");
+  }
+  if (typeof candidateObservation.candidateDirty !== "boolean") throw new Error("Independent candidate observation omitted candidateDirty truth.");
+
+  const changedPaths = normalizedPathArray(candidateObservation.changedPaths, "Observed candidate changedPaths");
+  const trackedPaths = normalizedPathArray(candidateObservation.trackedPaths, "Observed trackedPaths");
+  const untrackedPaths = normalizedPathArray(candidateObservation.untrackedPaths, "Observed untrackedPaths");
+  const stagedPaths = normalizedPathArray(candidateObservation.stagedPaths, "Observed stagedPaths");
+  const unmergedPaths = normalizedPathArray(candidateObservation.unmergedPaths, "Observed unmergedPaths");
+  if (candidateObservation.changedPathCount !== changedPaths.length) throw new Error("Observed changedPathCount differs from the exact observed path set.");
+  if (candidateObservation.stagedPathCount !== stagedPaths.length) throw new Error("Observed stagedPathCount differs from the exact staged path set.");
+  if (candidateObservation.unmergedPathCount !== unmergedPaths.length) throw new Error("Observed unmergedPathCount differs from the exact unmerged path set.");
+  if (candidateObservation.indexChanged !== (stagedPaths.length > 0)) throw new Error("Observed indexChanged truth differs from staged paths.");
+  if (stagedPaths.length > 0 || candidateObservation.indexChanged !== false) {
+    throw new Error("Test Builder candidate contains worker-authored staged/index changes.");
+  }
+  if (unmergedPaths.length > 0) throw new Error("Test Builder candidate contains unmerged Git state.");
+  const expectedChanged = [...new Set([...trackedPaths, ...untrackedPaths])].sort((left, right) => left.localeCompare(right));
+  if (!exactArrayEqual(changedPaths, expectedChanged)) {
+    throw new Error("Observed changedPaths differ from the exact tracked and untracked candidate path union.");
+  }
+  if (candidateObservation.candidateDirty !== (changedPaths.length > 0)) {
+    throw new Error("Observed candidateDirty truth differs from the exact changed path set.");
+  }
+  for (const digestField of ["statusSha256", "trackedDiffSha256", "stagedDiffSha256", "untrackedListSha256", "unmergedListSha256"]) {
+    requireSha(candidateObservation[digestField], `Independent candidate observation ${digestField}`);
+  }
+  const observationSha256 = requireSha(candidateObservation.observationSha256, "Independent candidate observation SHA-256");
+  const { observationSha256: _digest, ...observationBody } = candidateObservation;
+  if (observationSha256 !== sha256Bytes(Buffer.from(canonicalJson(observationBody), "utf8"))) {
+    throw new Error("Independent candidate observation digest does not match its canonical body.");
+  }
+  return {
+    changedPaths,
+    trackedPaths,
+    untrackedPaths,
+    stagedPaths,
+    unmergedPaths,
+    candidateDirty: candidateObservation.candidateDirty,
+    observedAt: requireIso(candidateObservation.observedAt, "Independent candidate observation timestamp"),
+    observationSha256,
+  };
+}
+
 export function compileCodexTestBuilderCompletion({
   workItem,
   workItemBytes,
@@ -133,11 +214,14 @@ export function compileCodexTestBuilderCompletion({
   dispatchPlanBytes,
   runReceipt,
   runReceiptBytes,
+  candidateObservation,
+  candidateObservationBytes,
 }) {
   requireObject(workItem, "Leased work item");
   requireObject(routePlan, "Worker route plan");
   requireObject(dispatchPlan, "Codex dispatch plan");
   requireObject(runReceipt, "Codex run receipt");
+  requireObject(candidateObservation, "Independent candidate observation");
 
   if (workItem.lifecycleState !== "LEASED") throw new Error("Test Builder completion requires a leased work item.");
   if (workItem.workerClass !== "test-generation") throw new Error("Test Builder completion only admits the test-generation worker class.");
@@ -188,6 +272,7 @@ export function compileCodexTestBuilderCompletion({
   if (runReceipt.supervisedPhysicalAcceptanceVerifiedAtStart !== true) {
     throw new Error("Codex run did not prove supervised physical acceptance at start.");
   }
+  if (runReceipt.routeAdmissionVerifiedAtStart !== true) throw new Error("Codex run did not prove its short-lived route admission at start.");
   if (runReceipt.paidFallbackUsed !== false || runReceipt.publicationPerformed !== false || runReceipt.deterministicValidationPerformed !== false) {
     throw new Error("Codex run receipt exceeds the model-session authority boundary.");
   }
@@ -195,6 +280,7 @@ export function compileCodexTestBuilderCompletion({
     throw new Error("Codex model turn did not complete with valid structured output.");
   }
   if (runReceipt.candidateHeadChanged !== false) throw new Error("Codex worker changed candidate HEAD or committed during its turn.");
+  if (typeof runReceipt.candidateDirtyAfter !== "boolean") throw new Error("Codex run receipt omitted candidateDirtyAfter truth.");
 
   const routeAdmissionSha256 = requireSha(routeEvidence(routePlan, "routeAdmissionSha256"), "Route admission SHA-256");
   const dispatchRouteAdmissionSha256 = requireSha(dispatchPlan.routeAdmissionSha256, "Dispatch route admission SHA-256");
@@ -226,20 +312,31 @@ export function compileCodexTestBuilderCompletion({
   if (startedAt.milliseconds > admissionExpiry.milliseconds) throw new Error("Codex run began after route admission expired.");
   if (finishedAt.milliseconds < startedAt.milliseconds) throw new Error("Codex run completion precedes its start.");
 
+  const observed = assertCandidateObservation(candidateObservation, workItem, dispatchPlan, runReceipt);
+  if (observed.observedAt.milliseconds + 120_000 < finishedAt.milliseconds) {
+    throw new Error("Independent candidate observation predates the completed Codex model turn.");
+  }
+  if (observed.candidateDirty !== runReceipt.candidateDirtyAfter) {
+    throw new Error("Independent candidate dirty state differs from the Codex run receipt.");
+  }
+
   const summary = runReceipt.jsonl?.parsedWorkerSummary;
   assertSummary(summary);
-  const changedPaths = [...new Set(summary.changedPaths.map(safePath))].sort();
-  for (const changedPath of changedPaths) {
-    if (!matchesAny(changedPath, allowedPatterns)) throw new Error(`Worker changed path is outside the admitted allowlist: ${changedPath}`);
-    if (matchesAny(changedPath, forbiddenPatterns)) throw new Error(`Worker changed path matches a forbidden path: ${changedPath}`);
+  const workerReportedChangedPaths = normalizedPathArray(summary.changedPaths, "Codex worker summary changedPaths");
+  if (!exactArrayEqual(workerReportedChangedPaths, observed.changedPaths)) {
+    throw new Error("Codex worker reported changedPaths differ from the independently observed candidate diff.");
+  }
+  for (const changedPath of observed.changedPaths) {
+    if (!matchesAny(changedPath, allowedPatterns)) throw new Error(`Observed candidate path is outside the admitted allowlist: ${changedPath}`);
+    if (matchesAny(changedPath, forbiddenPatterns)) throw new Error(`Observed candidate path matches a forbidden path: ${changedPath}`);
   }
 
   if (summary.resultState === "SUCCESS") {
-    if (changedPaths.length === 0) throw new Error("SUCCESS requires at least one admitted changed path.");
-    if (runReceipt.candidateDirtyAfter !== true) throw new Error("SUCCESS requires observable uncommitted candidate changes.");
+    if (observed.changedPaths.length === 0) throw new Error("SUCCESS requires at least one independently observed admitted changed path.");
+    if (observed.candidateDirty !== true) throw new Error("SUCCESS requires observable uncommitted candidate changes.");
   } else {
-    if (changedPaths.length !== 0) throw new Error(`${summary.resultState} may not retain worker-authored changed paths.`);
-    if (runReceipt.candidateDirtyAfter !== false) throw new Error(`${summary.resultState} requires a clean candidate after the turn.`);
+    if (observed.changedPaths.length !== 0) throw new Error(`${summary.resultState} may not retain independently observed worker-authored changes.`);
+    if (observed.candidateDirty !== false) throw new Error(`${summary.resultState} requires a clean candidate after the turn.`);
   }
 
   const state = summary.resultState === "SUCCESS"
@@ -259,11 +356,16 @@ export function compileCodexTestBuilderCompletion({
     routeId: "codex-spark-pro",
     resultState: summary.resultState,
     lifecycleState: state,
-    changedPaths,
+    changedPaths: observed.changedPaths,
+    workerReportedChangedPaths,
+    independentlyObservedChangedPaths: observed.changedPaths,
+    changedPathContinuityProven: true,
     assertionsAdded: [...summary.assertionsAdded],
     assumptions: [...summary.assumptions],
     followUp: [...summary.followUp],
     workerSummarySha256,
+    candidateObservationSha256: observed.observationSha256,
+    candidateObservationObservedAt: observed.observedAt.value,
     routeAdmissionSha256,
     supervisedAcceptanceSha256,
     capabilityReceiptSha256,
@@ -276,6 +378,8 @@ export function compileCodexTestBuilderCompletion({
     deterministicValidationPassed: false,
     modelSessionMayClaimValidation: false,
     candidateHeadChanged: false,
+    candidateIndexChanged: false,
+    candidateUnmergedState: false,
     workerCommitPerformed: false,
     paidFallbackUsed: false,
     publicationPerformed: false,
@@ -284,13 +388,14 @@ export function compileCodexTestBuilderCompletion({
       routePlan: evidence(routePlanBytes, routePlan),
       dispatchPlan: evidence(dispatchPlanBytes, dispatchPlan),
       runReceipt: evidence(runReceiptBytes, runReceipt),
+      candidateObservation: evidence(candidateObservationBytes, candidateObservation),
     },
     physicalPathsReturned: false,
     credentialValuesReturned: false,
     repositoryMutationAuthorityGrantedByCompletion: false,
     validationAuthorityGrantedByCompletion: false,
     publicationAuthority: false,
-    truthBoundary: "This receipt proves continuity from one leased Test Builder work item through a short-lived Spark route admission, dispatch plan and completed structured model turn. SUCCESS means only that bounded uncommitted candidate changes are ready for external deterministic validation; it never means tests passed, approval was granted, Git was mutated or publication occurred.",
+    truthBoundary: "This receipt proves continuity from one leased Test Builder work item through a short-lived Spark route admission, dispatch plan, completed structured model turn and independent post-turn Git observation. SUCCESS means only that the model-reported path set exactly matches bounded, unstaged, unmerged, uncommitted candidate changes ready for external deterministic validation; it never means tests passed, approval was granted, Git was published or production behavior was accepted.",
   };
   return {
     ...completionBody,
