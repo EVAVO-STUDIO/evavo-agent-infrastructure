@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-repository-task-manifest",
+  "repository": "evavo-agent-infrastructure",
+  "tasks": {
+    "autonomous-worker-routing-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-worker-capacity-routing.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify zero-cost Spark route selection, exhausted-capacity retention and paid-fallback rejection without starting a model turn."
+    },
+    "codex-worker-capability-probe": {
+      "runtime": "node-script",
+      "entry": "scripts/probe-codex-worker-adapter.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 60,
+      "description": "Inspect the installed Codex CLI version and exec help, proving supported structured-output/model-selection flags without authentication mutation, model inference or repository effects."
+    }
+  }
+}
