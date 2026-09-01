@@ -62,6 +62,7 @@
     "check:spark-governance": "node scripts/check-worker-capacity-routing-v1.mjs",
     "check:spark-candidate-observation": "node scripts/check-codex-candidate-observation-contract.mjs",
     "check:spark-ignored-workspace": "node scripts/check-codex-ignored-workspace-boundary-contract.mjs",
+    "check:spark-autonomous-lease": "node scripts/check-autonomous-work-exchange-lease-contract.mjs",
     "compile:spark-bound-dispatch": "node scripts/compile-codex-worker-dispatch-bound.mjs",
     "compile:spark-contained-dispatch": "node scripts/compile-codex-worker-dispatch-contained.mjs",
     "run:spark-contained-worker": "node scripts/run-codex-worker-dispatch-contained.mjs",
@@ -78,7 +79,7 @@
     "test:spark-result-classifier": "node scripts/test-codex-worker-result-classifier.mjs",
     "test:spark-auth-policy": "node scripts/test-codex-chatgpt-auth-policy.mjs",
     "test:spark-safe-certification": "node scripts/test-codex-spark-safe-certification-contract.mjs && node scripts/test-codex-spark-safe-physical-acceptance.mjs",
-    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm check:spark-ignored-workspace && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-ignored-workspace && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification"
+    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm check:spark-ignored-workspace && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-ignored-workspace && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification && pnpm check:spark-autonomous-lease"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
