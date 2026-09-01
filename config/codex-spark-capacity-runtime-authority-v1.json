@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-codex-spark-capacity-runtime-authority-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "canonicalRunner": "scripts/run-codex-spark-capacity-heartbeat-v2.mjs",
+  "canonicalRunnerSchemaVersion": 2,
+  "canonicalCompiler": "scripts/compile-codex-spark-capacity-heartbeat-dispatch.mjs",
+  "canonicalPlanner": "scripts/plan-codex-spark-capacity-heartbeat.mjs",
+  "supersededRunners": [
+    "scripts/run-codex-spark-capacity-heartbeat.mjs"
+  ],
+  "localEnableEnvironmentFlag": "EVAVO_CODEX_SPARK_CAPACITY_HEARTBEAT_ENABLED",
+  "enabledByDefault": false,
+  "routineSchedulingAllowedWithoutReadyWork": false,
+  "fixtureOnly": true,
+  "maximumConcurrency": 1,
+  "maximumModelTurnsPerRun": 1,
+  "requiredProofs": [
+    "fresh-dispatch-recompilation",
+    "exact-evidence-hash-bindings",
+    "fresh-supervised-physical-acceptance-verification",
+    "chatgpt-consumer-authentication",
+    "provider-api-environment-absence",
+    "temporary-remote-less-git-fixture",
+    "unchanged-fixture-head",
+    "clean-fixture-worktree",
+    "zero-fixture-remotes",
+    "structured-turn-completion",
+    "exact-heartbeat-json",
+    "temporary-state-cleanup"
+  ],
+  "nonAuthorities": {
+    "productRepositoryMutation": true,
+    "dependencyInstallation": true,
+    "machineConfiguration": true,
+    "commit": true,
+    "push": true,
+    "publication": true,
+    "deployment": true,
+    "paidApiFallback": true
+  },
+  "rule": "Only the syntax-checked v2 runner is canonical. It may perform one no-write Spark heartbeat in a disposable remote-less fixture after every evidence and physical-acceptance gate is freshly revalidated. The superseded draft is not execution authority."
+}
