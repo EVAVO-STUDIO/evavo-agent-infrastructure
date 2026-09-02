@@ -2,17 +2,59 @@
   "schemaVersion": 1,
   "kind": "evavo-autonomous-work-exchange-lease-runner-policy-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Compile and execute one route-bound Work Exchange lease through Local Storage's canonical lock and journal without starting a model or gaining Git, validation, publication or deployment authority.",
+  "purpose": "Compile and execute one route-bound Work Exchange lease through Local Storage's canonical lock and journal. Documentation-truth additionally requires exact full-component v3 runtime-grant evidence and proves that its single use was consumed atomically with the lease.",
   "compiler": "scripts/compile-autonomous-work-exchange-lease-plan.mjs",
   "localStorageRegistry": "config/autonomous-spark-task-registry-v1.json",
   "localStorageEffect": "scripts/Invoke-EvavoAutonomousWorkExchangeLease.py",
-  "acceptedWorkerClasses": ["test-generation", "documentation-truth"],
+  "acceptedWorkerClasses": [
+    "test-generation",
+    "documentation-truth"
+  ],
   "acceptedPlanKind": "evavo-autonomous-work-exchange-lease-plan-v2",
   "acceptedReceiptKind": "evavo-autonomous-work-exchange-lease-effect-receipt-v2",
   "maximumInputBytes": 33554432,
   "maximumOutputBytes": 8388608,
   "compilerTimeoutSeconds": 60,
-  "effectTimeoutSeconds": 120,
+  "effectTimeoutSeconds": 180,
+  "documentationTruthRuntimeGrant": {
+    "verificationPolicyVersion": 3,
+    "agentInfrastructureRootMustMatchRunnerRoot": true,
+    "effectArguments": {
+      "agentInfrastructureRoot": "--agent-infrastructure-root",
+      "envelope": "--runtime-grant-envelope",
+      "trustAnchor": "--runtime-grant-trust-anchor",
+      "request": "--runtime-grant-request"
+    },
+    "maximumEnvelopeBytes": 8388608,
+    "maximumTrustAnchorBytes": 1048576,
+    "maximumRequestBytes": 8388608,
+    "requiredRegistryTruth": {
+      "documentationTruthLeaseRequiresRuntimeGrantVerification": true,
+      "documentationTruthRuntimeGrantVerificationPolicyVersion": 3,
+      "documentationTruthRuntimeGrantVerificationOccursUnderExclusiveLock": true,
+      "documentationTruthRuntimeGrantAtomicConsumptionRegistered": true,
+      "documentationTruthRuntimeGrantSingleUseEnforced": true,
+      "documentationTruthRuntimeGrantReuseRejected": true,
+      "documentationTruthRuntimeGrantLeaseExpiryBoundedByGrantExpiry": true,
+      "documentationTruthRuntimeGrantCrashRecoveryRegistered": true,
+      "documentationTruthRuntimeGrantIdempotentReplayRegistered": true
+    },
+    "requiredReceiptTruth": {
+      "runtimeGrantVerificationPerformed": true,
+      "grantConsumed": true,
+      "grantConsumptionRecorded": true,
+      "grantConsumedUses": 1,
+      "grantRemainingUses": 0
+    }
+  },
+  "testGenerationRuntimeGrant": {
+    "inputsForbidden": true,
+    "requiredReceiptTruth": {
+      "runtimeGrantVerificationPerformed": false,
+      "grantConsumed": false,
+      "grantConsumptionRecorded": false
+    }
+  },
   "paidFallbackAllowed": false,
   "modelExecutionAuthority": false,
   "deterministicValidationAuthority": false,
@@ -21,5 +63,5 @@
   "pushAuthority": false,
   "publicationAuthority": false,
   "deploymentAuthority": false,
-  "truthBoundary": "This runner may create one temporary plan file and ask the canonical Local Storage effect to acquire one route-bound lease. It cannot invoke Codex or any other model, validate a candidate, mutate a repository, commit, push, publish, deploy or use paid capacity."
+  "truthBoundary": "This runner may create one temporary plan file and ask the canonical Local Storage effect to acquire one route-bound lease. For documentation-truth it also passes exact signed grant evidence and accepts only a receipt proving in-lock, single-use grant consumption. It cannot invoke a model, validate a candidate, mutate a repository, commit, push, publish, deploy, perform a financial action or use paid capacity."
 }
