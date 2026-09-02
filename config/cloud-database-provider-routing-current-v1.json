@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-cloud-database-provider-routing-current-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "authoritativeSources": {
+    "cloudProviders": "EVAVO-STUDIO/evavo-development-studio:config/agent-cloud-provider-capability-plane.json",
+    "connectorCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
+    "databasePlanning": "EVAVO-STUDIO/the-brain:config/database-provider-routing-v1.json",
+    "databaseSandboxes": "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json",
+    "executionSession": "EVAVO-STUDIO/evavo-local-compute:config/agent-execution-session-v1.json"
+  },
+  "routingRules": {
+    "supabase": "provider-native-connected-tool",
+    "firebase": "reviewed-local-provider-adapter",
+    "neonPostgres": "provider-native-project-admin; SQL wrapper currently fail-closed until connector schema mismatch is repaired",
+    "mongodbProduction": "provider-profile-required",
+    "mongodbDevelopment": "proven-mongo8-docker-sandbox-or-managed-mongosh",
+    "postgresDevelopment": "proven-postgres17-docker-sandbox",
+    "redisDevelopment": "database-sandbox-registry",
+    "mysqlMariaDbDevelopment": "database-sandbox-registry",
+    "sqlite": "local-compute-python-stdlib",
+    "duckdb": "disposable-local-analytics-runtime",
+    "cloudinary": "provider-native-connected-tool",
+    "cloudflareRead": "evavo-provider-transport-when-credentialed",
+    "cloudflareWrite": "managed-wrangler-after-live-account-identity-proof"
+  },
+  "observed": {
+    "firebase": "authenticated-and-cli-15.28.1-proven",
+    "cloudinary": "read-write-delete-lifecycle-proven",
+    "supabase": "read-sql-and-diagnostic-proven",
+    "mongodbSandbox": "write-read-proven",
+    "postgresSandbox": "write-read-proven",
+    "mongosh": "2.10.0-installed-proven",
+    "cloudflareWrangler": "4.127.1-installed-authentication-pending",
+    "gatewayMcp": "sdk-2.1.1-full-suite-passed",
+    "storageMcp": "v2-migration-final-transaction-pending"
+  },
+  "policy": {
+    "providerIdentityRequiredBeforeEffects": true,
+    "credentialValuesReturned": false,
+    "readBeforeWrite": true,
+    "writeRequiresPostcondition": true,
+    "destructiveRequiresSeparateEffectLease": true,
+    "unknownWriteOutcomeMayNotBeBlindlyRetried": true,
+    "productionSchemaChangesUseProviderBranchMigrationOrSandboxFirst": true
+  }
+}
