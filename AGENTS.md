@@ -11,6 +11,7 @@ Load and preserve these canonical contracts:
 - `config/workstation-control-health-v1.json`
 - `config/workstation-execution-fabric-client-v2.json`
 - `config/database-provider-routing-v1.json`
+- `config/cloud-database-provider-routing-current-v1.json`
 
 Core selection rule: use the least disruptive eligible route. Prefer typed APIs/connectors, Local Compute background execution, local MCP/service tools and isolated browser control before native desktop interaction. S3 HID and effectful Comet KVM target the real physical console and are fallbacks. OOB power/media is recovery-only.
 
@@ -26,7 +27,7 @@ Hand off foreground GUI interaction to `evavo-computer-agent`; BIOS/preboot/inde
 
 ## Database and provider routing
 
-Resolve database work through `config/database-provider-routing-v1.json` before executing anything. Prefer provider-native Supabase/Firebase/Neon authorities for production data when their observed state is green. Use the proven Local Compute PostgreSQL 17 and MongoDB 8 Docker sandboxes for schema/query/integration experiments before production. MongoDB production access is not implied by the local MongoDB sandbox or installed mongosh; an external provider/cluster identity must be proven first. SQLite uses Python stdlib locally; Redis/MySQL/MariaDB and DuckDB are on-demand sandbox/runtime capabilities rather than permanent Windows services.
+Resolve database work through `config/database-provider-routing-v1.json` and current cloud/provider state through `config/cloud-database-provider-routing-current-v1.json` before executing anything. Prefer provider-native Supabase/Firebase/Neon authorities for production data when their observed state is green. Use the proven Local Compute PostgreSQL 17 and MongoDB 8 Docker sandboxes for schema/query/integration experiments before production. MongoDB production access is not implied by the local MongoDB sandbox or installed mongosh; an external provider/cluster identity must be proven first. SQLite uses Python stdlib locally; Redis/MySQL/MariaDB and DuckDB are on-demand sandbox/runtime capabilities rather than permanent Windows services.
 
 Provider installation is not provider authentication. Cloudflare Wrangler and Vercel CLI write paths remain unavailable until their own live identity checks succeed. Never copy connection strings, access tokens, service-account private keys or database passwords into Git, prompts, receipts or generated sandboxes.
 
