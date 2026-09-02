@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-provider-database-routing-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+  "routing": {
+    "supabase": {
+      "authority": "Development Studio Supabase connector",
+      "production": true,
+      "state": "read-diagnostic-sql-read-proven",
+      "mutation": "reviewed provider migration/branch plus postcondition"
+    },
+    "firebase": {
+      "authority": "Local Compute Firebase adapter",
+      "production": true,
+      "state": "provider-auth-proven-cli-15.28.1-installed-post-upgrade-diagnostic-pending"
+    },
+    "neon-postgres": {
+      "authority": "Neon connected provider",
+      "production": true,
+      "state": "project-admin-visibility-proven-sql-wrapper-blocked"
+    },
+    "mongodb": {
+      "authority": "Local Compute",
+      "production": false,
+      "state": "mongo8-docker-write-read-proven-mongosh-2.10.0-installed-external-profile-pending",
+      "developmentRoute": "database sandbox registry"
+    },
+    "postgresql-sandbox": {
+      "authority": "Local Compute",
+      "production": false,
+      "state": "postgres17-docker-write-read-proven"
+    },
+    "redis": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
+    "mysql": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
+    "mariadb": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
+    "sqlite": {"authority":"Local Compute","production":false,"state":"python-stdlib-proven"},
+    "duckdb": {"authority":"Local Compute","production":false,"state":"disposable-venv-on-demand"}
+  },
+  "sources": {
+    "connectorCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
+    "observedProviderState": "EVAVO-STUDIO/the-brain:config/observed-provider-capability-state-v1.json",
+    "databaseSandboxRegistry": "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json"
+  },
+  "rules": {
+    "providerNativeFirst": true,
+    "productionDdlRequiresMigrationOrBranch": true,
+    "unknownSchemaChangesUseSandboxFirst": true,
+    "databaseIdentityRequiredBeforeEffects": true,
+    "destructiveEffectsRequireSeparateLease": true,
+    "credentialValuesReturned": false,
+    "blindRetryAfterUnknownWrite": false
+  }
+}
