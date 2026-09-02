@@ -11,7 +11,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-if ($env:OS -ne 'Windows_NT') { throw 'EVAVO Chat Local Agent readiness targets Windows only.' }
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'EVAVO Chat Local Agent readiness targets Windows only.' }
+# Older EVAVO child PowerShell entrypoints still use the conventional OS environment
+# marker. Queue-launched PowerShell can omit it even on Windows, so normalize it for
+# this verified Windows process and the child processes spawned below.
+$env:OS = 'Windows_NT'
 
 $AgentInfraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $AcceptanceScript = Join-Path $PSScriptRoot 'Test-EvavoLocalAgentMcp043.ps1'
