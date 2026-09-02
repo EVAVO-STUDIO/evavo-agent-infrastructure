@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "kind": "evavo-autonomous-spark-task-registry-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
-  "purpose": "Expose reviewed Spark capacity, route-bound lease, contained exact-bound Test Builder and documentation-truth source contracts while keeping physical worker admission, scheduling, deterministic validation and publication separate.",
+  "purpose": "Expose reviewed Spark capacity, grant-bound route leasing, contained exact-bound Test Builder and documentation-truth source contracts while keeping physical worker admission, scheduling, deterministic validation and publication separate.",
   "tasks": {
     "spark-capacity-source-contract-suite": {
       "runtime": "node-script",
@@ -61,7 +61,9 @@
       "entry": "scripts/run-autonomous-work-exchange-lease.mjs",
       "network": "disabled",
       "timeoutSeconds": 180,
-      "effect": "canonical-local-storage-lease"
+      "effect": "canonical-local-storage-lease",
+      "documentationTruthRequiresCompleteRuntimeGrantEvidence": true,
+      "documentationTruthRequiresAtomicSingleUseConsumptionReceipt": true
     },
     "test-builder-contained-dispatch-compile": {
       "runtime": "node-script",
@@ -98,10 +100,11 @@
     },
     "documentation-truth-dispatch-compile": {
       "runtime": "node-script",
-      "entry": "scripts/compile-codex-documentation-truth-dispatch.mjs",
+      "entry": "scripts/compile-codex-documentation-truth-grant-bound-dispatch.mjs",
       "network": "disabled",
       "timeoutSeconds": 120,
-      "effect": "read-only-compiler"
+      "effect": "read-only-consumed-grant-dispatch-compiler",
+      "arguments": ["leasedWorkItemPath", "routePlanPath", "codexCapabilityPath", "candidateWorktreeReceiptPath", "grantBoundLeaseEffectReceiptPath", "workerId"]
     },
     "documentation-truth-physical-acceptance-verify": {
       "runtime": "node-script",
@@ -112,12 +115,13 @@
     },
     "documentation-truth-run": {
       "runtime": "node-script",
-      "entry": "scripts/run-codex-documentation-truth-dispatch.mjs",
+      "entry": "scripts/run-codex-documentation-truth-grant-bound-dispatch.mjs",
       "network": "disabled-by-worker-contract",
-      "timeoutSeconds": 1200,
-      "effect": "guarded-candidate-worktree-model-run",
+      "timeoutSeconds": 1500,
+      "effect": "guarded-consumed-grant-candidate-worktree-model-run",
       "routineSchedulingAllowed": false,
-      "requiresDedicatedPhysicalAcceptance": true
+      "requiresDedicatedPhysicalAcceptance": true,
+      "requiresExactGrantBoundLeaseEffectReceipt": true
     },
     "documentation-truth-contract-suite": {
       "runtime": "node-script",
@@ -140,6 +144,11 @@
   "testBuilderDeterministicValidationRegistered": false,
   "testBuilderCommitOrPublicationRegistered": false,
   "documentationTruthLeaseSourceRegistered": true,
+  "documentationTruthRuntimeGrantEvidenceForwardingRegistered": true,
+  "documentationTruthLeaseReceiptConsumptionProofRequired": true,
+  "documentationTruthGrantBoundDispatchCompilerRegistered": true,
+  "documentationTruthGrantBoundRunnerRegistered": true,
+  "documentationTruthModelRunRequiresConsumedGrantReceipt": true,
   "documentationTruthDispatchCompilerRegistered": true,
   "documentationTruthPhysicalAcceptanceVerifierRegistered": true,
   "documentationTruthRunnerSourceRegistered": true,
@@ -153,5 +162,5 @@
   "deterministicValidationAuthority": false,
   "publicationAuthority": false,
   "deploymentAuthority": false,
-  "truthBoundary": "The Test Builder source lane now has contained dispatch, process and completion wrappers that prove zero ignored workspace files alongside exact candidate-content evidence. Physical execution and automatic scheduling remain separately gated; deterministic validation, commit, push, publication and deployment remain unregistered. The documentation-truth source lane remains physically inactive. A checked-in compiler, verifier or runner is not acceptance."
+  "truthBoundary": "The Test Builder source lane remains contained and exact-bound. Documentation-truth lease acquisition now requires complete v3 signed-grant evidence and the model-run route is registered only through a wrapper that binds the exact Local Storage receipt proving atomic single-use grant consumption. Physical execution and automatic scheduling remain separately gated; deterministic validation, commit, push, publication and deployment remain unregistered. A checked-in compiler, verifier or runner is not acceptance."
 }
