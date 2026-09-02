@@ -1,6 +1,17 @@
 /**
- * EVAVO Agent Infrastructure Package
- * Ready for implementation
+ * @evavo/testing-runner
+ * Test execution, coverage analysis, and flaky test detection
  */
 
-export {};
+export { TestingRunner, createTestingRunner } from './testing-runner';
+export { TestingError, TestRunError, CoverageError, FlakyTestError } from './errors';
+export type {
+  TestResult,
+  TestFile,
+  TestRunResult,
+  CoverageResult,
+  FlakyTest,
+  FlakyTestResult,
+  CoverageThreshold,
+  CoverageReport,
+} from './types';
