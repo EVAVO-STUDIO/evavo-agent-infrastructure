@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 2,
+  "kind": "evavo-workstation-execution-fabric-client-v2",
+  "client": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "canonicalContracts": {
+    "executionFabric": "EVAVO-STUDIO/evavo-development-studio:config/local-workstation-execution-fabric-v2.json",
+    "routing": "EVAVO-STUDIO/evavo-development-studio:config/workstation-agent-routing-current-v1.json",
+    "brainCurrent": "EVAVO-STUDIO/the-brain:config/automation-fabric-current.json",
+    "gatewayRouting": "EVAVO-STUDIO/evavo-local-ai-agent-gateway:config/agent-execution-routing-v1.json"
+  },
+  "execution": {
+    "authority": "EVAVO-STUDIO/evavo-local-compute",
+    "canonicalMcpEntrypoint": "mcp-server/local-agent-mcp-v2.mjs",
+    "unattendedBackend": "hkcu_run_python",
+    "structuredArgvPreferred": true,
+    "shaBoundScriptFallback": true,
+    "rawOpaqueShellCanonical": false,
+    "physicallyProvenScriptRuntimes": ["python", "powershell", "bash", "cmd", "node"],
+    "waitForAuthoritativeTerminalReceipt": true,
+    "closedIssueAloneMeansSuccess": false
+  },
+  "handoff": {
+    "backgroundCliGitBuildTestFileModelExecution": "EVAVO-STUDIO/evavo-local-compute",
+    "foregroundGui": "EVAVO-STUDIO/evavo-computer-agent",
+    "prebootAndPhysicalConsole": "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
+    "effectfulCometRecovery": "EVAVO-STUDIO/evavo-out-of-band-control",
+    "networkReachability": "EVAVO-STUDIO/network-studio",
+    "modelGovernance": "EVAVO-STUDIO/evavo-model-lab",
+    "publication": "EVAVO-STUDIO/evavo-development-studio"
+  },
+  "multiAgent": {
+    "uniqueRequestIdPerCorrectedSuccessor": true,
+    "sameMutationRootConcurrentWriters": 1,
+    "durableIntentRequired": true,
+    "blindReplayAfterPossibleEffect": false,
+    "staleWriteMustRefetchBeforeRetry": true,
+    "foregroundHumanExperienceWins": true
+  },
+  "zeroCost": {
+    "githubActionsRequired": false,
+    "paidHostedRunnerRequired": false,
+    "paidComputeRequired": false
+  }
+}
