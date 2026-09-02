@@ -9,7 +9,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
-if ($env:OS -ne 'Windows_NT') { throw 'EVAVO Local Agent MCP acceptance targets Windows only.' }
+if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'EVAVO Local Agent MCP acceptance targets Windows only.' }
 if (-not $env:LOCALAPPDATA) { throw 'LOCALAPPDATA is required.' }
 
 $Root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
@@ -72,17 +72,17 @@ New-Item -ItemType Directory -Path $ReceiptRoot -Force|Out-Null
 foreach($Path in @($WorkRoot,$ReceiptRoot)){$Item=Get-Item -LiteralPath $Path -Force -ErrorAction Stop;if(-not$Item.PSIsContainer-or($Item.Attributes-band[IO.FileAttributes]::ReparsePoint)-ne0){throw'MCP acceptance state roots must be canonical non-reparse directories.'}}
 $TempPhysicalRoot=if(-not[string]::IsNullOrWhiteSpace($env:TEMP)){[IO.Path]::GetFullPath($env:TEMP)}elseif(-not[string]::IsNullOrWhiteSpace($env:TMP)){[IO.Path]::GetFullPath($env:TMP)}else{Join-Path $env:LOCALAPPDATA 'Temp'}
 $DoctorOwnedPhysicalRoot=Join-Path $TempPhysicalRoot ($RelativeParent -replace '/','\')
-$Input=[IO.Path]::GetTempFileName();$Output=[IO.Path]::GetTempFileName();$Error=[IO.Path]::GetTempFileName();$Started=[DateTimeOffset]::UtcNow
+$InputPath=[IO.Path]::GetTempFileName();$OutputPath=[IO.Path]::GetTempFileName();$ErrorPath=[IO.Path]::GetTempFileName();$Started=[DateTimeOffset]::UtcNow
 $DoctorOwnedCleanupPerformed=$false
 try{
-    [IO.File]::WriteAllText($Input,(($Requests -join [Environment]::NewLine)+[Environment]::NewLine),(New-Object Text.UTF8Encoding($false)))
+    [IO.File]::WriteAllText($InputPath,(($Requests -join [Environment]::NewLine)+[Environment]::NewLine),(New-Object Text.UTF8Encoding($false)))
     $QuotedRuntime=[string]::Concat('"',$Runtime,'"')
-    $Process=Start-Process -FilePath $Node -ArgumentList $QuotedRuntime -NoNewWindow -PassThru -RedirectStandardInput $Input -RedirectStandardOutput $Output -RedirectStandardError $Error
+    $Process=Start-Process -FilePath $Node -ArgumentList $QuotedRuntime -NoNewWindow -PassThru -RedirectStandardInput $InputPath -RedirectStandardOutput $OutputPath -RedirectStandardError $ErrorPath
     if(-not$Process.WaitForExit($TimeoutSeconds*1000)){try{& taskkill.exe /PID $Process.Id /T /F 2>$null|Out-Null}catch{try{$Process.Kill()}catch{}};throw'Local Agent MCP acceptance timed out.'}
-    $Stderr=if(Test-Path -LiteralPath $Error){Get-Content -LiteralPath $Error -Raw -Encoding UTF8}else{''}
+    $Stderr=if(Test-Path -LiteralPath $ErrorPath){Get-Content -LiteralPath $ErrorPath -Raw -Encoding UTF8}else{''}
     if($Process.ExitCode-ne0){throw"Local Agent MCP runtime exited $($Process.ExitCode)."}
     if(-not[string]::IsNullOrWhiteSpace($Stderr)){throw'Local Agent MCP runtime wrote unexpected stderr.'}
-    $Responses=@();foreach($Line in @(Get-Content -LiteralPath $Output -Encoding UTF8)){if([string]::IsNullOrWhiteSpace($Line)){continue};try{$Responses+=($Line|ConvertFrom-Json -ErrorAction Stop)}catch{throw'Local Agent MCP runtime returned non-JSON stdout.'}}
+    $Responses=@();foreach($Line in @(Get-Content -LiteralPath $OutputPath -Encoding UTF8)){if([string]::IsNullOrWhiteSpace($Line)){continue};try{$Responses+=($Line|ConvertFrom-Json -ErrorAction Stop)}catch{throw'Local Agent MCP runtime returned non-JSON stdout.'}}
     $Initialize=$Responses|Where-Object{$_.id-eq1}|Select-Object -First 1;if([string]$Initialize.result.serverInfo.name-ne'evavo-agent-mcp'){throw'Local Agent MCP server identity mismatch.'}
     $List=$Responses|Where-Object{$_.id-eq2}|Select-Object -First 1;$Observed=@($List.result.tools|ForEach-Object{[string]$_.name});foreach($Tool in $RequiredTools){if($Observed-notcontains$Tool){throw"Local Agent MCP missing required tool: $Tool"}};if((@($Observed|Select-Object -Unique)).Count-ne$Observed.Count){throw'Local Agent MCP tool inventory contains duplicates.'}
     function Read-ToolPayload([int]$Id){$Response=$Responses|Where-Object{$_.id-eq$Id}|Select-Object -First 1;if(-not$Response){throw"Missing MCP response id $Id."};if($Response.result.isError-eq$true){throw"MCP tool call $Id reported an error."};$Text=[string](@($Response.result.content|Where-Object{$_.type-eq'text'}|Select-Object -First 1).text);if([string]::IsNullOrWhiteSpace($Text)){throw"MCP tool call $Id returned no text payload."};try{return$Text|ConvertFrom-Json -ErrorAction Stop}catch{throw"MCP tool call $Id returned invalid JSON payload."}}
@@ -111,5 +111,5 @@ try{
     $ReceiptPath=Join-Path $ReceiptRoot ("$([DateTimeOffset]::UtcNow.ToString('yyyyMMddTHHmmssfffZ'))-$([Guid]::NewGuid().ToString('N')).json");$Bytes=[Text.UTF8Encoding]::new($false).GetBytes(($Receipt|ConvertTo-Json -Depth 12)+[Environment]::NewLine);try{$Stream=[IO.File]::Open($ReceiptPath,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read);try{$Stream.Write($Bytes,0,$Bytes.Length);$Stream.Flush($true)}finally{$Stream.Dispose()}}finally{[Array]::Clear($Bytes,0,$Bytes.Length)};$Receipt|ConvertTo-Json -Depth 12;exit 0
 } finally {
     if(-not$DoctorOwnedCleanupPerformed-and(Test-Path -LiteralPath $DoctorOwnedPhysicalRoot)){Remove-Item -LiteralPath $DoctorOwnedPhysicalRoot -Recurse -Force -ErrorAction SilentlyContinue}
-    Remove-Item -LiteralPath $Input,$Output,$Error -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $InputPath,$OutputPath,$ErrorPath -Force -ErrorAction SilentlyContinue
 }
