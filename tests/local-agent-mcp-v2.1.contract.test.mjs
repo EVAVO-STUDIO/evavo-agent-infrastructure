@@ -26,6 +26,7 @@ test("v2.1 exposes the canonical specialist routing matrix", () => {
     'beestation: "EVAVO-STUDIO/evavo-local-storage"',
     'externalStorage: "EVAVO-STUDIO/evavo-local-storage"',
     'immutableStorage: "EVAVO-STUDIO/evavo-storage"',
+    'googleDrive: "provider-native:Google_Drive"',
     'modelTraining: "EVAVO-STUDIO/evavo-model-lab"',
     'gui: "EVAVO-STUDIO/evavo-computer-agent"',
     'physicalConsole: "EVAVO-STUDIO/evavo-local-ai-agent-gateway"',
