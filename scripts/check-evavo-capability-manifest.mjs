@@ -11,6 +11,8 @@ const requiredCapabilityIds = new Set([
   "agent.windows.execution-route",
   "agent.codex.spark-capacity",
   "agent.codex.test-builder",
+  "agent.documentation-truth.runtime-route",
+  "agent.documentation-truth.route-bound-lease-plan",
   "agent.remote.typed-relay",
   "agent.github.estate-observe",
 ]);
@@ -20,6 +22,11 @@ const credentialPattern = /-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY----
 const requireValue = (condition, message) => {
   if (!condition) errors.push(message);
 };
+const exactArray = (value, expected) =>
+  Array.isArray(value) && JSON.stringify(value) === JSON.stringify(expected);
+const includesText = (values, pattern) =>
+  Array.isArray(values) && values.some((value) => pattern.test(String(value)));
+
 requireValue(manifest.contractVersion === "evavo_repository_capabilities_v1", "Capability manifest contract version is invalid.");
 requireValue(manifest.repository === "EVAVO-STUDIO/evavo-agent-infrastructure", "Capability manifest repository identity is invalid.");
 requireValue(manifest.authority === "agent-infrastructure", "Capability manifest authority is invalid.");
@@ -44,6 +51,8 @@ requireValue(manifest.brain?.consult === true, "brain.consult must be true.");
 requireValue(manifest.brain?.sanityCheck === true, "brain.sanityCheck must be true.");
 requireValue(Array.isArray(manifest.brain?.topics) && manifest.brain.topics.length > 0, "brain.topics must be non-empty.");
 requireValue(manifest.brain?.topics?.includes("ignored workspace containment") === true, "Brain topics must expose ignored-workspace containment.");
+requireValue(manifest.brain?.topics?.includes("documentation-truth runtime route admission") === true, "Brain topics must expose documentation-truth runtime route admission.");
+requireValue(manifest.brain?.topics?.includes("documentation-truth route-bound lease planning") === true, "Brain topics must expose documentation-truth route-bound lease planning.");
 requireValue(typeof manifest.reviewedAt === "string" && Number.isFinite(Date.parse(manifest.reviewedAt)), "reviewedAt must be a valid ISO-8601 timestamp.");
 requireValue(!credentialPattern.test(fs.readFileSync("evavo.capabilities.json", "utf8")), "Capability manifest contains credential-like material.");
 
@@ -60,6 +69,32 @@ requireValue(testBuilder?.requires?.some((value) => value.includes("Zero ignored
 requireValue(testBuilder?.requires?.some((value) => value.includes("External deterministic validation")) === true, "Test Builder must require independent deterministic validation.");
 requireValue(testBuilder?.tags?.includes("ignored-workspace-containment") === true, "Test Builder must advertise ignored-workspace containment.");
 
+const runtimeRoute = manifest.capabilities?.find((entry) => entry.id === "agent.documentation-truth.runtime-route");
+requireValue(exactArray(runtimeRoute?.interfaces, ["automation", "cli", "library", "testing"]), "Documentation-truth runtime route interfaces drifted.");
+requireValue(exactArray(runtimeRoute?.effects, ["read", "compute"]), "Documentation-truth runtime route must remain read/compute only.");
+requireValue(exactArray(runtimeRoute?.entrypoints, [
+  "scripts/plan-documentation-truth-runtime-route.mjs",
+  "scripts/documentation-truth-runtime-route-planner-core.mjs",
+  "config/documentation-truth-runtime-route-planner-v1.json",
+]), "Documentation-truth runtime route entrypoints drifted.");
+requireValue(/Local Storage v3 grant-verification receipt/i.test(runtimeRoute?.description ?? ""), "Documentation-truth runtime route must identify the Local Storage v3 grant receipt.");
+requireValue(/grants no queue, lease, model, repository, Git, publication, deployment, financial or paid-fallback authority/i.test(runtimeRoute?.description ?? ""), "Documentation-truth runtime route must preserve its zero-authority boundary.");
+requireValue(includesText(runtimeRoute?.requires, /unused Local Storage v3 documentation-truth grant verification receipt/i), "Documentation-truth runtime route must require the exact unused Local Storage v3 receipt.");
+requireValue(includesText(runtimeRoute?.requires, /sealed documentation-truth capacity admission/i), "Documentation-truth runtime route must require sealed capacity admission.");
+
+const leasePlan = manifest.capabilities?.find((entry) => entry.id === "agent.documentation-truth.route-bound-lease-plan");
+requireValue(exactArray(leasePlan?.interfaces, ["automation", "cli", "library", "testing"]), "Documentation-truth route-bound lease interfaces drifted.");
+requireValue(exactArray(leasePlan?.effects, ["read", "compute"]), "Documentation-truth route-bound lease must remain read/compute only.");
+requireValue(exactArray(leasePlan?.entrypoints, [
+  "scripts/compile-documentation-truth-route-bound-lease-v2.mjs",
+  "config/documentation-truth-route-bound-lease-v2.json",
+  "scripts/check-documentation-truth-route-bound-lease-v2.mjs",
+]), "Documentation-truth route-bound lease entrypoints drifted.");
+requireValue(/\bit is not a lease\b/i.test(leasePlan?.description ?? ""), "Documentation-truth route-bound lease declaration must say the plan is not a lease.");
+requireValue(/Local Storage.*canonical exclusive lock/i.test(leasePlan?.description ?? ""), "Documentation-truth route-bound lease declaration must retain Local Storage lease ownership.");
+requireValue(/grants no model, repository, Git, publication, deployment, financial or paid-fallback authority/i.test(leasePlan?.description ?? ""), "Documentation-truth route-bound lease declaration must preserve its zero-authority boundary.");
+requireValue(includesText(leasePlan?.requires, /sole canonical lease-effect owner/i), "Documentation-truth route-bound lease must require Local Storage as sole lease-effect owner.");
+
 if (errors.length) {
   console.error("EVAVO capability manifest check failed:\n");
   for (const error of errors) console.error(`- ${error}`);
@@ -69,5 +104,5 @@ if (errors.length) {
 console.log("EVAVO capability manifest check passed.");
 console.log("- Brain can discover Agent Infrastructure from a strict repository manifest");
 console.log("- Test Builder exposes only the contained zero-ignored dispatch, run and completion lifecycle");
-console.log("- effectful Test Builder capability is declared without publication or financial authority");
-console.log("- capability, Windows, Spark, relay and GitHub-estate routing surfaces are explicit");
+console.log("- documentation-truth route admission and route-bound lease planning are explicit read-only capabilities");
+console.log("- Local Storage grant and lease ownership remain explicit; model, Git, publication and paid fallback are not inherited");

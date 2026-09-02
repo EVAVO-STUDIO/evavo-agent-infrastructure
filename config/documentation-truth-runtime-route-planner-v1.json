@@ -7,7 +7,10 @@
   "routeId": "codex-spark-pro",
   "modelPreference": "gpt-5.3-codex-spark",
   "capacityClass": "included-consumer",
-  "dispatchableRawCapacityStates": ["AVAILABLE", "DEGRADED"],
+  "dispatchableRawCapacityStates": [
+    "AVAILABLE",
+    "DEGRADED"
+  ],
   "maximumVerificationAgeSeconds": 120,
   "maximumCapacityAdmissionAgeSeconds": 120,
   "maximumRoutePlanLifetimeSeconds": 120,
@@ -15,6 +18,7 @@
   "maximumConcurrency": 1,
   "paidFallbackAllowed": false,
   "requiredGrantVerification": {
+    "kind": "evavo-local-storage-documentation-truth-runtime-grant-verification-v1",
     "clientPolicyVersion": 3,
     "pathSafetyVerified": true,
     "parentComponentSymlinkSafetyVerified": true,
@@ -29,7 +33,9 @@
     "physicalAcceptanceAccepted": true,
     "candidateCampaignAccepted": true,
     "signedRuntimeGrantRequired": true,
-    "admittedWorkerClasses": ["documentation-truth"],
+    "admittedWorkerClasses": [
+      "documentation-truth"
+    ],
     "maximumConcurrency": 1,
     "paidFallbackAllowed": false
   },
