@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-chatgpt-fleet-readonly-app-contract-v1",
+  "status": "canonical",
+  "serviceName": "evavo-fleet-readonly",
+  "purpose": "native-read-only-workstation-and-fleet-observation-for-chatgpt",
+  "transportOwner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "physicalExecutionOwner": "EVAVO-STUDIO/evavo-local-compute",
+  "publicationOwner": "EVAVO-STUDIO/evavo-development-studio",
+  "endpoint": {
+    "configuredAtDeployment": true,
+    "hardcodedPublicUrlAllowed": false,
+    "loopbackUrlPresentedToChatgpt": false,
+    "secureTunnelOrRemoteHttpsRequired": true,
+    "sourcePresenceMeansReachable": false,
+    "deployedEndpointMeansAppInstalled": false,
+    "appInstalledMeansCurrentConversationAttached": false
+  },
+  "discovery": {
+    "canonicalMethod": "mcp-tools-list",
+    "toolInventoryHardcodedInThisContract": false,
+    "everyAdvertisedToolMustDeclareReadOnly": true,
+    "unknownToolFailsClosed": true,
+    "toolListChangeRequiresReview": true
+  },
+  "allowedCapabilityClasses": [
+    "fleet-status-read",
+    "workstation-capability-read",
+    "gateway-status-read",
+    "job-status-read",
+    "job-list-read",
+    "repository-observation-read",
+    "diagnostic-plan-read"
+  ],
+  "forbiddenCapabilityClasses": [
+    "raw-shell",
+    "raw-powershell",
+    "raw-command",
+    "caller-selected-executable",
+    "filesystem-write",
+    "git-mutation",
+    "source-publication",
+    "deployment-mutation",
+    "credential-read",
+    "credential-return",
+    "secret-return",
+    "browser-control",
+    "desktop-control",
+    "hid-control",
+    "kvm-control",
+    "power-control",
+    "firmware-control",
+    "arbitrary-network-request"
+  ],
+  "authority": {
+    "transportConfersExecutionAuthority": false,
+    "readOnlyAppMayCreateExecutionRequest": false,
+    "readOnlyAppMayApproveExecutionRequest": false,
+    "readOnlyAppMayPublishSource": false,
+    "readOnlyAppMayElevatePrivileges": false,
+    "effectfulFallback": "governed-chatgpt-github-issue-relay"
+  },
+  "security": {
+    "authenticationRequired": true,
+    "authorizationRequiredPerTool": true,
+    "credentialValuesMayBeLogged": false,
+    "credentialValuesMayBeReturned": false,
+    "physicalPathsMayBeReturned": false,
+    "rawEnvironmentMayBeReturned": false,
+    "boundedResponsesRequired": true,
+    "requestCorrelationRequired": true,
+    "auditEventRequired": true
+  },
+  "chatgptLifecycle": {
+    "currentConversationHotInjectionSupportedByRepositoryChange": false,
+    "appAttachmentRequired": true,
+    "connectionRefreshMayBeRequiredAfterToolInventoryChange": true,
+    "newConversationMayBeRequiredAfterAttachment": true,
+    "sourceDeploymentAloneIsNotUserVisibleToolProof": true
+  },
+  "acceptance": {
+    "sourceContractPassMeansAppConnected": false,
+    "tunnelProcessRunningMeansToolsVisible": false,
+    "toolsListObservedByChatgptRequired": true,
+    "readOnlyClassificationVerifiedRequired": true,
+    "forbiddenToolAbsenceVerifiedRequired": true,
+    "freshWorkspaceObservationRequired": true
+  }
+}
