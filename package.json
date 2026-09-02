@@ -68,6 +68,8 @@
     "run:spark-contained-worker": "node scripts/run-codex-worker-dispatch-contained.mjs",
     "compile:spark-test-builder-completion": "node scripts/compile-codex-test-builder-completion.mjs",
     "compile:spark-contained-completion": "node scripts/compile-codex-test-builder-completion-contained.mjs",
+    "compile:documentation-truth-grant-bound-dispatch": "node scripts/compile-codex-documentation-truth-grant-bound-dispatch.mjs",
+    "run:documentation-truth-grant-bound-dispatch": "node scripts/run-codex-documentation-truth-grant-bound-dispatch.mjs",
     "test:spark-routing": "node scripts/test-worker-capacity-routing.mjs",
     "test:spark-capacity-status": "node scripts/test-codex-spark-capacity-status.mjs",
     "test:spark-candidate-observer": "node scripts/test-codex-candidate-change-observer.mjs",
@@ -79,7 +81,8 @@
     "test:spark-result-classifier": "node scripts/test-codex-worker-result-classifier.mjs",
     "test:spark-auth-policy": "node scripts/test-codex-chatgpt-auth-policy.mjs",
     "test:spark-safe-certification": "node scripts/test-codex-spark-safe-certification-contract.mjs && node scripts/test-codex-spark-safe-physical-acceptance.mjs",
-    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm check:spark-ignored-workspace && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-ignored-workspace && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification && pnpm check:spark-autonomous-lease && pnpm check:spark-documentation-truth-readiness",
+    "test:spark-documentation-truth-grant-bound": "node scripts/test-documentation-truth-grant-bound-dispatch.mjs",
+    "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm check:spark-ignored-workspace && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-ignored-workspace && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification && pnpm check:spark-autonomous-lease && pnpm test:spark-documentation-truth-grant-bound && pnpm check:spark-documentation-truth-readiness",
     "check:spark-documentation-truth-readiness": "node scripts/check-documentation-truth-contract-compatibility.mjs && node scripts/check-documentation-truth-supervised-fixture-acceptance-v2.mjs && node scripts/check-documentation-truth-supervised-activation-v2.mjs && node scripts/check-documentation-truth-runtime-route-planner-contract.mjs && node scripts/check-documentation-truth-route-bound-lease-v2.mjs"
   },
   "devDependencies": {
