@@ -20,6 +20,38 @@ The transaction format understands `test-generation` and `documentation-truth`. 
 
 It may change one file, at most 600 lines, once. It cannot change production source, dependencies, schemas, public APIs, creative assets or owner-authored copy. `NO_ACTION` is valid.
 
+## Grant-bound documentation-truth lease
+
+A documentation-truth lease now has a stricter bridge than test-generation. Agent Infrastructure must pass the complete runtime-grant evidence set to Local Storage:
+
+- the exact Agent Infrastructure checkout that owns the verifier;
+- the signed grant envelope;
+- the trust anchor;
+- the exact grant request.
+
+The four inputs are all-or-nothing. Agent Infrastructure rejects partial evidence, rejects grant evidence for test-generation, and requires the Agent Infrastructure verification root to be the same checkout as the lease runner.
+
+Before invoking the physical effect, the runner verifies that Local Storage advertises all of these properties:
+
+- full-component runtime-grant verification policy v3;
+- verification under the canonical exclusive Work Exchange lock;
+- atomic grant consumption with lease acquisition;
+- single-use enforcement and reuse rejection;
+- lease expiry bounded by grant expiry;
+- crash recovery and idempotent replay.
+
+After the effect, the runner independently checks the canonical receipt digest and accepts documentation-truth only when the receipt proves:
+
+```text
+runtimeGrantVerificationPerformed = true
+grantConsumed                     = true
+grantConsumptionRecorded          = true
+grantConsumedUses                 = 1
+grantRemainingUses                = 0
+```
+
+It also requires a valid grant ID and exact SHA-256 identities for the grant body, verification receipt and consumption record. A successful lease-run receipt exposes those identities without exposing the grant envelope or trust-anchor contents.
+
 ## Fail-closed continuity
 
 A lease binds:
@@ -32,10 +64,11 @@ A lease binds:
 - supervised acceptance, capability, capacity and verification evidence digests;
 - one-writer-per-repository;
 - a lease expiry that cannot outlive route admission;
+- for documentation-truth, one fresh externally signed grant whose single use is consumed in the same state replacement;
 - zero paid fallback.
 
 Any drift leaves the work item `READY`.
 
 ## Still disabled
 
-The lease runner never calls Codex. Model dispatch remains in the separate Codex dispatcher and must gain its own physical `documentation-truth` acceptance before that class can move from `LEASED` to a model turn. Commit, push, validation, publication and deployment remain separate downstream authorities.
+The lease runner never calls Codex. Grant consumption authorizes only the exact lease transition; it is not reusable model, validation, Git or publication authority. Model dispatch remains in the separate Codex dispatcher and must gain its own current physical `documentation-truth` acceptance before a model turn. Deterministic validation, commit, push, publication and deployment remain separate downstream authorities.
