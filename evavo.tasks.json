@@ -59,6 +59,13 @@
       "timeoutSeconds": 300,
       "description": "Certify exact-byte continuity from leased work through route plan, bound dispatch, run receipt and stable two-pass candidate state. Patch, file-content, index, validation-request or observation-time drift fails closed before deterministic validation."
     },
+    "documentation-truth-grant-bound-dispatch-certify": {
+      "runtime": "node-script",
+      "entry": "scripts/test-documentation-truth-grant-bound-dispatch.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Certify that documentation-truth dispatch and its model-run receipt bind the exact Local Storage lease-effect bytes proving full-component v3 verification and atomic single-use runtime-grant consumption. Missing consumption, byte drift and authority widening fail closed without starting Codex."
+    },
     "codex-worker-result-classifier-certify": {
       "runtime": "node-script",
       "entry": "scripts/test-codex-worker-result-classifier.mjs",
