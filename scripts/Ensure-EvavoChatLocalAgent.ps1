@@ -29,27 +29,40 @@ if (-not (Test-Path -LiteralPath $NodeManager -PathType Leaf)) {
     throw "EVAVO Local Storage node manager was not found at $NodeManager"
 }
 
-function Invoke-Acceptance {
-    $args = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$AcceptanceScript)
-    if ($IncludeOperatorExecution) { $args += '-IncludeOperatorExecution' }
-    if ($IncludeWorkstationAcceptance) { $args += '-IncludeWorkstationAcceptance' }
-    $stdout = & powershell.exe @args 2>&1
-    $exitCode = $LASTEXITCODE
+function Invoke-CapturedPowerShell {
+    param([Parameter(Mandatory=$true)][string[]]$Arguments)
+    $PreviousPreference = $ErrorActionPreference
+    try {
+        # Native stderr must remain evidence, not become a terminating PowerShell
+        # error before the caller can inspect the child exit code and repair it.
+        $ErrorActionPreference = 'Continue'
+        $Captured = & powershell.exe @Arguments 2>&1
+        $ExitCode = [int]$LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $PreviousPreference
+    }
     [pscustomobject]@{
-        ok = ($exitCode -eq 0)
-        exitCode = $exitCode
-        output = @($stdout | ForEach-Object { [string]$_ })
+        ok = ($ExitCode -eq 0)
+        exitCode = $ExitCode
+        output = @($Captured | ForEach-Object { [string]$_ })
     }
 }
 
+function Invoke-Acceptance {
+    $Arguments = @('-NoProfile','-ExecutionPolicy','Bypass','-File',$AcceptanceScript)
+    if ($IncludeOperatorExecution) { $Arguments += '-IncludeOperatorExecution' }
+    if ($IncludeWorkstationAcceptance) { $Arguments += '-IncludeWorkstationAcceptance' }
+    Invoke-CapturedPowerShell -Arguments $Arguments
+}
+
 function Invoke-NodeManager([ValidateSet('status','diagnose','restart','repair')][string]$Action) {
-    $stdout = & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $NodeManager -Action $Action 2>&1
-    $exitCode = $LASTEXITCODE
+    $Result = Invoke-CapturedPowerShell -Arguments @('-NoProfile','-ExecutionPolicy','Bypass','-File',$NodeManager,'-Action',$Action)
     [pscustomobject]@{
         action = $Action
-        ok = ($exitCode -eq 0)
-        exitCode = $exitCode
-        output = @($stdout | ForEach-Object { [string]$_ })
+        ok = $Result.ok
+        exitCode = $Result.exitCode
+        output = $Result.output
     }
 }
 
