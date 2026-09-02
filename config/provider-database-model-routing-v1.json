@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-agent-provider-database-model-routing-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "consumers": ["ChatGPT", "Claude", "Gemini", "Codex", "EVAVO Brain", "repo agents"],
+  "routes": {
+    "localExecution": "EVAVO-STUDIO/evavo-local-compute",
+    "localModelInference": "EVAVO-STUDIO/evavo-local-compute:config/local-model-portfolio-v1.json",
+    "modelTraining": "EVAVO-STUDIO/evavo-model-lab",
+    "trainingDataAcquisition": "EVAVO-STUDIO/evavo-local-compute:config/model-data-acquisition-fabric-v1.json",
+    "datasetStorage": "EVAVO-STUDIO/evavo-local-storage",
+    "immutableStorage": "EVAVO-STUDIO/evavo-storage",
+    "googleDrive": "provider-native:Google_Drive",
+    "supabase": "provider-native:Supabase",
+    "firebase": "EVAVO-STUDIO/evavo-local-compute + Development Studio Firebase adapter",
+    "neonPostgres": "provider-native:Neon_Postgres",
+    "mongodb": "EVAVO Local Compute managed mongosh or governed MongoDB Docker sandbox; external provider only when a verified profile exists",
+    "postgresSandbox": "EVAVO Local Compute Docker database sandbox",
+    "cloudinary": "provider-native:Cloudinary",
+    "cloudflare": "EVAVO Provider Transport for reads; EVAVO-managed Wrangler for writes after Cloudflare authentication",
+    "vercelDiagnostics": "provider-native:Vercel",
+    "vercelMutation": "EVAVO Local Compute Vercel CLI after provider identity authentication"
+  },
+  "observedState": {
+    "localGeneralModel": "qwen3.5:9b physically proven",
+    "localSmallModel": "qwen3.5:4b quarantined; qwen3.5:0.8b candidate proof queued",
+    "embeddingModel": "nomic-embed-text-v2-moe candidate proof queued",
+    "cudaTraining": "LoRA physically proven on RTX 4080 Laptop",
+    "supabase": "read SQL/schema/advisors proven",
+    "firebase": "Firebase CLI 15.28.1 authenticated; 3 projects proven",
+    "neonPostgres": "project/admin inventory proven; SQL connector wrapper currently inconsistent",
+    "mongodb": "MongoDB 8 Docker write/read proven; mongosh 2.10.0 installed; no external provider profile",
+    "postgres": "PostgreSQL 17 Docker write/read proven",
+    "cloudinary": "read/create/search/delete provider lifecycle proven",
+    "cloudflare": "Wrangler 4.127.1 installed; authentication pending",
+    "googleDrive": "provider lifecycle proven for connected evavo.studio@gmail.com account"
+  },
+  "rules": {
+    "structuredHandoffPreferred": true,
+    "providerIdentityRequiredBeforeEffects": true,
+    "credentialValuesReturned": false,
+    "readBeforeWrite": true,
+    "postconditionRequiredForWrites": true,
+    "destructiveEffectsRequireSeparateLease": true,
+    "unknownWriteMustNotBeBlindlyRetried": true,
+    "trainingRequiresRightsAndProvenance": true
+  }
+}
