@@ -5,7 +5,7 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-physical-control-status";
-const SERVER_VERSION = "1.4.0";
+const SERVER_VERSION = "1.5.0";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
 const LOCAL_STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT || "C:\\GitRepos\\evavo-local-storage";
 const PHYSICAL_SCRIPT = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1");
@@ -43,13 +43,14 @@ const PHYSICAL_TOOL = Object.freeze({
 
 const AUTOMATION_TOOL = Object.freeze({
   name: "evavo_zero_cost_automation_status",
-  description: "Read the non-mutating zero-cost worker automation status, joining scheduled recovery/updater evidence with fresh canonical Local Compute physical status, a freshness-bounded persisted recovery receipt, and a freshness-bounded updater fallback. Task presence and stale receipts never prove liveness.",
+  description: "Read the non-mutating zero-cost worker automation status, joining scheduled recovery/updater evidence with a freshness-bound persistent post-login automation watchdog and canonical Local Compute queue truth. Task presence and stale receipts never prove liveness.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
     properties: {
       recoveryReceiptFreshSeconds: { type: "integer", minimum: 60, maximum: 1800, default: 600 },
       updaterFallbackFreshSeconds: { type: "integer", minimum: 60, maximum: 1800, default: 300 },
+      automationWatchdogFreshSeconds: { type: "integer", minimum: 60, maximum: 1800, default: 900 },
     },
   },
   annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -59,6 +60,8 @@ const AUTOMATION_TOOL = Object.freeze({
     "io.evavo/inlineCodeAccepted": false,
     "io.evavo/canonicalQueueAuthority": "hkcu_run_python",
     "io.evavo/taskPresenceIsNotLivenessProof": true,
+    "io.evavo/persistentAutomationWatchdogRequired": true,
+    "io.evavo/persistentAutomationWatchdogConsumesQueue": false,
     "io.evavo/staleRecoveryReceiptCannotProveLiveness": true,
     "io.evavo/staleUpdaterReceiptCannotProveLiveness": true,
     "io.evavo/githubActionsRequired": false,
@@ -167,13 +170,15 @@ function runPhysicalStatus(raw = {}) {
 }
 function runAutomationStatus(raw = {}) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("arguments must be an object");
-  const allowed = new Set(["recoveryReceiptFreshSeconds", "updaterFallbackFreshSeconds"]);
+  const allowed = new Set(["recoveryReceiptFreshSeconds", "updaterFallbackFreshSeconds", "automationWatchdogFreshSeconds"]);
   for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`unknown argument: ${key}`);
   const recoveryFresh = asInt(raw.recoveryReceiptFreshSeconds, 600, 60, 1800, "recoveryReceiptFreshSeconds");
   const updaterFresh = asInt(raw.updaterFallbackFreshSeconds, 300, 60, 1800, "updaterFallbackFreshSeconds");
+  const automationWatchdogFresh = asInt(raw.automationWatchdogFreshSeconds, 900, 60, 1800, "automationWatchdogFreshSeconds");
   const receipt = runPowerShell(AUTOMATION_SCRIPT, [
     "-RecoveryReceiptFreshSeconds", String(recoveryFresh),
     "-UpdaterFallbackFreshSeconds", String(updaterFresh),
+    "-AutomationWatchdogFreshSeconds", String(automationWatchdogFresh),
   ], "zero-cost automation status v4");
   if (
     Number(receipt.schemaVersion) !== 4 ||
@@ -181,6 +186,10 @@ function runAutomationStatus(raw = {}) {
     typeof receipt.ok !== "boolean" ||
     typeof receipt.baseAutomationHealthy !== "boolean" ||
     typeof receipt.canonicalQueueHealthy !== "boolean" ||
+    typeof receipt.persistentAutomationWatchdogHealthy !== "boolean" ||
+    receipt.persistentAutomationWatchdogConsumesQueue !== false ||
+    receipt.persistentAutomationWatchdogFixedGuardianRepairOnly !== true ||
+    receipt.persistentAutomationWatchdogPresenceAloneIsNotLivenessProof !== true ||
     receipt.canonicalQueueAuthority !== "hkcu_run_python" ||
     receipt.taskPresenceIsNotLivenessProof !== true ||
     receipt.persistedRecoveryReceiptIsHistoricalEvidenceOnly !== true ||
@@ -213,9 +222,16 @@ function runAutomationStatus(raw = {}) {
   } else if (source !== "unavailable" && receipt.canonicalResidentFresh === true && receipt.canonicalWatchdogFresh === true) {
     throw new Error("zero-cost automation queue-health projection is internally inconsistent");
   }
-  if (receipt.ok !== (receipt.baseAutomationHealthy === true && receipt.canonicalQueueHealthy === true)) {
-    throw new Error("zero-cost automation overall-health projection is internally inconsistent");
+  if (receipt.persistentAutomationWatchdogHealthy === true) {
+    if (
+      receipt.persistentAutomationWatchdogProcessAlive !== true ||
+      receipt.persistentAutomationWatchdogExactPayloadRunning !== true ||
+      typeof receipt.persistentAutomationWatchdogStatusAgeSeconds !== "number" ||
+      receipt.persistentAutomationWatchdogStatusAgeSeconds > automationWatchdogFresh
+    ) throw new Error("persistent automation watchdog health lacked fresh exact-payload evidence");
   }
+  const expectedOverall = receipt.baseAutomationHealthy === true && receipt.canonicalQueueHealthy === true && receipt.persistentAutomationWatchdogHealthy === true;
+  if (receipt.ok !== expectedOverall) throw new Error("zero-cost automation overall-health projection is internally inconsistent");
   return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };
 }
 function send(id, result) { process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", id, result })}\n`); }
