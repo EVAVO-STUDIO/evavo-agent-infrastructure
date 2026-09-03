@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-agent-capability-routes-cloud-databases-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "evidence": "EVAVO-STUDIO/evavo-development-studio:config/observed-cloud-database-capabilities-v1.json",
+  "routes": {
+    "supabase": {"authority":"provider-native:Supabase","owner":"EVAVO Development Studio connector catalog","production":true},
+    "firebase": {"authority":"EVAVO-STUDIO/evavo-local-compute:firebase-admin-cli","owner":"EVAVO Development Studio connector catalog","production":true},
+    "cloudinary": {"authority":"provider-native:Cloudinary","owner":"EVAVO Development Studio connector catalog","production":true},
+    "cloudflare": {"authority":"EVAVO provider transport plus managed Wrangler","owner":"EVAVO Development Studio connector catalog","production":true},
+    "vercel": {"authority":"provider-native diagnostics plus Local Compute authenticated CLI for writes","owner":"EVAVO Development Studio connector catalog","production":true},
+    "googleDrive": {"authority":"provider-native:Google_Drive","owner":"EVAVO Development Studio connector catalog","production":true},
+    "gmail": {"authority":"provider-native:Gmail","owner":"EVAVO Development Studio connector catalog","production":true},
+    "evavoStorage": {"authority":"EVAVO-STUDIO/evavo-storage","owner":"EVAVO durable storage authority","production":true},
+    "beestation": {"authority":"EVAVO-STUDIO/evavo-local-storage","owner":"EVAVO local storage authority","production":true},
+    "postgresProvider": {"authority":"Supabase first; Neon when connector SQL path is healthy","owner":"EVAVO Development Studio database routing","production":true},
+    "postgresSandbox": {"authority":"EVAVO-STUDIO/evavo-local-compute:database-sandbox-registry-v1","engine":"postgresql","production":false},
+    "mongoProvider": {"authority":"MongoDB provider profile when explicitly configured","owner":"EVAVO Local Compute managed client","production":true,"state":"provider-profile-not-configured"},
+    "mongoSandbox": {"authority":"EVAVO-STUDIO/evavo-local-compute:database-sandbox-registry-v1","engine":"mongodb","production":false},
+    "redisSandbox": {"authority":"EVAVO-STUDIO/evavo-local-compute:database-sandbox-registry-v1","engine":"redis","production":false},
+    "mysqlSandbox": {"authority":"EVAVO-STUDIO/evavo-local-compute:database-sandbox-registry-v1","engine":"mysql","production":false},
+    "mariaDbSandbox": {"authority":"EVAVO-STUDIO/evavo-local-compute:database-sandbox-registry-v1","engine":"mariadb","production":false},
+    "sqlite": {"authority":"EVAVO-STUDIO/evavo-local-compute","engine":"sqlite","production":false},
+    "duckdb": {"authority":"EVAVO-STUDIO/evavo-local-compute","engine":"duckdb","production":false}
+  },
+  "policy": {
+    "providerIdentityRequiredBeforeEffects": true,
+    "readBeforeWrite": true,
+    "credentialValuesReturned": false,
+    "productionSchemaMutationUsesBranchOrMigrationWorkflow": true,
+    "unknownSchemaChangeUsesSandboxFirst": true,
+    "destructiveEffectsRequireSeparateLease": true,
+    "postconditionVerificationRequired": true,
+    "blindRetryAfterUnknownWrite": false,
+    "rawShellTextAllowed": false
+  }
+}
