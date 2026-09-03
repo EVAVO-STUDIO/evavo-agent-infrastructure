@@ -23,7 +23,9 @@ def test_registered_server_lists_physical_and_zero_cost_status_tools() -> None:
     assert 'name: "evavo_windows_physical_control_status"' in source
     assert 'name: "evavo_zero_cost_automation_status"' in source
     assert "tools: [PHYSICAL_TOOL, AUTOMATION_TOOL]" in source
-    assert 'const SERVER_VERSION = "1.4.0"' in source
+    assert 'const SERVER_VERSION = "1.5.0"' in source
+    assert 'automationWatchdogFreshSeconds' in source
+    assert 'persistentAutomationWatchdogHealthy' in source
 
 
 def test_registration_does_not_add_an_effectful_or_hosted_status_plane() -> None:
@@ -32,6 +34,7 @@ def test_registration_does_not_add_an_effectful_or_hosted_status_plane() -> None
     assert "workflow_dispatch" not in server
     assert "shell: true" not in server
     assert '"io.evavo/effects": ["read"]' in server
+    assert '"io.evavo/persistentautomationwatchdogconsumesqueue": false' in server
     assert '"io.evavo/githubactionsrequired": false' in server
     assert '"io.evavo/vercelrequired": false' in server
     assert '"io.evavo/paidcomputerequired": false' in server
