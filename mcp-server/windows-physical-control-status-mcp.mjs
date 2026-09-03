@@ -5,12 +5,12 @@ import process from "node:process";
 import { createInterface } from "node:readline";
 
 const SERVER_NAME = "evavo-windows-physical-control-status";
-const SERVER_VERSION = "1.2.0";
+const SERVER_VERSION = "1.3.0";
 const LOCAL_COMPUTE_ROOT = process.env.EVAVO_LOCAL_COMPUTE_ROOT || "C:\\GitRepos\\evavo-local-compute";
-const SCRIPT = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoWindowsPhysicalControlStatusCurrent.ps1");
+const SCRIPT = path.join(LOCAL_COMPUTE_ROOT, "scripts", "Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1");
 const TOOL = Object.freeze({
   name: "evavo_windows_physical_control_status",
-  description: "Read one non-mutating status receipt for Current queue, Local Command V3, control lane, supervisor, ingress recovery and singleton-gateway evidence, including latest terminal job physical-truth evidence. Terminal outcome claims require canonical digest validation; task presence and process exit alone are never outcome proof.",
+  description: "Read one non-mutating status receipt for the canonical same-user Python queue resident, its non-consuming watchdog, Workstation Manager heavy-work admission, legacy compatibility lanes, singleton-gateway evidence and latest terminal job physical truth. Terminal outcome claims require canonical digest validation; task presence and process exit alone are never outcome proof.",
   inputSchema: {
     type: "object",
     additionalProperties: false,
@@ -27,9 +27,14 @@ const TOOL = Object.freeze({
     "io.evavo/effects": ["read"],
     "io.evavo/arbitraryCommandTextAccepted": false,
     "io.evavo/inlineCodeAccepted": false,
+    "io.evavo/canonicalQueueAuthority": "hkcu_run_python",
+    "io.evavo/watchdogConsumesQueue": false,
     "io.evavo/taskPresenceIsNotLivenessProof": true,
     "io.evavo/processSuccessIsNotPhysicalPostconditionProof": true,
     "io.evavo/terminalReceiptDigestValidationRequired": true,
+    "io.evavo/githubActionsRequired": false,
+    "io.evavo/vercelRequired": false,
+    "io.evavo/paidComputeRequired": false,
   },
 });
 
@@ -53,7 +58,7 @@ function runStatus(raw = {}) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error("arguments must be an object");
   const allowed = new Set(["queueFreshSeconds", "controlFreshSeconds", "supervisorFreshSeconds", "ingressFreshSeconds", "gatewayFreshSeconds"]);
   for (const key of Object.keys(raw)) if (!allowed.has(key)) throw new Error(`unknown argument: ${key}`);
-  if (!existsSync(SCRIPT)) throw new Error("fixed Windows physical-control status helper is missing");
+  if (!existsSync(SCRIPT)) throw new Error("fixed Windows physical-control status helper v3 is missing");
   const values = {
     queueFreshSeconds: asInt(raw.queueFreshSeconds, 300, 30, 3600, "queueFreshSeconds"),
     controlFreshSeconds: asInt(raw.controlFreshSeconds, 300, 30, 3600, "controlFreshSeconds"),
@@ -75,9 +80,13 @@ function runStatus(raw = {}) {
   const receipt = lastJson(child.stdout || "");
   if (child.status !== 0 || !receipt) throw new Error("physical-control status helper returned no admitted receipt");
   if (
-    Number(receipt.schemaVersion) !== 2 ||
-    receipt.kind !== "evavo-windows-physical-control-status-current-v2" ||
+    Number(receipt.schemaVersion) !== 3 ||
+    receipt.kind !== "evavo-windows-physical-control-status-current-v3" ||
     receipt.ok !== true ||
+    receipt.canonicalQueueAuthority !== "hkcu_run_python" ||
+    receipt.legacyScheduledQueueConsumersAuthoritative !== false ||
+    receipt.singleNormalQueueConsumerRequired !== true ||
+    receipt.watchdogConsumesQueue !== false ||
     receipt.routeLivenessSeparatedFromJobOutcome !== true ||
     receipt.terminalJobReceiptRequiredForOutcomeClaim !== true ||
     receipt.terminalReceiptDigestValidationRequired !== true ||
@@ -87,6 +96,7 @@ function runStatus(raw = {}) {
     receipt.freshReceiptRequired !== true ||
     receipt.routeHealthIsObservationNotExecutionAuthority !== true ||
     receipt.verificationHelperReadOnly !== true ||
+    receipt.admissionProbeReadOnly !== true ||
     receipt.processExecutionFieldRepresentsEffectfulWork !== true ||
     receipt.mutationPerformed !== false ||
     receipt.providerMutationPerformed !== false ||
@@ -99,7 +109,18 @@ function runStatus(raw = {}) {
     receipt.paidComputeRequired !== false ||
     receipt.credentialValuesReturned !== false ||
     receipt.physicalPathsReturned !== false
-  ) throw new Error("physical-control status receipt failed admission");
+  ) throw new Error("physical-control status v3 receipt failed admission");
+  const resident = receipt.canonicalRoutes?.pythonResident;
+  const watchdog = receipt.canonicalRoutes?.watchdog;
+  if (!resident || resident.authority !== "canonical-normal-queue-consumer") throw new Error("canonical Python resident status is missing");
+  if (!watchdog || watchdog.authority !== "non-consuming-liveness-guard" || watchdog.queueConsumedByWatchdog !== false) throw new Error("canonical watchdog status is missing or unsafe");
+  const admission = receipt.heavyWorkAdmission;
+  if (
+    !admission ||
+    admission.observationOnly !== true ||
+    admission.grantsExecutionAuthority !== false ||
+    !["allow", "defer", "unknown"].includes(String(admission.disposition || ""))
+  ) throw new Error("heavy-work admission projection failed admission");
   const latest = receipt.latestTerminalJob;
   if (latest?.present === true) {
     if (
@@ -150,7 +171,7 @@ input.on("line", (line) => {
     if (request.method === "tools/call") {
       const payload = {
         ok: false,
-        kind: "evavo-windows-physical-control-status-error-v2",
+        kind: "evavo-windows-physical-control-status-error-v3",
         error: String(error?.message || error).slice(0, 2000),
         mutationPerformed: false,
         providerMutationPerformed: false,
