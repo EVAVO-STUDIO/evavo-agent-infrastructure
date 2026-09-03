@@ -19,8 +19,7 @@ def test_physical_acceptance_mcp_is_single_purpose_argument_free_and_repository_
         '"io.evavo/repositoryIndependentManagedClone":true',
         '"io.evavo/developerCheckoutMutationAllowed":false',
         'ZeroCostPhysicalAcceptanceMcp',
-        'gh.exe',[
-        ][0] if False else '"repo","clone",REPOSITORY,workspace',
+        'runFixed("gh.exe",["repo","clone",REPOSITORY,workspace',
         '"--filter=blob:none","--no-tags","--single-branch","--branch","main"',
         'temporary Local Storage checkout is not exact clean current main',
         'Invoke-EvavoZeroCostPhysicalAcceptanceCurrent.ps1',
