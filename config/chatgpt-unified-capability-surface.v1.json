@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-chatgpt-unified-capability-surface-v1",
+  "status": "canonical",
+  "server": {
+    "id": "evavo-fabric",
+    "title": "EVAVO Fabric",
+    "compatibilityAliases": [
+      "evavo-fleet-readonly"
+    ],
+    "protocolVersions": [
+      "2026-07-28",
+      "2025-11-25",
+      "2025-06-18"
+    ],
+    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires an explicit user task, reviewed mode and an authoritative receipt."
+  },
+  "stableTools": [
+    "evavo_capabilities",
+    "evavo_capability_describe",
+    "evavo_capability_refresh",
+    "evavo_capability_invoke",
+    "evavo_surface_status",
+    "evavo_relay_prepare"
+  ],
+  "compatibilityTools": [
+    "evavo_fleet_capabilities",
+    "fleet_capabilities"
+  ],
+  "sessionContinuity": {
+    "workspaceAttachmentPreferred": true,
+    "stableRouterSurvivesCapabilityGrowth": true,
+    "newCapabilityDoesNotRequireNewTopLevelTool": true,
+    "existingAttachedChatCanDiscoverNewCapabilityThroughCatalog": true,
+    "unattachedChatCannotBeMutatedByRepositoryCode": true,
+    "fallbackWhenNativeNamespaceAbsent": "github-receipt-relay",
+    "fallbackRequiresConnectedGitHub": true
+  },
+  "catalog": {
+    "refreshSeconds": 30,
+    "maximumServers": 32,
+    "maximumCapabilities": 1024,
+    "maximumDirectTools": 192,
+    "maximumPayloadBytes": 131072,
+    "maximumJsonDepth": 18,
+    "includeUnavailable": true,
+    "dynamicCatalogEnvironment": "EVAVO_CHATGPT_CAPABILITY_CATALOG"
+  },
+  "servers": [
+    {
+      "id": "evavo-workstation-fabric",
+      "title": "EVAVO Workstation Fabric",
+      "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
+      "command": "node",
+      "arguments": [
+        "mcp-server/local-agent-mcp-v2.mjs"
+      ],
+      "workingDirectory": ".",
+      "required": true,
+      "directExpose": true,
+      "environment": {
+        "EVAVO_LOCAL_AGENT_MCP_ROLE": "chatgpt-unified-capability-surface",
+        "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-workstation-fabric-v2"
+      }
+    }
+  ],
+  "routing": {
+    "preference": [
+      "typed-child-mcp",
+      "local-agent-receipt-route",
+      "github-receipt-relay"
+    ],
+    "arbitraryShellAccepted": false,
+    "rawPowerShellAccepted": false,
+    "callerSelectedExecutableAccepted": false,
+    "callerSelectedScriptSourceAccepted": false,
+    "unregisteredCapabilityAccepted": false,
+    "effectfulMode": "reviewed",
+    "explicitUserIntentRequired": true,
+    "authoritativeReceiptRequired": true,
+    "automaticReplayOfUncertainEffect": false
+  },
+  "relay": {
+    "repository": "EVAVO-STUDIO/evavo-github-mcp",
+    "jobMarker": "EVAVO_WORKSTATION_JOB:v1",
+    "schema": "evavo.chatgpt-workstation-job.v1",
+    "allowedGitHubLogin": "EVAVO-STUDIO",
+    "prepareOnly": true,
+    "submissionAuthority": "connected-github-or-governed-relay",
+    "githubActionsRequired": false,
+    "vercelRequired": false
+  },
+  "evidence": {
+    "states": [
+      "discovered",
+      "planned",
+      "candidate",
+      "validated",
+      "executed",
+      "published",
+      "production_verified"
+    ],
+    "sourcePresenceIsExecutionProof": false,
+    "issueClosureIsExecutionProof": false,
+    "receiptRequiredForExecuted": true,
+    "credentialValuesReturned": false
+  }
+}
