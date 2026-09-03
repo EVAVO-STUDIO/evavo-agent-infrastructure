@@ -1,0 +1,36 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-chatgpt-unified-mcp-registration-v1",
+  "status": "canonical",
+  "mcpServers": {
+    "evavo-fabric": {
+      "command": "node",
+      "args": [
+        "mcp-server/chatgpt-unified-capability-mcp.mjs"
+      ],
+      "env": {
+        "EVAVO_CHATGPT_CAPABILITY_SURFACE_CONFIG": "config/chatgpt-unified-capability-surface.v1.json"
+      }
+    }
+  },
+  "compatibility": {
+    "previousAppId": "evavo-fleet-readonly",
+    "upgradeExistingConnection": true,
+    "createSecondCompetingConnection": false
+  },
+  "hostPolicy": {
+    "accountOrWorkspaceConnectionPreferred": true,
+    "perChatManualRegistrationPreferred": false,
+    "stableMetaToolsRequired": true,
+    "dynamicCapabilityCatalogRequired": true,
+    "githubReceiptRelayFallbackRequired": true
+  },
+  "safety": {
+    "rawShell": false,
+    "rawPowerShell": false,
+    "callerSelectedExecutable": false,
+    "callerSelectedScriptSource": false,
+    "automaticReplayOfUncertainEffect": false,
+    "credentialsReturned": false
+  }
+}
