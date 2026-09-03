@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-chatgpt-dynamic-capability-catalog-v1",
+  "generatedAt": "derive-at-runtime",
+  "capabilities": [
+    {
+      "id": "evavo-workstation-fabric/example_status",
+      "serverTitle": "EVAVO Workstation Fabric",
+      "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
+      "toolName": "example_status",
+      "title": "Example status capability",
+      "description": "Example only. Runtime catalogs are generated from admitted MCP tool definitions.",
+      "available": false,
+      "availabilityError": "example-only",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "openWorldHint": false
+      },
+      "inputSchema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      }
+    }
+  ]
+}
