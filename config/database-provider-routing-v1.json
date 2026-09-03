@@ -8,13 +8,13 @@
     "supabase": {"preferred":"provider-native","state":"read-sql-diagnostics-proven"},
     "firebase": {"preferred":"local-managed-provider-adapter","state":"auth-projects-cli15.28.1-proven"},
     "neon-postgres": {"preferred":"provider-native","state":"admin-visibility-proven-sql-wrapper-inconsistent"},
-    "mongodb-production": {"preferred":"managed-mongosh-or-provider-profile","state":"external-provider-not-configured"},
+    "mongodb-production": {"preferred":"managed-mongosh-or-provider-profile","state":"mongosh2.10.0-proven-external-provider-not-configured"},
     "mongodb-development": {"preferred":"docker-sandbox","state":"mongo8-write-read-proven"},
     "postgres-development": {"preferred":"docker-sandbox","state":"postgres17-write-read-proven"},
-    "sqlite": {"preferred":"python-stdlib","state":"present"},
-    "redis": {"preferred":"docker-on-demand","state":"catalogued"},
-    "mysql-mariadb": {"preferred":"docker-on-demand","state":"catalogued"},
-    "duckdb": {"preferred":"disposable-python-env","state":"catalogued"}
+    "sqlite": {"preferred":"python-stdlib","state":"sqlite3.49.1-write-read-proven"},
+    "redis": {"preferred":"docker-on-demand","state":"redis7-write-read-proven"},
+    "mysql-mariadb": {"preferred":"docker-on-demand","state":"mysql8.4-and-mariadb11-write-read-proven"},
+    "duckdb": {"preferred":"disposable-python-env","state":"duckdb1.5.5-write-read-proven"}
   },
   "invariants": {
     "providerIdentityBeforeEffects": true,
