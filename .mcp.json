@@ -96,7 +96,8 @@
       "command": "node",
       "args": ["./mcp-server/windows-physical-control-status-mcp.mjs"],
       "env": {
-        "EVAVO_LOCAL_COMPUTE_ROOT": "C:\\GitRepos\\evavo-local-compute"
+        "EVAVO_LOCAL_COMPUTE_ROOT": "C:\\GitRepos\\evavo-local-compute",
+        "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage"
       }
     },
     "evavo-android-device": {
