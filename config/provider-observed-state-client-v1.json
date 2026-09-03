@@ -1,0 +1,31 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-provider-observed-state-client-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "authoritativeState": "EVAVO-STUDIO/evavo-development-studio:config/agent-provider-observed-state-v1.json",
+  "plannerState": "EVAVO-STUDIO/the-brain:config/provider-observed-state-v1.json",
+  "executionAuthority": "EVAVO-STUDIO/evavo-local-compute",
+  "rules": {
+    "resolveProviderStateBeforeDispatch": true,
+    "configuredDoesNotImplyConnected": true,
+    "installedDoesNotImplyAuthenticated": true,
+    "authenticatedDoesNotImplyWriteAuthorized": true,
+    "providerProjectDatabaseAccountIdentityRequired": true,
+    "writesRequirePostconditionVerification": true,
+    "destructiveOperationsRequireSeparateEffectLease": true,
+    "unknownWriteMustNotBeBlindlyRetried": true,
+    "credentialValuesReturned": false
+  },
+  "currentHighlights": {
+    "firebase": "15.28.1 authenticated as evavo.studio@gmail.com with 3 projects",
+    "cloudflare": "Wrangler 4.127.1 installed; provider authorization pending",
+    "mongodb": "mongosh 2.10.0 installed; mongo:8 isolated database sandbox proven; external provider pending",
+    "postgresqlSandbox": "postgres:17-alpine isolated write/read proof passed",
+    "supabase": "provider-native SQL read/diagnostics proven",
+    "neonPostgres": "project/admin visibility proven; SQL wrapper currently degraded",
+    "cloudinary": "provider lifecycle proof passed",
+    "gatewayMcp": "MCP SDK 2.1.1 full-suite proven",
+    "storageMcp": "final MCP v2 transport migration in progress",
+    "githubMcp": "modern discovery migration in progress"
+  }
+}
