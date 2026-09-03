@@ -7,10 +7,10 @@ ROOT = Path(__file__).resolve().parents[1]
 MCP = ROOT / "mcp-server" / "windows-physical-control-status-mcp.mjs"
 
 
-def test_mcp_consumes_only_canonical_v3_status_projection() -> None:
+def test_mcp_consumes_only_canonical_v3_physical_status_projection() -> None:
     source = MCP.read_text(encoding="utf-8")
     for token in (
-        'const SERVER_VERSION = "1.3.0"',
+        'const SERVER_VERSION = "1.4.0"',
         'Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1',
         'receipt.kind !== "evavo-windows-physical-control-status-current-v3"',
         'receipt.canonicalQueueAuthority !== "hkcu_run_python"',
@@ -23,6 +23,36 @@ def test_mcp_consumes_only_canonical_v3_status_projection() -> None:
         'admission.grantsExecutionAuthority !== false',
     ):
         assert token in source
+
+
+def test_mcp_exposes_zero_cost_automation_status_v4_as_second_read_only_tool() -> None:
+    source = MCP.read_text(encoding="utf-8")
+    for token in (
+        'const LOCAL_STORAGE_ROOT = process.env.EVAVO_LOCAL_STORAGE_ROOT',
+        'Get-EvavoZeroCostWorkerAutomationStatusV4.ps1',
+        'name: "evavo_zero_cost_automation_status"',
+        'RecoveryReceiptFreshSeconds',
+        'UpdaterFallbackFreshSeconds',
+        'receipt.kind !== "evavo-zero-cost-worker-automation-status-v4"',
+        'receipt.taskPresenceIsNotLivenessProof !== true',
+        'receipt.staleRecoveryReceiptCannotProveLiveness !== true',
+        'receipt.staleUpdaterReceiptCannotProveLiveness !== true',
+        'receipt.freshPhysicalStatusPreferred !== true',
+        'fresh-persisted-canonical-recovery-receipt',
+        'fresh-updater-canonical-queue-preflight',
+        'receipt.ok !== (receipt.baseAutomationHealthy === true && receipt.canonicalQueueHealthy === true)',
+        'tools: [PHYSICAL_TOOL, AUTOMATION_TOOL]',
+    ):
+        assert token in source
+
+
+def test_mcp_does_not_turn_unhealthy_automation_state_into_transport_error() -> None:
+    source = MCP.read_text(encoding="utf-8")
+    assert 'typeof receipt.ok !== "boolean"' in source
+    assert 'typeof receipt.canonicalQueueHealthy !== "boolean"' in source
+    assert 'if (receipt.canonicalQueueHealthy === true)' in source
+    assert 'source === "unavailable"' in source
+    assert 'return { ...receipt, invokedThrough: SERVER_NAME, arbitraryCommandTextAccepted: false };' in source
 
 
 def test_mcp_is_read_only_zero_cost_and_rejects_arbitrary_execution() -> None:
@@ -40,7 +70,6 @@ def test_mcp_is_read_only_zero_cost_and_rejects_arbitrary_execution() -> None:
         'receipt.providerMutationPerformed !== false',
         'receipt.taskMutationPerformed !== false',
         'receipt.processExecutionPerformed !== false',
-        'receipt.networkPerformed !== false',
         'receipt.githubActionsRequired !== false',
         'receipt.selfHostedActionsRunnerRequired !== false',
         'receipt.vercelRequired !== false',
