@@ -64,6 +64,24 @@
       }
     },
     {
+      "id": "evavo-git-control-plane",
+      "title": "EVAVO Git Control Plane",
+      "authority": "EVAVO-STUDIO/evavo-github-mcp",
+      "command": "node",
+      "arguments": [
+        "../evavo-github-mcp/control-plane/mcp-modern.mjs"
+      ],
+      "workingDirectory": ".",
+      "required": false,
+      "directExpose": true,
+      "readOnly": true,
+      "environment": {
+        "EVAVO_GIT_MCP_MODE": "read-only",
+        "EVAVO_GIT_MCP_ALLOW_MUTATION": "false",
+        "EVAVO_GIT_MCP_ALLOW_RAW_COMMANDS": "false"
+      }
+    },
+    {
       "id": "evavo-database-provider-routing",
       "title": "EVAVO Database Provider Routing",
       "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
