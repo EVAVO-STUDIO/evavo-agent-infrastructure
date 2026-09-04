@@ -37,7 +37,7 @@
     "requestedEffect": "read",
     "completionState": "completed",
     "physicalState": null,
-    "minimumIndependentIngressDomains": 1,
+    "minimumIndependentIngressDomains": 2,
     "description": "Audit the local repository estate and produce deterministic lifecycle, safety-gate and remediation plans without mutating source.",
     "strategies": [
       {
@@ -55,18 +55,18 @@
         "minimumState": "transport_online"
       },
       {
+        "id": "repository-estate-plan-secure-tunnel",
+        "authority": "technology-advisor",
+        "transport": "openai-secure-mcp-tunnel",
+        "clients": ["chatgpt-pro"],
+        "minimumState": "transport_online"
+      },
+      {
         "id": "repository-estate-plan-typed-relay",
         "authority": "technology-advisor",
         "transport": "cloudflare-typed-relay",
         "clients": ["chatgpt-pro", "api-agent"],
         "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-plan-issue-queue",
-        "authority": "technology-advisor",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
       }
     ]
   },
