@@ -3,6 +3,18 @@
   "kind": "evavo-workstation-control-health-v1",
   "canonical": true,
   "goal": "keep the workstation automation fabric healthy using the narrowest owner-specific repair before escalating to physical-console or out-of-band recovery",
+  "observedState": {
+    "observedDate": "2026-09-04",
+    "localCompute": "degraded-normal-and-control-queue-not-consuming",
+    "normalQueueLivenessIssue": 2224,
+    "normalQueueTerminalReceiptObserved": false,
+    "remoteDesktopCommanderMsiOnline": false,
+    "effectfulLocalSubmissionsAdmitted": false,
+    "hashOnlyLocalSubmissionsAdmitted": false,
+    "providerNativeReadsMayContinue": true,
+    "sourceOnlyRepositoryWorkMayContinue": true,
+    "resumeCondition": "Current canonical ensure must succeed and queue-liveness issue 2224 must receive an authoritative terminal receipt."
+  },
   "components": [
     {
       "id": "local-compute",
@@ -26,16 +38,20 @@
         "source branch is main",
         "source clean",
         "source HEAD equals origin/main",
-        "canonical origin verified"
+        "canonical origin verified",
+        "queue-liveness canary has authoritative terminal receipt"
       ],
       "selfHeal": [
+        "current scripts/Ensure-EvavoCanonicalQueueResidentsCurrent.ps1",
         "owned canonical Python resident restart",
+        "owned persistent control-resident restart",
         "owned non-consuming watchdog restart",
         "durable-job reconciliation",
         "bounded stale-state cleanup"
       ],
       "degradedBehavior": [
         "do not submit effectful Windows jobs",
+        "do not submit hash-only Windows jobs",
         "do not grow a queue backlog behind an unhealthy resident",
         "allow provider-native read-only operations that do not require the workstation",
         "allow source maintenance and physical-control diagnostics"
@@ -97,6 +113,7 @@
     "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
     "Configured or historically proven authority does not imply current physical liveness.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
-    "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed."
+    "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed.",
+    "While the normal queue is degraded, local effect submission is disabled even if provider-native reads and repository-source work remain available."
   ]
 }
