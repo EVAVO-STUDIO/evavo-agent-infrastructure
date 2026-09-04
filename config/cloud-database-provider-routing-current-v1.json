@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "evavo-cloud-database-provider-routing-current-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
   "authoritativeSources": {
@@ -7,33 +7,48 @@
     "connectorCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
     "databasePlanning": "EVAVO-STUDIO/the-brain:config/database-provider-routing-v1.json",
     "databaseSandboxes": "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json",
-    "executionSession": "EVAVO-STUDIO/evavo-local-compute:config/agent-execution-session-v1.json"
+    "executionSession": "EVAVO-STUDIO/evavo-local-compute:config/agent-execution-session-v1.json",
+    "physicalExecutionAdmission": "EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json"
   },
   "routingRules": {
     "supabase": "provider-native-connected-tool",
-    "firebase": "reviewed-local-provider-adapter",
+    "firebase": "reviewed-local-provider-adapter-requires-live-windows-admission-for-local-effects",
     "neonPostgres": "provider-native-project-admin; SQL wrapper currently fail-closed until connector schema mismatch is repaired",
     "mongodbProduction": "provider-profile-required",
-    "mongodbDevelopment": "proven-mongo8-docker-sandbox-or-managed-mongosh",
-    "postgresDevelopment": "proven-postgres17-docker-sandbox",
-    "redisDevelopment": "database-sandbox-registry",
-    "mysqlMariaDbDevelopment": "database-sandbox-registry",
-    "sqlite": "local-compute-python-stdlib",
-    "duckdb": "disposable-local-analytics-runtime",
+    "mongodbDevelopment": "proven-mongo8-docker-sandbox-or-managed-mongosh-requires-live-windows-admission",
+    "postgresDevelopment": "proven-postgres17-docker-sandbox-requires-live-windows-admission",
+    "redisDevelopment": "database-sandbox-registry-requires-live-windows-admission",
+    "mysqlMariaDbDevelopment": "database-sandbox-registry-requires-live-windows-admission",
+    "sqlite": "local-compute-python-stdlib-requires-live-windows-admission",
+    "duckdb": "disposable-local-analytics-runtime-requires-live-windows-admission",
     "cloudinary": "provider-native-connected-tool",
     "cloudflareRead": "evavo-provider-transport-when-credentialed",
-    "cloudflareWrite": "managed-wrangler-after-live-account-identity-proof"
+    "cloudflareWrite": "managed-wrangler-after-live-account-identity-proof-and-live-windows-admission",
+    "vercelDiagnostics": "provider-native-connected-tool",
+    "vercelWrite": "managed-cli-or-rest-after-live-provider-identity-proof-and-live-windows-admission",
+    "googleDriveEvavo": "provider-native-connected-tool",
+    "googleDrivePersonal": "account-profile-present-oauth-consent-pending"
   },
   "observed": {
     "firebase": "authenticated-and-cli-15.28.1-proven",
     "cloudinary": "read-write-delete-lifecycle-proven",
     "supabase": "read-sql-and-diagnostic-proven",
+    "neonPostgres": "project-admin-visibility-proven-sql-wrapper-inconsistent",
     "mongodbSandbox": "write-read-proven",
     "postgresSandbox": "write-read-proven",
+    "redisSandbox": "write-read-proven",
+    "mysqlSandbox": "write-read-proven",
+    "mariadbSandbox": "write-read-proven",
+    "duckdb": "1.5.5-write-read-proven",
+    "sqlite": "3.49.1-write-read-proven",
     "mongosh": "2.10.0-installed-proven",
     "cloudflareWrangler": "4.127.1-installed-authentication-pending",
+    "vercel": "provider-diagnostics-proven-local-cli-59.11.2-authentication-pending",
+    "googleDriveEvavo": "read-write-delete-lifecycle-proven",
+    "googleDrivePersonal": "initial-oauth-authorization-pending",
     "gatewayMcp": "sdk-2.1.1-full-suite-passed",
-    "storageMcp": "v2-migration-final-transaction-pending"
+    "storageMcp": "v2-migration-v6-source-validated-physical-transaction-pending",
+    "githubMcp": "modern-v8-source-validated-physical-transaction-pending"
   },
   "policy": {
     "providerIdentityRequiredBeforeEffects": true,
@@ -42,6 +57,9 @@
     "writeRequiresPostcondition": true,
     "destructiveRequiresSeparateEffectLease": true,
     "unknownWriteOutcomeMayNotBeBlindlyRetried": true,
-    "productionSchemaChangesUseProviderBranchMigrationOrSandboxFirst": true
+    "productionSchemaChangesUseProviderBranchMigrationOrSandboxFirst": true,
+    "livePhysicalStatusRequiredForLocalEffects": true,
+    "providerNativeReadOnlyMayContinueWhenWindowsExecutionIsDegraded": true,
+    "configuredOrInstalledDoesNotImplyAuthenticated": true
   }
 }
