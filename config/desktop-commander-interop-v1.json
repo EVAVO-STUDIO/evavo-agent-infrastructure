@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-desktop-commander-interop-v1",
+  "provider": "@wonderwhy-er/desktop-commander",
+  "remoteDeviceCommand": "npx @wonderwhy-er/desktop-commander@latest remote",
+  "remoteMcpService": "mcp.desktopcommander.app",
+  "role": "optional remote workstation MCP/control bridge",
+  "state": "user-configured-live-pairing-proof-pending",
+  "routing": {
+    "canonicalBackgroundExecution": "evavo-local-compute",
+    "canonicalForegroundGui": "evavo-computer-agent",
+    "optionalPairedRemoteBridge": "desktop-commander-remote",
+    "canonicalPrebootPhysicalRecovery": "evavo-local-ai-agent-gateway"
+  },
+  "policy": {
+    "requiresPairingAndLiveAvailabilityProof": true,
+    "remoteCloudRelay": true,
+    "desktopCommanderEffectIsNotAutomaticallyAnEvavoTerminalReceipt": true,
+    "reconciliationRequiredAfterEffect": true,
+    "blindRetryAfterUnknownEffect": false,
+    "mustNotBypassProviderSpecificAuthority": true,
+    "mustNotBypassMutationRootLockingForSharedRepositories": true,
+    "credentialValuesReturned": false
+  },
+  "clientNote": "For local stdio clients, Desktop Commander can also be launched as the normal @wonderwhy-er/desktop-commander MCP server. This record describes the remote device-agent mode the user configured."
+}
