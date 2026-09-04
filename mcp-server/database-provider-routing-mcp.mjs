@@ -34,6 +34,8 @@ export const DATABASE_ALIASES = Object.freeze({
   "duck-db": "duckdb",
 });
 
+const PHYSICAL_EXECUTION_ADMISSION = "EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json";
+
 function normalizeEngine(engine) {
   if (typeof engine !== "string" || !engine.trim()) throw new Error("engine is required");
   const requested = engine.trim();
@@ -41,6 +43,10 @@ function normalizeEngine(engine) {
   const folded = requested.toLowerCase();
   if (DATABASE_ROUTES[folded]) return folded;
   return DATABASE_ALIASES[requested] ?? DATABASE_ALIASES[folded] ?? null;
+}
+
+function requiresLivePhysicalExecution(route) {
+  return String(route?.authority ?? "").includes("EVAVO-STUDIO/evavo-local-compute");
 }
 
 export function databaseFabricStatus() {
@@ -58,10 +64,13 @@ export function databaseFabricStatus() {
       destructiveOperationsRequireSeparateEffectLease: true,
       postconditionVerificationRequired: true,
       blindRetryAfterUnknownWrite: false,
+      livePhysicalStatusRequiredForLocalComputeEffects: true,
+      providerNativeReadOnlyMayContinueWhenWindowsExecutionIsDegraded: true,
     }),
     sandboxRegistry: "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json",
     planningAuthority: "EVAVO-STUDIO/the-brain:config/database-provider-routing-v1.json",
     connectorCatalog: "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
+    physicalExecutionAdmission: PHYSICAL_EXECUTION_ADMISSION,
   });
 }
 
@@ -69,7 +78,16 @@ export function routeDatabaseTask(engine) {
   const requestedEngine = typeof engine === "string" ? engine.trim() : "";
   const key = normalizeEngine(engine);
   if (!key || !DATABASE_ROUTES[key]) throw new Error(`unsupported database engine: ${requestedEngine || String(engine ?? "")}`);
-  return Object.freeze({ schemaVersion: 1, kind: "evavo-database-provider-route-v1", requestedEngine, engine: key, ...DATABASE_ROUTES[key] });
+  const route = DATABASE_ROUTES[key];
+  return Object.freeze({
+    schemaVersion: 1,
+    kind: "evavo-database-provider-route-v1",
+    requestedEngine,
+    engine: key,
+    ...route,
+    requiresLivePhysicalExecution: requiresLivePhysicalExecution(route),
+    physicalExecutionAdmission: requiresLivePhysicalExecution(route) ? PHYSICAL_EXECUTION_ADMISSION : null,
+  });
 }
 
 export const toolDefinitions = Object.freeze([
@@ -100,15 +118,15 @@ export function handleRequest(request) {
       protocolVersion: "2026-07-28",
       supportedVersions: ["2026-07-28", "2024-11-05"],
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "evavo-database-provider-routing", version: "1.1.0" },
-      instructions: "Read-only routing surface. Execute database work through the returned canonical authority.",
+      serverInfo: { name: "evavo-database-provider-routing", version: "1.2.0" },
+      instructions: "Read-only routing surface. Execute database work through the returned canonical authority and require live physical-control admission before Local Compute effects.",
     });
   }
   if (request.method === "initialize") {
     return result(request.id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "evavo-database-provider-routing", version: "1.1.0" },
+      serverInfo: { name: "evavo-database-provider-routing", version: "1.2.0" },
     });
   }
   if (request.method === "notifications/initialized") return null;
