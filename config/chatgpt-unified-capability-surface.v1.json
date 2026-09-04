@@ -82,6 +82,22 @@
       }
     },
     {
+      "id": "evavo-technology-estate",
+      "title": "EVAVO Repository Estate Planner",
+      "authority": "EVAVO-STUDIO/evavo-technology-advisor",
+      "command": "node",
+      "arguments": [
+        "../evavo-technology-advisor/estate-readonly-mcp.mjs"
+      ],
+      "workingDirectory": ".",
+      "required": false,
+      "directExpose": true,
+      "readOnly": true,
+      "environment": {
+        "EVAVO_ESTATE_ALLOWED_ROOT": "C:\\GitRepos"
+      }
+    },
+    {
       "id": "evavo-database-provider-routing",
       "title": "EVAVO Database Provider Routing",
       "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
