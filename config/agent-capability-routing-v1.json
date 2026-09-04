@@ -35,5 +35,6 @@
       "agent-capability-routes-devices-v1.json"
     ]
   },
-  "supplementalProviderRouting": "agent-capability-routes-cloud-databases-v1.json"
+  "supplementalProviderRouting": "agent-capability-routes-cloud-databases-v1.json",
+  "supplementalWorkstationInterop": "desktop-commander-interop-v1.json"
 }
