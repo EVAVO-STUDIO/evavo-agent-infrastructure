@@ -63,8 +63,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 9);
-  assert.equal(validatedRouting.strategyCount, 34);
+  assert.equal(validatedRouting.routeCount, 10);
+  assert.equal(validatedRouting.strategyCount, 38);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -91,6 +91,21 @@ test('ChatGPT repository inspection selects fresh connected GitHub evidence firs
   assert.equal(result.decisions[0].selected.strategyId, 'repository-inspect-connected-github');
   assert.equal(result.decisions[0].claims.mayAttempt, true);
   assert.equal(result.decisions[0].claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, false);
+});
+
+test('repository estate planning is routed as read-only Technology Advisor work', () => {
+  const result = plan(
+    status({
+      requestedCapabilities: ['repository.estate-plan'],
+      evidence: [evidence('repository-estate-plan-typed-relay', 'transport_online')],
+    }),
+  );
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-plan-typed-relay');
+  assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(decision.claims.mayAttempt, true);
   assert.equal(result.authority.execution, false);
 });
 
