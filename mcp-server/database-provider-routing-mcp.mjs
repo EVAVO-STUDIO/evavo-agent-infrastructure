@@ -15,11 +15,40 @@ export const DATABASE_ROUTES = Object.freeze({
   duckdb: Object.freeze({ authority: "EVAVO-STUDIO/evavo-local-compute:disposable-analytics-runtime", state: "duckdb1.5.5-write-read-proven", production: false }),
 });
 
+export const DATABASE_ALIASES = Object.freeze({
+  postgres: "postgresql",
+  pg: "postgresql",
+  "postgresql-17": "postgresql",
+  neon: "neonPostgres",
+  "neon-postgres": "neonPostgres",
+  mongo: "mongodb",
+  atlas: "mongodb",
+  "mongodb-atlas": "mongodb",
+  firestore: "firebase",
+  "firebase-firestore": "firebase",
+  "supabase-postgres": "supabase",
+  "mysql8": "mysql",
+  "maria-db": "mariadb",
+  "redis7": "redis",
+  "sqlite3": "sqlite",
+  "duck-db": "duckdb",
+});
+
+function normalizeEngine(engine) {
+  if (typeof engine !== "string" || !engine.trim()) throw new Error("engine is required");
+  const requested = engine.trim();
+  if (DATABASE_ROUTES[requested]) return requested;
+  const folded = requested.toLowerCase();
+  if (DATABASE_ROUTES[folded]) return folded;
+  return DATABASE_ALIASES[requested] ?? DATABASE_ALIASES[folded] ?? null;
+}
+
 export function databaseFabricStatus() {
   return Object.freeze({
     schemaVersion: 1,
     kind: "evavo-database-provider-routing-status-v1",
     routes: DATABASE_ROUTES,
+    aliases: DATABASE_ALIASES,
     mutationPolicy: Object.freeze({
       readBeforeWrite: true,
       providerIdentityRequired: true,
@@ -37,11 +66,10 @@ export function databaseFabricStatus() {
 }
 
 export function routeDatabaseTask(engine) {
-  if (typeof engine !== "string" || !engine.trim()) throw new Error("engine is required");
-  const key = engine.trim();
-  const route = DATABASE_ROUTES[key];
-  if (!route) throw new Error(`unsupported database engine: ${key}`);
-  return Object.freeze({ schemaVersion: 1, kind: "evavo-database-provider-route-v1", engine: key, ...route });
+  const requestedEngine = typeof engine === "string" ? engine.trim() : "";
+  const key = normalizeEngine(engine);
+  if (!key || !DATABASE_ROUTES[key]) throw new Error(`unsupported database engine: ${requestedEngine || String(engine ?? "")}`);
+  return Object.freeze({ schemaVersion: 1, kind: "evavo-database-provider-route-v1", requestedEngine, engine: key, ...DATABASE_ROUTES[key] });
 }
 
 export const toolDefinitions = Object.freeze([
@@ -52,12 +80,12 @@ export const toolDefinitions = Object.freeze([
   }),
   Object.freeze({
     name: "evavo_database_route",
-    description: "Resolve one database engine to its canonical provider or sandbox authority without executing it.",
+    description: "Resolve one database engine or common provider alias to its canonical provider or sandbox authority without executing it.",
     inputSchema: Object.freeze({
       type: "object",
       additionalProperties: false,
       required: ["engine"],
-      properties: { engine: { enum: Object.keys(DATABASE_ROUTES) } },
+      properties: { engine: { enum: [...Object.keys(DATABASE_ROUTES), ...Object.keys(DATABASE_ALIASES)] } },
     }),
   }),
 ]);
@@ -72,7 +100,7 @@ export function handleRequest(request) {
       protocolVersion: "2026-07-28",
       supportedVersions: ["2026-07-28", "2024-11-05"],
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "evavo-database-provider-routing", version: "1.0.0" },
+      serverInfo: { name: "evavo-database-provider-routing", version: "1.1.0" },
       instructions: "Read-only routing surface. Execute database work through the returned canonical authority.",
     });
   }
@@ -80,7 +108,7 @@ export function handleRequest(request) {
     return result(request.id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: {} },
-      serverInfo: { name: "evavo-database-provider-routing", version: "1.0.0" },
+      serverInfo: { name: "evavo-database-provider-routing", version: "1.1.0" },
     });
   }
   if (request.method === "notifications/initialized") return null;
