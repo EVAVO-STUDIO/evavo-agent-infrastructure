@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 15);
-  assert.equal(validatedRouting.strategyCount, 59);
+  assert.equal(validatedRouting.routeCount, 16);
+  assert.equal(validatedRouting.strategyCount, 63);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -82,6 +82,15 @@ test('provider snapshot capture can fall back to the fixed local MCP collector w
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-local-mcp');
   assert.equal(decision.selected.transport, 'local-specialist-mcp');
+  assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(result.authority.execution, false);
+});
+
+test('provider snapshot drift stays read-only Technology Advisor analysis', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-diff'], evidence: [evidence('repository-estate-provider-diff-typed-relay', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-diff-typed-relay');
   assert.equal(decision.selected.authority, 'technology-advisor');
   assert.equal(result.authority.execution, false);
 });
