@@ -9,8 +9,45 @@
       "repository": "EVAVO-STUDIO/evavo-local-compute",
       "healthClass": "background-execution",
       "disruption": "none",
-      "selfHeal": ["owned service/process restart", "durable-job reconciliation", "bounded stale-state cleanup"],
-      "forbiddenSelfHeal": ["desktop input", "hardware identity replacement", "firmware mutation"]
+      "canonicalRuntime": {
+        "backend": "hkcu_run_python",
+        "residentInstallationGeneration": 5,
+        "recoveryGeneration": 4,
+        "watchdogGeneration": 4,
+        "singleNormalQueueResidentAuthority": true,
+        "watchdogConsumesNormalQueue": false,
+        "staleSourceRejectionRequired": true
+      },
+      "healthyEvidence": [
+        "resident process fresh",
+        "resident state is running-cycle or sleeping",
+        "watchdog process fresh",
+        "queue cycle healthy",
+        "source branch is main",
+        "source clean",
+        "source HEAD equals origin/main",
+        "canonical origin verified"
+      ],
+      "selfHeal": [
+        "owned canonical Python resident restart",
+        "owned non-consuming watchdog restart",
+        "durable-job reconciliation",
+        "bounded stale-state cleanup"
+      ],
+      "degradedBehavior": [
+        "do not submit effectful Windows jobs",
+        "do not grow a queue backlog behind an unhealthy resident",
+        "allow provider-native read-only operations that do not require the workstation",
+        "allow source maintenance and physical-control diagnostics"
+      ],
+      "forbiddenSelfHeal": [
+        "retired Scheduled Task queue topology",
+        "second normal-queue consumer",
+        "arbitrary repository source",
+        "desktop input",
+        "hardware identity replacement",
+        "firmware mutation"
+      ]
     },
     {
       "id": "computer-agent",
@@ -58,6 +95,7 @@
     "Health checks should be read-only and non-focus-disruptive whenever possible.",
     "A component may repair only state it owns.",
     "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
+    "Configured or historically proven authority does not imply current physical liveness.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
     "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed."
   ]
