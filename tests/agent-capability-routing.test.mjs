@@ -4,13 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import {
-  parseStrictJson,
-  readRoutingConfigFile,
-  planCapabilityRoutes,
-  validateCapabilityStatus,
-  validateRoutingConfig,
-} from '../scripts/agent-capability-routing-core.mjs';
+import { parseStrictJson, readRoutingConfigFile, planCapabilityRoutes, validateCapabilityStatus, validateRoutingConfig } from '../scripts/agent-capability-routing-core.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = path.join(root, 'config', 'agent-capability-routing-v1.json');
@@ -19,20 +13,13 @@ const validatedRouting = validateRoutingConfig(configDocument);
 const NOW = '2026-08-28T12:00:00.000Z';
 const SOURCE_REVISION = 'a'.repeat(40);
 
-function status({ client = 'chatgpt-pro', requestedCapabilities = ['repository.inspect'], evidence = [], capturedAt = NOW } = {}) {
-  return { schemaVersion: 1, kind: 'evavo-agent-capability-status-v1', capturedAt, client, requestedCapabilities, evidence };
-}
-function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', sourceRevision = SOURCE_REVISION, healthy = true, receiptId, detail } = {}) {
-  return { strategyId, state, observedAt, sourceRevision, healthy, ...(receiptId === undefined ? {} : { receiptId }), ...(detail === undefined ? {} : { detail }) };
-}
-function plan(document, now = NOW) {
-  const validatedStatus = validateCapabilityStatus(document, validatedRouting);
-  return planCapabilityRoutes({ routing: validatedRouting, status: validatedStatus, now });
-}
+function status({ client = 'chatgpt-pro', requestedCapabilities = ['repository.inspect'], evidence = [], capturedAt = NOW } = {}) { return { schemaVersion: 1, kind: 'evavo-agent-capability-status-v1', capturedAt, client, requestedCapabilities, evidence }; }
+function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', sourceRevision = SOURCE_REVISION, healthy = true, receiptId, detail } = {}) { return { strategyId, state, observedAt, sourceRevision, healthy, ...(receiptId === undefined ? {} : { receiptId }), ...(detail === undefined ? {} : { detail }) }; }
+function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 14);
-  assert.equal(validatedRouting.strategyCount, 54);
+  assert.equal(validatedRouting.routeCount, 15);
+  assert.equal(validatedRouting.strategyCount, 58);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -79,22 +66,30 @@ test('repository overlap review remains non-effectful Technology Advisor guidanc
   assert.equal(result.authority.execution, false);
 });
 
+test('provider snapshot capture can start from connected GitHub and remains read-only', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-snapshot'], evidence: [evidence('repository-estate-provider-snapshot-connected-github', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-connected-github');
+  assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(result.authority.execution, false);
+});
+
 test('provider-only estate review can start from connected GitHub without workstation execution authority', () => {
   const result = plan(status({ requestedCapabilities: ['repository.estate-provider-review'], evidence: [evidence('repository-estate-provider-review-connected-github', 'transport_online')] }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'repository-estate-provider-review-connected-github');
   assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(decision.claims.mayAttempt, true);
   assert.equal(result.authority.execution, false);
 });
 
 test('ChatGPT effectful work can fall back to a configured issue queue without claiming execution', () => {
   const result = plan(status({ requestedCapabilities: ['host.execute'], evidence: [evidence('host-execute-issue-queue', 'configured')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
+  assert.equal(result.decisions[0].status, 'ready');
+  assert.equal(result.decisions[0].claims.mayClaimCompleted, false);
+  assert.equal(result.decisions[0].claims.mayClaimPhysicallyVerified, false);
 });
 
 test('ChatGPT hardware control selects the accepted typed relay and stays receipt-bound', () => {
