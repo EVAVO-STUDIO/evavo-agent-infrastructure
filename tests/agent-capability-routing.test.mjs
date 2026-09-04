@@ -63,8 +63,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 10);
-  assert.equal(validatedRouting.strategyCount, 38);
+  assert.equal(validatedRouting.routeCount, 11);
+  assert.equal(validatedRouting.strategyCount, 42);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -104,6 +104,21 @@ test('repository estate planning is routed as read-only Technology Advisor work'
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'repository-estate-plan-typed-relay');
+  assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(result.authority.execution, false);
+});
+
+test('repository estate work queue remains read-only planning authority', () => {
+  const result = plan(
+    status({
+      requestedCapabilities: ['repository.estate-work-queue'],
+      evidence: [evidence('repository-estate-work-queue-typed-relay', 'transport_online')],
+    }),
+  );
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-work-queue-typed-relay');
   assert.equal(decision.selected.authority, 'technology-advisor');
   assert.equal(decision.claims.mayAttempt, true);
   assert.equal(result.authority.execution, false);
