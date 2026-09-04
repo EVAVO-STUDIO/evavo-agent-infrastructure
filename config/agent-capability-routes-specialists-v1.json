@@ -148,5 +148,20 @@
       { "id": "repository-estate-provider-metadata-admission-secure-tunnel", "authority": "development-governance", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-metadata-admission-typed-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
     ]
+  },
+  {
+    "id": "repository-estate-provider-metadata-execute",
+    "capability": "repository.estate-provider-metadata-execute",
+    "requestedEffect": "write",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 3,
+    "description": "Execute exactly one signed evavo-provider-metadata-mutation-admission-v3 work item through Development Studio's typed dispatcher. Only privacy tightening, repository unarchive and exact local-origin alignment are eligible. Every execution re-verifies live provider/local preconditions and returns a correlated adapter receipt. Public exposure, archival, provider rename/transfer, deletion, force operations and generic shell/API fallbacks are forbidden.",
+    "strategies": [
+      { "id": "repository-estate-provider-metadata-execute-workstation-bridge", "authority": "development-governance", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-execute-durable", "authority": "development-governance", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-execute-typed-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-execute-issue-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
   }
 ]
