@@ -59,6 +59,21 @@
     ]
   },
   {
+    "id": "repository-estate-overlap-review",
+    "capability": "repository.estate-overlap-review",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Find likely duplicate, successor or overlapping repository pairs using estate evidence while preserving consolidation as a separate reviewed Development Studio decision.",
+    "strategies": [
+      { "id": "repository-estate-overlap-review-local", "authority": "technology-advisor", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-overlap-review-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-overlap-review-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-overlap-review-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
     "id": "repository-publish",
     "capability": "repository.publish",
     "requestedEffect": "publish",
