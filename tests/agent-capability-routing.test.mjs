@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 17);
-  assert.equal(validatedRouting.strategyCount, 67);
+  assert.equal(validatedRouting.routeCount, 19);
+  assert.equal(validatedRouting.strategyCount, 75);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -102,6 +102,27 @@ test('provider drift queue remains read-only Technology Advisor evidence plannin
   assert.equal(decision.selected.strategyId, 'repository-estate-provider-drift-queue-typed-relay');
   assert.equal(decision.selected.authority, 'technology-advisor');
   assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(result.authority.execution, false);
+});
+
+test('provider metadata decision remains non-effectful Development Studio governance', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-decision'], evidence: [evidence('repository-estate-provider-metadata-decision-typed-relay', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.authority, 'development-governance');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, false);
+});
+
+test('provider metadata admission is planning only and cannot acquire execution authority', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-admission'], evidence: [evidence('repository-estate-provider-metadata-admission-typed-relay', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.authority, 'development-governance');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
   assert.equal(result.authority.execution, false);
 });
 
