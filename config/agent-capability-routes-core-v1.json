@@ -71,6 +71,45 @@
     ]
   },
   {
+    "id": "repository-estate-work-queue",
+    "capability": "repository.estate-work-queue",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Compile exact-SHA, validation-required, non-force repository remediation work items from the current estate without executing them.",
+    "strategies": [
+      {
+        "id": "repository-estate-work-queue-local",
+        "authority": "technology-advisor",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-work-queue-durable",
+        "authority": "technology-advisor",
+        "transport": "durable-local-execution",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-work-queue-secure-tunnel",
+        "authority": "technology-advisor",
+        "transport": "openai-secure-mcp-tunnel",
+        "clients": ["chatgpt-pro"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-work-queue-typed-relay",
+        "authority": "technology-advisor",
+        "transport": "cloudflare-typed-relay",
+        "clients": ["chatgpt-pro", "api-agent"],
+        "minimumState": "transport_online"
+      }
+    ]
+  },
+  {
     "id": "repository-publish",
     "capability": "repository.publish",
     "requestedEffect": "publish",
