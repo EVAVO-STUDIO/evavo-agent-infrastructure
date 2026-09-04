@@ -62,6 +62,22 @@
         "EVAVO_LOCAL_AGENT_MCP_ROLE": "chatgpt-unified-capability-surface",
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-workstation-fabric-v2"
       }
+    },
+    {
+      "id": "evavo-database-provider-routing",
+      "title": "EVAVO Database Provider Routing",
+      "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
+      "command": "node",
+      "arguments": [
+        "mcp-server/database-provider-routing-mcp.mjs"
+      ],
+      "workingDirectory": ".",
+      "required": false,
+      "directExpose": true,
+      "readOnly": true,
+      "environment": {
+        "EVAVO_DATABASE_ROUTING_MCP_ROLE": "read-only-provider-and-sandbox-router"
+      }
     }
   ],
   "routing": {
