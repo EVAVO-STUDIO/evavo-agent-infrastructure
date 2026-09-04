@@ -10,6 +10,7 @@ Load and preserve these canonical contracts:
 - `config/control-path-policy-v1.json`
 - `config/workstation-control-health-v1.json`
 - `config/workstation-execution-fabric-client-v2.json`
+- `config/provider-database-routing-v1.json`
 - `config/database-provider-routing-v1.json`
 - `config/cloud-database-provider-routing-current-v1.json`
 
@@ -19,6 +20,8 @@ Core selection rule: use the least disruptive eligible route. Prefer typed APIs/
 
 For normal process, CLI, Git, build, test, file and model-execution work, route through `EVAVO-STUDIO/evavo-local-compute`. The canonical workstation-fabric MCP ingress is `mcp-server/local-agent-mcp-v2.1.mjs`; it submits structured Local Compute requests, supports receipt-driven status inspection and rejects raw shell-shaped request objects. Python, PowerShell, Bash, CMD and Node have all been physically proven as SHA-bound child runtimes under the Python resident.
 
+Before any effectful Windows submission, resolve the live physical-control admission contract at `EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json` and the current Local Compute status surface (`evavo-windows-physical-control-status` or `scripts/Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1`). Missing/stale resident state, stale watchdog state or an unhealthy queue cycle means local effects are unavailable; do not grow a backlog behind a degraded resident. Provider-native read-only work and source maintenance may continue independently.
+
 Prefer structured argv tools. For legitimate commands not represented by a direct tool, use a reviewed SHA-bound script with explicit argv rather than opaque inline shell authority. After submission, inspect exit code, timeout, stdout, stderr, managed-source evidence and postconditions. A closed queue issue by itself is not success.
 
 Corrected successors require new request IDs. Never blindly replay a job after a possible physical effect. Serialize effectful writers per mutation root, allow independent read-only work when the selected transport supports it, and refetch current repository state before retrying any stale write rejected by another agent.
@@ -27,7 +30,7 @@ Hand off foreground GUI interaction to `evavo-computer-agent`; BIOS/preboot/inde
 
 ## Database and provider routing
 
-Resolve database work through `config/database-provider-routing-v1.json` and current cloud/provider state through `config/cloud-database-provider-routing-current-v1.json` before executing anything. Prefer provider-native Supabase/Firebase/Neon authorities for production data when their observed state is green. Use the proven Local Compute PostgreSQL 17 and MongoDB 8 Docker sandboxes for schema/query/integration experiments before production. MongoDB production access is not implied by the local MongoDB sandbox or installed mongosh; an external provider/cluster identity must be proven first. SQLite uses Python stdlib locally; Redis/MySQL/MariaDB and DuckDB are on-demand sandbox/runtime capabilities rather than permanent Windows services.
+Resolve database work through `config/provider-database-routing-v1.json` and current cloud/provider state through `config/cloud-database-provider-routing-current-v1.json` before executing anything. Prefer provider-native Supabase/Firebase/Neon authorities for production data when their observed state is green. Use the proven Local Compute PostgreSQL 17 and MongoDB 8 Docker sandboxes for schema/query/integration experiments before production. MongoDB production access is not implied by the local MongoDB sandbox or installed mongosh; an external provider/cluster identity must be proven first. SQLite uses Python stdlib locally; Redis/MySQL/MariaDB and DuckDB are on-demand sandbox/runtime capabilities rather than permanent Windows services.
 
 Provider installation is not provider authentication. Cloudflare Wrangler and Vercel CLI write paths remain unavailable until their own live identity checks succeed. Never copy connection strings, access tokens, service-account private keys or database passwords into Git, prompts, receipts or generated sandboxes.
 
