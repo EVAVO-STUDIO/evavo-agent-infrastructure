@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  DATABASE_ALIASES,
   DATABASE_ROUTES,
   databaseFabricStatus,
   routeDatabaseTask,
@@ -15,10 +16,16 @@ test("database fabric exposes proven provider and sandbox routes", () => {
   assert.equal(status.routes.mongodb.state, "local-sandbox-and-mongosh-2.10.0-proven-external-provider-profile-pending");
   assert.equal(status.routes.postgresql.state, "postgres17-sandbox-write-read-proven");
   assert.equal(status.mutationPolicy.blindRetryAfterUnknownWrite, false);
+  assert.equal(status.aliases.mongo, "mongodb");
 });
 
 test("database route is deterministic and rejects unknown engines", () => {
   assert.equal(routeDatabaseTask("supabase").authority, "provider-native:Supabase");
+  assert.equal(routeDatabaseTask("postgres").engine, "postgresql");
+  assert.equal(routeDatabaseTask("mongo").engine, "mongodb");
+  assert.equal(routeDatabaseTask("firestore").engine, "firebase");
+  assert.equal(routeDatabaseTask("neon").engine, "neonPostgres");
+  assert.equal(routeDatabaseTask("sqlite3").engine, "sqlite");
   assert.throws(() => routeDatabaseTask("oracle"), /unsupported database engine/u);
 });
 
@@ -34,4 +41,6 @@ test("MCP tool list exactly exposes read-only routing tools", () => {
   const response = handleRequest({ jsonrpc: "2.0", id: 3, method: "tools/list", params: {} });
   assert.deepEqual(response.result.tools.map((tool) => tool.name).sort(), ["evavo_database_fabric_status", "evavo_database_route"]);
   assert.deepEqual(Object.keys(DATABASE_ROUTES).sort(), ["duckdb", "firebase", "mariadb", "mongodb", "mysql", "neonPostgres", "postgresql", "redis", "sqlite", "supabase"]);
+  assert.ok(Object.keys(DATABASE_ALIASES).includes("postgres"));
+  assert.ok(Object.keys(DATABASE_ALIASES).includes("mongo"));
 });
