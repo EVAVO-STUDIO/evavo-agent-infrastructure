@@ -11,6 +11,12 @@
     "exclusiveEffects": ["publish"],
     "description": "Governed repository planning, isolated source mutation, validation and sealed publication authority. Normal host execution routes through Local Compute; durable artifact/file lifecycle routes through Local Storage."
   },
+  "technology-advisor": {
+    "repository": "EVAVO-STUDIO/evavo-technology-advisor",
+    "effects": ["read"],
+    "exclusiveEffects": [],
+    "description": "Evidence-led portfolio and repository-estate discovery, lifecycle classification and deterministic remediation planning. It never mutates repositories; effectful repair remains with Development Studio and its governed execution providers."
+  },
   "local-compute": {
     "repository": "EVAVO-STUDIO/evavo-local-compute",
     "effects": ["read", "execute"],
