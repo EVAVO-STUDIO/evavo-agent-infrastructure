@@ -80,9 +80,10 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Canonicalize paginated GitHub repository inventory into a digest-bound, count-checked provider snapshot before any absence-sensitive portfolio review.",
+    "description": "Capture or canonicalize GitHub repository inventory into a digest-bound, count-checked provider snapshot before any absence-sensitive portfolio review. Local capture uses Technology Advisor's fixed gh GraphQL collector with no arbitrary endpoint or command authority.",
     "strategies": [
       { "id": "repository-estate-provider-snapshot-connected-github", "authority": "technology-advisor", "transport": "connected-github", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-snapshot-local-mcp", "authority": "technology-advisor", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-snapshot-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-snapshot-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-snapshot-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" }
