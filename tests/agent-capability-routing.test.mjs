@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 19);
-  assert.equal(validatedRouting.strategyCount, 75);
+  assert.equal(validatedRouting.routeCount, 20);
+  assert.equal(validatedRouting.strategyCount, 79);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -126,6 +126,29 @@ test('provider metadata admission is planning only and cannot acquire execution 
   assert.equal(result.authority.execution, false);
 });
 
+test('provider metadata execution is effectful, typed and receipt-bound', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-execute'], evidence: [evidence('repository-estate-provider-metadata-execute-typed-relay', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-metadata-execute-typed-relay');
+  assert.equal(decision.selected.authority, 'development-governance');
+  assert.equal(decision.selected.transport, 'cloudflare-typed-relay');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
+  assert.equal(result.authority.execution, true);
+});
+
+test('provider metadata execution issue queue can accept work but cannot claim completion', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-execute'], evidence: [evidence('repository-estate-provider-metadata-execute-issue-queue', 'configured')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-metadata-execute-issue-queue');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, true);
+});
+
 test('provider-only estate review can start from connected GitHub without workstation execution authority', () => {
   const result = plan(status({ requestedCapabilities: ['repository.estate-provider-review'], evidence: [evidence('repository-estate-provider-review-connected-github', 'transport_online')] }));
   const decision = result.decisions[0];
@@ -180,6 +203,15 @@ test('effectful routes cannot split authority across repositories', () => {
   const tampered = structuredClone(configDocument);
   tampered.routes.find((route) => route.id === 'host-execute').strategies[1].authority = 'local-storage';
   assert.throws(() => validateRoutingConfig(tampered), /EVAVO_AGENT_ROUTING_EFFECT_AUTHORITY_SPLIT/u);
+});
+
+test('provider metadata execution cannot split authority or use read-only ingress', () => {
+  const split = structuredClone(configDocument);
+  split.routes.find((route) => route.id === 'repository-estate-provider-metadata-execute').strategies[1].authority = 'technology-advisor';
+  assert.throws(() => validateRoutingConfig(split), /EVAVO_AGENT_ROUTING_EFFECT_AUTHORITY_SPLIT/u);
+  const readOnly = structuredClone(configDocument);
+  readOnly.routes.find((route) => route.id === 'repository-estate-provider-metadata-execute').strategies[0].transport = 'openai-secure-mcp-tunnel';
+  assert.throws(() => validateRoutingConfig(readOnly), /EVAVO_AGENT_ROUTING_TRANSPORT_EFFECT/u);
 });
 
 test('transport ingress diversity cannot be overstated', () => {
