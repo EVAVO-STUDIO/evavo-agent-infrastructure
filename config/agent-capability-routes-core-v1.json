@@ -8,27 +8,9 @@
     "minimumIndependentIngressDomains": 1,
     "description": "Inspect repository inventory, source, history, issues and governed engineering evidence without mutation.",
     "strategies": [
-      {
-        "id": "repository-inspect-connected-github",
-        "authority": "github-evidence",
-        "transport": "connected-github",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-inspect-local-mcp",
-        "authority": "development-governance",
-        "transport": "local-specialist-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-inspect-secure-tunnel",
-        "authority": "development-governance",
-        "transport": "openai-secure-mcp-tunnel",
-        "clients": ["chatgpt-pro"],
-        "minimumState": "transport_online"
-      }
+      { "id": "repository-inspect-connected-github", "authority": "github-evidence", "transport": "connected-github", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-inspect-local-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-inspect-secure-tunnel", "authority": "development-governance", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" }
     ]
   },
   {
@@ -40,34 +22,10 @@
     "minimumIndependentIngressDomains": 2,
     "description": "Audit the local repository estate and produce deterministic lifecycle, safety-gate and remediation plans without mutating source.",
     "strategies": [
-      {
-        "id": "repository-estate-plan-local",
-        "authority": "technology-advisor",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-plan-durable",
-        "authority": "technology-advisor",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-plan-secure-tunnel",
-        "authority": "technology-advisor",
-        "transport": "openai-secure-mcp-tunnel",
-        "clients": ["chatgpt-pro"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-plan-typed-relay",
-        "authority": "technology-advisor",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      }
+      { "id": "repository-estate-plan-local", "authority": "technology-advisor", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-plan-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-plan-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-plan-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
     ]
   },
   {
@@ -79,34 +37,25 @@
     "minimumIndependentIngressDomains": 2,
     "description": "Compile exact-SHA, validation-required, non-force repository remediation work items from the current estate without executing them.",
     "strategies": [
-      {
-        "id": "repository-estate-work-queue-local",
-        "authority": "technology-advisor",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-work-queue-durable",
-        "authority": "technology-advisor",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-work-queue-secure-tunnel",
-        "authority": "technology-advisor",
-        "transport": "openai-secure-mcp-tunnel",
-        "clients": ["chatgpt-pro"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-estate-work-queue-typed-relay",
-        "authority": "technology-advisor",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      }
+      { "id": "repository-estate-work-queue-local", "authority": "technology-advisor", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-work-queue-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-work-queue-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-work-queue-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "repository-estate-portfolio-review",
+    "capability": "repository.estate-portfolio-review",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Produce non-authoritative portfolio classification suggestions for unclassified repositories while preserving Development Studio as canonical portfolio authority.",
+    "strategies": [
+      { "id": "repository-estate-portfolio-review-local", "authority": "technology-advisor", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-portfolio-review-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-portfolio-review-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-portfolio-review-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
     ]
   },
   {
@@ -118,34 +67,10 @@
     "minimumIndependentIngressDomains": 3,
     "description": "Route isolated repository changes through Development Studio validation and sealed publication without creating a second Git authority.",
     "strategies": [
-      {
-        "id": "repository-publish-workstation-bridge",
-        "authority": "development-governance",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-publish-durable-local",
-        "authority": "development-governance",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-publish-typed-relay",
-        "authority": "development-governance",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "repository-publish-issue-queue",
-        "authority": "development-governance",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
-      }
+      { "id": "repository-publish-workstation-bridge", "authority": "development-governance", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-publish-durable-local", "authority": "development-governance", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-publish-typed-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-publish-issue-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
     ]
   },
   {
@@ -157,41 +82,11 @@
     "minimumIndependentIngressDomains": 3,
     "description": "Execute reviewed scripts and typed host operations through Local Compute with exact source identity and bounded receipts. The singleton gateway provides a bounded synchronous fallback, not a replacement for durable Local Compute jobs.",
     "strategies": [
-      {
-        "id": "host-execute-workstation-bridge",
-        "authority": "local-compute",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "host-execute-durable-local",
-        "authority": "local-compute",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "host-execute-gateway-fallback",
-        "authority": "local-ai-agent-gateway",
-        "transport": "singleton-gateway-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "host-execute-typed-relay",
-        "authority": "local-compute",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "host-execute-issue-queue",
-        "authority": "local-compute",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
-      }
+      { "id": "host-execute-workstation-bridge", "authority": "local-compute", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "host-execute-durable-local", "authority": "local-compute", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "host-execute-gateway-fallback", "authority": "local-ai-agent-gateway", "transport": "singleton-gateway-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "host-execute-typed-relay", "authority": "local-compute", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "host-execute-issue-queue", "authority": "local-compute", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
     ]
   },
   {
@@ -203,41 +98,11 @@
     "minimumIndependentIngressDomains": 3,
     "description": "Manage Downloads, GitRepos, BeeStation and EVAVO Storage through Local Storage's verified/reversible byte lifecycle, using the singleton gateway as the preferred shared local ingress and independent fallbacks when it is unavailable.",
     "strategies": [
-      {
-        "id": "storage-manage-singleton-gateway",
-        "authority": "local-storage",
-        "transport": "singleton-gateway-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "storage-manage-specialist-mcp",
-        "authority": "local-storage",
-        "transport": "local-specialist-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "storage-manage-workstation-bridge",
-        "authority": "local-storage",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "storage-manage-typed-relay",
-        "authority": "local-storage",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "storage-manage-issue-queue",
-        "authority": "local-storage",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
-      }
+      { "id": "storage-manage-singleton-gateway", "authority": "local-storage", "transport": "singleton-gateway-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "storage-manage-specialist-mcp", "authority": "local-storage", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "storage-manage-workstation-bridge", "authority": "local-storage", "transport": "structured-workstation-bridge", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "storage-manage-typed-relay", "authority": "local-storage", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "storage-manage-issue-queue", "authority": "local-storage", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
     ]
   }
 ]
