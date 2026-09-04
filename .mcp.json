@@ -15,6 +15,13 @@
         "EVAVO_CONTROL_POLICY_MCP_ROLE": "read-only-route-planner"
       }
     },
+    "evavo-database-provider-routing": {
+      "command": "node",
+      "args": ["./mcp-server/database-provider-routing-mcp.mjs"],
+      "env": {
+        "EVAVO_DATABASE_ROUTING_MCP_ROLE": "read-only-provider-and-sandbox-router"
+      }
+    },
     "evavo-windows-receipt-inspector": {
       "command": "node",
       "args": ["./mcp-server/windows-receipt-inspector-mcp.mjs"],
