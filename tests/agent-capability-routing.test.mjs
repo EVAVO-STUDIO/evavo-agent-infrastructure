@@ -19,7 +19,7 @@ function plan(document, now = NOW) { return planCapabilityRoutes({ routing: vali
 
 test('canonical routing config validates and is zero-cost by contract', () => {
   assert.equal(validatedRouting.routeCount, 15);
-  assert.equal(validatedRouting.strategyCount, 58);
+  assert.equal(validatedRouting.strategyCount, 59);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -73,6 +73,16 @@ test('provider snapshot capture can start from connected GitHub and remains read
   assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-connected-github');
   assert.equal(decision.selected.authority, 'technology-advisor');
   assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(result.authority.execution, false);
+});
+
+test('provider snapshot capture can fall back to the fixed local MCP collector without execution authority', () => {
+  const result = plan(status({ client: 'claude-code', requestedCapabilities: ['repository.estate-provider-snapshot'], evidence: [evidence('repository-estate-provider-snapshot-local-mcp', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-local-mcp');
+  assert.equal(decision.selected.transport, 'local-specialist-mcp');
+  assert.equal(decision.selected.authority, 'technology-advisor');
   assert.equal(result.authority.execution, false);
 });
 
