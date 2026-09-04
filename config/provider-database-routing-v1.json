@@ -13,7 +13,7 @@
     "firebase": {
       "authority": "Local Compute Firebase adapter",
       "production": true,
-      "state": "provider-auth-proven-cli-15.28.1-installed-post-upgrade-diagnostic-pending"
+      "state": "provider-auth-proven-cli-15.28.1-current-project-inventory-proven"
     },
     "neon-postgres": {
       "authority": "Neon connected provider",
@@ -39,8 +39,10 @@
   },
   "sources": {
     "connectorCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
-    "observedProviderState": "EVAVO-STUDIO/the-brain:config/observed-provider-capability-state-v1.json",
-    "databaseSandboxRegistry": "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json"
+    "providerCapabilityPlane": "EVAVO-STUDIO/evavo-development-studio:config/agent-cloud-provider-capability-plane.json",
+    "brainDatabaseRouting": "EVAVO-STUDIO/the-brain:config/database-provider-routing-v1.json",
+    "databaseSandboxRegistry": "EVAVO-STUDIO/evavo-local-compute:config/database-sandbox-registry-v1.json",
+    "physicalExecutionAdmission": "EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json"
   },
   "rules": {
     "providerNativeFirst": true,
@@ -49,6 +51,8 @@
     "databaseIdentityRequiredBeforeEffects": true,
     "destructiveEffectsRequireSeparateLease": true,
     "credentialValuesReturned": false,
-    "blindRetryAfterUnknownWrite": false
+    "blindRetryAfterUnknownWrite": false,
+    "livePhysicalStatusRequiredForLocalDatabaseEffects": true,
+    "providerNativeReadOnlyMayContinueWhenWindowsExecutionIsDegraded": true
   }
 }
