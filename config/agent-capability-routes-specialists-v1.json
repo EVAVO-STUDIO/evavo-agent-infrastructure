@@ -88,5 +88,20 @@
       { "id": "repository-estate-provider-snapshot-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-snapshot-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" }
     ]
+  },
+  {
+    "id": "repository-estate-provider-diff",
+    "capability": "repository.estate-provider-diff",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Compare two verified provider snapshots and separate structural repository-estate drift from ordinary activity without granting portfolio or repository mutation authority.",
+    "strategies": [
+      { "id": "repository-estate-provider-diff-local-mcp", "authority": "technology-advisor", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-diff-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-diff-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-diff-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
   }
 ]
