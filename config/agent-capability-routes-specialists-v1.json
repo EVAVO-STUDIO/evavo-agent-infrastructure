@@ -118,5 +118,35 @@
       { "id": "repository-estate-provider-drift-queue-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-drift-queue-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
     ]
+  },
+  {
+    "id": "repository-estate-provider-metadata-decision",
+    "capability": "repository.estate-provider-metadata-decision",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Compile evidence-complete Development Studio decisions for provider visibility, archive state and repository identity drift. This is planning only: public exposure, archival, provider rename/transfer and deletion remain blocked.",
+    "strategies": [
+      { "id": "repository-estate-provider-metadata-decision-local-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-decision-durable", "authority": "development-governance", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-decision-secure-tunnel", "authority": "development-governance", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-decision-typed-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "repository-estate-provider-metadata-admission",
+    "capability": "repository.estate-provider-metadata-admission",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Compile typed Development Studio mutation admission from a signed metadata decision plan. Admission does not execute; admitted work remains executionReady=false until a verified adapter rechecks live provider/local state. Only privacy tightening, unarchive and local-origin alignment can be admitted.",
+    "strategies": [
+      { "id": "repository-estate-provider-metadata-admission-local-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-admission-durable", "authority": "development-governance", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-admission-secure-tunnel", "authority": "development-governance", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-metadata-admission-typed-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
   }
 ]
