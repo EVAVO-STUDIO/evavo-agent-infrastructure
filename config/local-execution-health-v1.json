@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-agent-infrastructure-local-execution-health-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "authoritativeHealth": "EVAVO-STUDIO/evavo-development-studio:config/observed-local-execution-health-v1.json",
+  "state": "degraded-normal-and-control-queue-not-consuming",
+  "mcpPolicy": {
+    "localEffectSubmissionEnabled": false,
+    "localHashSubmissionEnabled": false,
+    "providerNativeReadRoutingEnabled": true,
+    "sourceOnlyRepositoryWorkEnabled": true,
+    "browserOrHidShellFallbackEnabled": false,
+    "blindRetryEnabled": false,
+    "unknownEffectRequiresReconciliation": true
+  },
+  "recovery": {
+    "canonicalEnsure": "EVAVO-STUDIO/evavo-local-compute:scripts/Ensure-EvavoCanonicalQueueResidentsCurrent.ps1",
+    "livenessIssue": 2224,
+    "resumeRequiresTerminalLivenessReceipt": true
+  }
+}
