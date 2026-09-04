@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 16);
-  assert.equal(validatedRouting.strategyCount, 63);
+  assert.equal(validatedRouting.routeCount, 17);
+  assert.equal(validatedRouting.strategyCount, 67);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -92,6 +92,16 @@ test('provider snapshot drift stays read-only Technology Advisor analysis', () =
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'repository-estate-provider-diff-typed-relay');
   assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(result.authority.execution, false);
+});
+
+test('provider drift queue remains read-only Technology Advisor evidence planning', () => {
+  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-drift-queue'], evidence: [evidence('repository-estate-provider-drift-queue-typed-relay', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-estate-provider-drift-queue-typed-relay');
+  assert.equal(decision.selected.authority, 'technology-advisor');
+  assert.equal(decision.claims.mayAttempt, true);
   assert.equal(result.authority.execution, false);
 });
 
