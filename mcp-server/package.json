@@ -14,6 +14,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.1.0",
     "@evavo/git-operations": "workspace:*",
     "@evavo/code-quality": "workspace:*",
     "@evavo/testing-runner": "workspace:*",
