@@ -103,5 +103,20 @@
       { "id": "repository-estate-provider-diff-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
       { "id": "repository-estate-provider-diff-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
     ]
+  },
+  {
+    "id": "repository-estate-provider-drift-queue",
+    "capability": "repository.estate-provider-drift-queue",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Compile snapshot-bound evidence work for provider additions, removals and structural metadata changes without granting mutation authority. Development Studio remains the canonical decision authority.",
+    "strategies": [
+      { "id": "repository-estate-provider-drift-queue-local-mcp", "authority": "technology-advisor", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-drift-queue-durable", "authority": "technology-advisor", "transport": "durable-local-execution", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-drift-queue-secure-tunnel", "authority": "technology-advisor", "transport": "openai-secure-mcp-tunnel", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "repository-estate-provider-drift-queue-typed-relay", "authority": "technology-advisor", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
   }
 ]
