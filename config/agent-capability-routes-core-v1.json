@@ -32,6 +32,45 @@
     ]
   },
   {
+    "id": "repository-estate-plan",
+    "capability": "repository.estate-plan",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Audit the local repository estate and produce deterministic lifecycle, safety-gate and remediation plans without mutating source.",
+    "strategies": [
+      {
+        "id": "repository-estate-plan-local",
+        "authority": "technology-advisor",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-plan-durable",
+        "authority": "technology-advisor",
+        "transport": "durable-local-execution",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-plan-typed-relay",
+        "authority": "technology-advisor",
+        "transport": "cloudflare-typed-relay",
+        "clients": ["chatgpt-pro", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-estate-plan-issue-queue",
+        "authority": "technology-advisor",
+        "transport": "github-issue-queue",
+        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+        "minimumState": "configured"
+      }
+    ]
+  },
+  {
     "id": "repository-publish",
     "capability": "repository.publish",
     "requestedEffect": "publish",
