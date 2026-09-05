@@ -69,11 +69,12 @@ if($CanUseExistingTunnel-or$CanCreateTunnel){
 
 if($EnableWindowsExecution){
   $CanUseExistingExecutionTunnel=[bool]($TunnelClient-and$RuntimeKey-and$ExecutionTunnelId-match'^tunnel_[0-9a-f]{32}$')
-  if(-not$CanUseExistingExecutionTunnel-and-not$CanCreateTunnel){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_TUNNEL_UNAVAILABLE'}
-  $ExecutionArgs=@{StartNow=$StartNow;Json=$true}
-  if($CanCreateTunnel-and-not$CanUseExistingExecutionTunnel){$ExecutionArgs.CreateTunnelIfMissing=$true;if($Workspace){$ExecutionArgs.WorkspaceId=$Workspace};if($Organization){$ExecutionArgs.OrganizationId=$Organization}}
-  $ExecutionTunnel=Invoke-JsonPowerShell -Script $ExecutionTunnelInstaller -Named $ExecutionArgs
-  if([string]$ExecutionTunnel.kind-ne'evavo-chatgpt-windows-execution-tunnel-installation-v1'-or$ExecutionTunnel.ok-ne$true-or$ExecutionTunnel.scheduledTaskExact-ne$true-or$ExecutionTunnel.effectfulWorkstationToolsExposed-ne$true-or$ExecutionTunnel.arbitraryCommandTextAccepted-ne$true-or$ExecutionTunnel.currentWindowsUserAuthority-ne$true-or$ExecutionTunnel.acceptedRestExecutorAttestationRequired-ne$true){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_TUNNEL_NOT_ACCEPTED'}
+  if($CanUseExistingExecutionTunnel-or$CanCreateTunnel){
+    $ExecutionArgs=@{StartNow=$StartNow;Json=$true}
+    if($CanCreateTunnel-and-not$CanUseExistingExecutionTunnel){$ExecutionArgs.CreateTunnelIfMissing=$true;if($Workspace){$ExecutionArgs.WorkspaceId=$Workspace};if($Organization){$ExecutionArgs.OrganizationId=$Organization}}
+    $ExecutionTunnel=Invoke-JsonPowerShell -Script $ExecutionTunnelInstaller -Named $ExecutionArgs
+    if([string]$ExecutionTunnel.kind-ne'evavo-chatgpt-windows-execution-tunnel-installation-v2'-or$ExecutionTunnel.ok-ne$true-or$ExecutionTunnel.scheduledTaskExact-ne$true-or$ExecutionTunnel.compatibilityShim-ne$true-or$ExecutionTunnel.effectfulWorkstationToolsExposed-ne$false-or$ExecutionTunnel.rawShellExecutionRemoved-ne$true-or$ExecutionTunnel.arbitraryCommandTextAccepted-ne$false-or$ExecutionTunnel.inlineCodeAccepted-ne$false){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_COMPATIBILITY_NOT_ACCEPTED'}
+  }else{$ExecutionTunnelSkip='compatibility-tunnel-unavailable-use-typed-relay-or-github-issue-queue'}
 }else{$ExecutionTunnelSkip='not-requested'}
 
 if($ProvisionCloudflareRelay){
@@ -82,7 +83,7 @@ if($ProvisionCloudflareRelay){
 }else{$CloudflareSkip='not-requested'}
 
 $Receipt=[ordered]@{
-  schemaVersion=4
+  schemaVersion=5
   kind='evavo-remote-workstation-access-installation'
   ok=$true
   startedAt=$Started.ToString('o')
@@ -92,15 +93,17 @@ $Receipt=[ordered]@{
   openAiSecureMcpObserverTunnel=$Tunnel
   openAiSecureMcpObserverTunnelSkippedReason=$TunnelSkip
   openAiObserverTunnelTaskStarted=if($Tunnel){[bool]$Tunnel.started}else{$false}
-  openAiSecureMcpWindowsExecutionTunnel=$ExecutionTunnel
-  openAiSecureMcpWindowsExecutionTunnelSkippedReason=$ExecutionTunnelSkip
-  windowsExecutionExplicitlyRequested=[bool]$EnableWindowsExecution
-  windowsExecutionEstablished=[bool]($ExecutionTunnel-and$ExecutionTunnel.ok)
-  effectfulWorkstationToolsExposed=[bool]($ExecutionTunnel-and$ExecutionTunnel.effectfulWorkstationToolsExposed)
-  arbitraryCommandTextAccepted=[bool]($ExecutionTunnel-and$ExecutionTunnel.arbitraryCommandTextAccepted)
-  currentWindowsUserAuthority=[bool]($ExecutionTunnel-and$ExecutionTunnel.currentWindowsUserAuthority)
-  supportedExecutionShells=if($ExecutionTunnel){@($ExecutionTunnel.supportedShells)}else{@()}
-  acceptedRestExecutorAttestationRequired=if($ExecutionTunnel){[bool]$ExecutionTunnel.acceptedRestExecutorAttestationRequired}else{$false}
+  openAiSecureMcpWindowsExecutionCompatibilityTunnel=$ExecutionTunnel
+  openAiSecureMcpWindowsExecutionCompatibilityTunnelSkippedReason=$ExecutionTunnelSkip
+  windowsExecutionCompatibilityExplicitlyRequested=[bool]$EnableWindowsExecution
+  windowsExecutionCompatibilityEstablished=[bool]($ExecutionTunnel-and$ExecutionTunnel.ok)
+  windowsExecutionEstablished=$false
+  effectfulWorkstationToolsExposed=$false
+  rawShellExecutionRemoved=$true
+  arbitraryCommandTextAccepted=$false
+  inlineCodeAccepted=$false
+  canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'
+  canonicalEffectfulHostedRoutes=@('cloudflare-typed-relay','github-issue-queue')
   cloudflareRelay=$Cloudflare
   cloudflareRelaySkippedReason=$CloudflareSkip
   cloudflareProvisionExplicitlyRequested=[bool]$ProvisionCloudflareRelay
@@ -111,7 +114,7 @@ $Receipt=[ordered]@{
   cloudflareCredentialValuesReturned=$false
   cloudflareAccountIdReturned=$false
   observerArbitraryShellExposed=$false
-  executionShellSeparatedFromObserver=$true
+  compatibilityTunnelArbitraryShellExposed=$false
   githubActionsRequired=$false
   vercelRequired=$false
   developmentCheckoutRequiredAfterEstablishment=$false
