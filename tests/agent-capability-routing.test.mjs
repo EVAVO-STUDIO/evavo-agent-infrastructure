@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 22);
-  assert.equal(validatedRouting.strategyCount, 89);
+  assert.equal(validatedRouting.routeCount, 23);
+  assert.equal(validatedRouting.strategyCount, 91);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -44,13 +44,14 @@ test('ChatGPT browser visual inspection prefers native Computer Agent visual rev
   assert.equal(result.authority.execution, false);
 });
 
-test('ChatGPT browser visual inspection can bootstrap through native queue without Desktop Commander', () => {
-  const result = plan(status({ requestedCapabilities: ['browser.visual-inspect'], evidence: [evidence('browser-visual-inspect-issue-queue-bootstrap', 'configured')] }));
+test('ChatGPT browser visual bootstrap uses Local Compute and remains receipt-bound', () => {
+  const result = plan(status({ requestedCapabilities: ['browser.visual-bootstrap'], evidence: [evidence('browser-visual-bootstrap-issue-queue', 'configured')] }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'browser-visual-inspect-issue-queue-bootstrap');
-  assert.equal(decision.selected.authority, 'computer-agent');
+  assert.equal(decision.selected.strategyId, 'browser-visual-bootstrap-issue-queue');
+  assert.equal(decision.selected.authority, 'local-compute');
   assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, true);
 });
 
 test('ChatGPT repository inspection selects fresh connected GitHub evidence first', () => {
