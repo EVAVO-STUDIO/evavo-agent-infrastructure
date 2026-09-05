@@ -18,8 +18,8 @@ function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', 
 function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
 
 test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 20);
-  assert.equal(validatedRouting.strategyCount, 79);
+  assert.equal(validatedRouting.routeCount, 22);
+  assert.equal(validatedRouting.strategyCount, 89);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -32,6 +32,25 @@ test('canonical routing config validates and is zero-cost by contract', () => {
     assert.ok(Array.isArray(transport.sharedDependencies));
     if (transport.effects.some((effect) => effect !== 'read')) assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-local-compute');
   }
+});
+
+test('ChatGPT browser visual inspection prefers native Computer Agent visual review ingress', () => {
+  const result = plan(status({ requestedCapabilities: ['browser.visual-inspect'], evidence: [evidence('browser-visual-inspect-visual-review-mcp', 'transport_online')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'browser-visual-inspect-visual-review-mcp');
+  assert.equal(decision.selected.authority, 'computer-agent');
+  assert.equal(decision.selected.transport, 'openai-secure-mcp-tunnel');
+  assert.equal(result.authority.execution, false);
+});
+
+test('ChatGPT browser visual inspection can bootstrap through native queue without Desktop Commander', () => {
+  const result = plan(status({ requestedCapabilities: ['browser.visual-inspect'], evidence: [evidence('browser-visual-inspect-issue-queue-bootstrap', 'configured')] }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'browser-visual-inspect-issue-queue-bootstrap');
+  assert.equal(decision.selected.authority, 'computer-agent');
+  assert.equal(decision.claims.mayClaimCompleted, false);
 });
 
 test('ChatGPT repository inspection selects fresh connected GitHub evidence first', () => {
