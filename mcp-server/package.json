@@ -7,8 +7,9 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "vitest && node --test ../tests/github-estate-routing-mcp.test.mjs ../tests/workstation-fabric-mcp-v2.test.mjs ../tests/local-agent-mcp-v2.1.contract.test.mjs ../tests/database-provider-routing-mcp.test.mjs ../tests/cloud-provider-routing-mcp.test.mjs && npm run check:local-runtimes",
-    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check local-agent-mcp-v2.mjs && node --check local-agent-mcp-v2.1.mjs && node --check database-provider-routing-mcp.mjs && node --check cloud-provider-routing-mcp.mjs && node --check windows-chat-execution-mcp.mjs && node --check android-device-mcp.mjs && node --check android-app-mcp.mjs && node --check android-observer-mcp.mjs && node --check glasses-android-mcp.mjs && node --check glasses-tab-a-mcp.mjs && node --check godot-android-physical-mcp.mjs && node --check github-estate-routing-core.mjs && node --check github-estate-routing-mcp.mjs",
+    "test": "npm run test:control-policy && vitest && node --test ../tests/github-estate-routing-mcp.test.mjs ../tests/workstation-fabric-mcp-v2.test.mjs ../tests/local-agent-mcp-v2.1.contract.test.mjs ../tests/database-provider-routing-mcp.test.mjs ../tests/cloud-provider-routing-mcp.test.mjs && npm run check:local-runtimes",
+    "check:local-runtimes": "node --check local-agent-mcp.mjs && node --check local-agent-mcp-v2.mjs && node --check local-agent-mcp-v2.1.mjs && node --check database-provider-routing-mcp.mjs && node --check cloud-provider-routing-mcp.mjs && node --check windows-chat-execution-mcp.mjs && node --check android-device-mcp.mjs && node --check android-app-mcp.mjs && node --check android-observer-mcp.mjs && node --check glasses-android-mcp.mjs && node --check glasses-tab-a-mcp.mjs && node --check godot-android-physical-mcp.mjs && node --check github-estate-routing-core.mjs && node --check github-estate-routing-mcp.mjs && node --check control-policy-core.mjs && node --check control-policy-mcp.mjs && node --check native-control-policy.mjs",
+    "test:control-policy": "node --test ../tests/control-policy-native-runtime.test.mjs ../tests/control-policy-receipt-normalize.test.mjs ../tests/workstation-control-health-current.contract.test.mjs",
     "dev": "tsc --watch",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist"

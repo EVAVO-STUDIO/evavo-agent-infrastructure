@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assertNativeControlPolicy } from './native-control-policy.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const POLICY_PATH = path.join(ROOT, 'config', 'control-path-policy-v1.json');
@@ -76,7 +77,7 @@ export const controlPolicyTools = Object.freeze([
 
 export const controlPolicyMcpContract = Object.freeze({
   serverName: 'EVAVO Control Path Policy',
-  serverVersion: '1.4.0',
+  serverVersion: '1.4.1',
   readOnly: true,
   executionAuthority: false,
   focusDisruptionExpected: false,
@@ -90,7 +91,10 @@ export function chooseControlRoute(args = {}) {
     'typedApiCapable', 'singletonGatewayCapable', 'backgroundCapable', 'localMcpCapable', 'isolatedBrowserCapable',
     'nativeDesktopRequired', 'physicalConsoleRequired', 'outOfBandRecoveryRequired',
   ]);
-  for (const key of Object.keys(args)) if (!allowed.has(key)) throw new Error(`unknown route-advice field: ${key}`);
+  for (const key of Object.keys(args)) {
+    if (!allowed.has(key)) throw new Error(`unknown route-advice field: ${key}`);
+    requireBoolean(args, key);
+  }
 
   let routeClass = 'unresolved';
   let disruption = 'none';
@@ -131,13 +135,15 @@ export function classifyReceiptTruth(args = {}) {
   ]);
   for (const key of Object.keys(args)) if (!allowed.has(key)) throw new Error(`unknown receipt-advice field: ${key}`);
 
-  const physicalEffectState = String(args.physicalEffectState || '').trim();
+  if (typeof args.physicalEffectState !== 'string') throw new Error('physicalEffectState must be a string');
+  const physicalEffectState = args.physicalEffectState.trim();
   if (!physicalEffectState || physicalEffectState.length > 96) throw new Error('physicalEffectState must be 1-96 characters');
   const sideEffectMayHaveCommitted = requireBoolean(args, 'sideEffectMayHaveCommitted');
   const postconditionVerified = requireBoolean(args, 'postconditionVerified');
   const intentPersisted = requireBoolean(args, 'intentPersisted');
   const terminalReceiptPersisted = requireBoolean(args, 'terminalReceiptPersisted');
-  const explicitReconciliation = args.reconciliationRequired === true;
+  const explicitReconciliation = Object.hasOwn(args, 'reconciliationRequired')
+    ? requireBoolean(args, 'reconciliationRequired') : false;
 
   let disposition = 'reconcile-before-retry';
   let operationSucceeded = false;
@@ -237,7 +243,7 @@ function canonicalFactsFromFields(receipt) {
           : typeof nested?.completion_persisted === 'boolean'
             ? nested.completion_persisted
             : false,
-      reconciliationRequired: receipt.reconciliationRequired === true,
+      reconciliationRequired: receipt.reconciliationRequired === true || nested?.reconciliationRequired === true,
       sourceKind: String(receipt.kind || 'canonical-fields'),
     };
   }
@@ -247,7 +253,20 @@ function canonicalFactsFromFields(receipt) {
 function powershellChildFacts(receipt) {
   if (receipt.kind !== 'evavo-powershell-child-execution-receipt-v1') return null;
   const status = String(receipt.status || '');
-  if (['host-started', 'preflight-complete', 'failed-preflight'].includes(status)) {
+  // An intermediate receipt can be followed by dispatch in the same live
+  // process. It is not permission to start the operation a second time.
+  if (['host-started', 'preflight-complete'].includes(status)) {
+    return {
+      physicalEffectState: 'in_progress_before_dispatch',
+      sideEffectMayHaveCommitted: false,
+      postconditionVerified: false,
+      intentPersisted: true,
+      terminalReceiptPersisted: false,
+      reconciliationRequired: true,
+      sourceKind: receipt.kind,
+    };
+  }
+  if (status === 'failed-preflight' && receipt.terminalReceiptPersisted === true) {
     return {
       physicalEffectState: 'not_attempted',
       sideEffectMayHaveCommitted: false,
@@ -294,9 +313,30 @@ function powershellChildFacts(receipt) {
   return null;
 }
 
+function invalidReceiptEvidence(receipt) {
+  const flags = ['sideEffectMayHaveCommitted', 'postconditionVerified', 'intentPersisted',
+    'terminalReceiptPersisted', 'reconciliationRequired', 'intent_persisted', 'completion_persisted'];
+  const nested = receipt.receipt;
+  if (nested !== undefined && nested !== null &&
+      (typeof nested !== 'object' || Array.isArray(nested))) return true;
+  for (const value of [receipt, nested].filter(Boolean)) {
+    if (flags.some((key) => Object.hasOwn(value, key) && typeof value[key] !== 'boolean')) return true;
+    if (Object.hasOwn(value, 'physicalEffectState') &&
+        (typeof value.physicalEffectState !== 'string' || !value.physicalEffectState.trim() ||
+         value.physicalEffectState.trim().length > 96)) return true;
+  }
+  if (receipt.kind === 'evavo-powershell-child-execution-receipt-v1' &&
+      ['host-started', 'preflight-complete', 'target-dispatched', 'returned', 'failed-effect-unknown'].includes(receipt.status) &&
+      ['not_attempted', 'verified_not_committed'].includes(receipt.physicalEffectState)) return true;
+  return false;
+}
+
 export function normalizeReceiptTruth(receipt) {
   if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw new Error('receipt must be an object');
-  const facts = canonicalFactsFromFields(receipt) || powershellChildFacts(receipt);
+  const invalid = invalidReceiptEvidence(receipt);
+  // Explicit malformed canonical facts cannot fall through to a child status
+  // adapter and become permission. Preserve reconciliation through re-reading.
+  const facts = invalid ? null : canonicalFactsFromFields(receipt) || powershellChildFacts(receipt);
   if (!facts) {
     return {
       schemaVersion: 1,
@@ -306,8 +346,21 @@ export function normalizeReceiptTruth(receipt) {
       reconciliationRequired: true,
       retryUnderlyingAction: false,
       execute: false,
-      reason: 'receipt-shape-not-recognized; do not infer no-effect or retry safety',
+      reason: invalid ? 'receipt-evidence-invalid; reconcile-before-retry'
+        : 'receipt-shape-not-recognized; do not infer no-effect or retry safety',
     };
+  }
+  // A child-stage adapter cannot erase an explicit uncertainty flag from the
+  // outer envelope or the retained nested receipt.
+  for (const observed of [receipt, receipt.receipt].filter(Boolean)) {
+    if (observed.reconciliationRequired === true) facts.reconciliationRequired = true;
+    if (observed.sideEffectMayHaveCommitted === true && facts.sideEffectMayHaveCommitted !== true) {
+      facts.sideEffectMayHaveCommitted = true;
+      facts.reconciliationRequired = true;
+    }
+    if (observed.postconditionVerified === true && facts.postconditionVerified !== true) {
+      facts.reconciliationRequired = true;
+    }
   }
   const advice = classifyReceiptTruth({
     physicalEffectState: facts.physicalEffectState,
@@ -331,8 +384,19 @@ export function normalizeReceiptTruth(receipt) {
 }
 
 export async function callControlPolicyTool(name, args = {}) {
-  if (name === 'evavo_control_path_policy') return { ...readJson(POLICY_PATH), executionAuthority: false, focusDisruptionExpected: false };
-  if (name === 'evavo_control_health_policy') return { ...readJson(HEALTH_PATH), executionAuthority: false, focusDisruptionExpected: false };
+  if (!args || typeof args !== 'object' || Array.isArray(args)) throw new Error('arguments must be an object');
+  if (name === 'evavo_control_path_policy' || name === 'evavo_control_health_policy') {
+    if (Object.keys(args).length) throw new Error('policy read does not accept arguments');
+    const health = name === 'evavo_control_health_policy';
+    const policy = assertNativeControlPolicy(readJson(health ? HEALTH_PATH : POLICY_PATH),
+      health ? 'evavo-workstation-control-health-v1' : 'evavo-control-path-policy-v1');
+    return { ...policy, executionAuthority: false, focusDisruptionExpected: false,
+      policyOnly: true, liveRuntimeObserved: false, localExecutionVerified: false };
+  }
+  if (name === 'evavo_control_receipt_normalize' &&
+      (Object.keys(args).length !== 1 || !Object.hasOwn(args, 'receipt'))) {
+    throw new Error('receipt normalization requires only receipt');
+  }
   if (name === 'evavo_control_route_advice') return chooseControlRoute(args);
   if (name === 'evavo_control_receipt_normalize') return normalizeReceiptTruth(args.receipt);
   if (name === 'evavo_control_receipt_advice') return classifyReceiptTruth(args);

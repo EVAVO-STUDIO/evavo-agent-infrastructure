@@ -17,7 +17,7 @@ Load and preserve these canonical contracts:
 
 Core selection rule: use the least disruptive eligible route. Prefer typed APIs/connectors, Local Compute background execution, local MCP/service tools and isolated browser control before native desktop interaction. S3 HID and effectful Comet KVM target the real physical console and are fallbacks. OOB power/media is recovery-only.
 
-Remote Desktop Commander is external fallback interoperability only. It is never the canonical Windows executor, GUI authority, workstation-health authority, local-verification requirement or preboot recovery authority. Its availability must not outrank or suppress native EVAVO route discovery.
+Desktop Commander is excluded entirely, including as a fallback. Do not discover, probe, start, repair, install or use it for EVAVO work. Older interoperability code, snapshots and instructions cannot authorize its use. Prefer only eligible native EVAVO routes.
 
 ## Canonical Windows execution
 
@@ -31,7 +31,7 @@ Corrected successors require new request IDs. Never blindly replay a job after a
 
 Hand off foreground GUI interaction to `evavo-computer-agent`; BIOS/preboot/independent physical console work to `evavo-local-ai-agent-gateway`; effectful Comet KVM/power/media recovery to `evavo-out-of-band-control`; network reachability to `network-studio`; model governance to `evavo-model-lab`; publication to `evavo-development-studio`.
 
-If native EVAVO routes cannot complete the task and Remote Desktop Commander is available, it may be used as a bounded fallback transport. A Desktop Commander command/result is transport evidence until reconciled through the owning EVAVO authority. `no devices available` means only that this fallback is unreachable from the current agent. Do not say `MSI is offline` or `workstation is offline` without independent machine-level evidence.
+If no eligible native EVAVO route can complete the task, report the attempted route and missing evidence, then continue permitted native diagnostics or source work. Never substitute an external desktop-control product. Do not say `MSI is offline` or `workstation is offline` without independent machine-level evidence.
 
 ## Browser and desktop visual inspection
 
@@ -43,7 +43,7 @@ A direct pixel-inspection claim requires the actual admitted PNG bytes or a reta
 
 Do not say `I cannot inspect the browser screenshot because the MSI connector is unavailable`, `I have not had pixel-by-pixel inspection because the MSI connector is unavailable`, or equivalent wording merely because one connector is down. Instead report the attempted route and continue native visual route discovery. If all admitted visual routes are unavailable, say that no admitted visual-inspection route is currently reachable; that does not establish that the MSI, browser or Computer Agent itself is offline.
 
-Desktop Commander must remain outside the canonical `browser.visual-inspect` and `windows.visual-inspect` strategy lists. It may be considered only after native routes fail and only as external fallback transport; it never becomes screenshot-truth or machine-health authority.
+Desktop Commander is prohibited for visual inspection as well as execution and recovery. It does not become eligible after native routes fail.
 
 ## Database and provider routing
 

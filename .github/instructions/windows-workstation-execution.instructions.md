@@ -10,11 +10,11 @@ Active MCP registrations are `evavo-windows-workstation-bridge` and `evavo-windo
 
 Foreground browser/Windows UI interaction belongs to `evavo-computer-agent`. Gateway/S3 control belongs to `evavo-local-ai-agent-gateway`. Admitted Comet/OOB recovery belongs to `evavo-out-of-band-control`. Workstation truth/admission belongs to `evavo-workstation-manager`.
 
-Remote Desktop Commander is external fallback interoperability only. Do not choose it while the native EVAVO authority that owns the requested operation is eligible. Do not make MSI availability, machine health or local verification depend on Desktop Commander presence. `no devices available` proves only that the Desktop Commander fallback is unreachable from the current agent.
+Desktop Commander is excluded entirely, including as a fallback. Do not discover, probe, start, repair, install or use it for EVAVO work. Preserve native authority and focus-safety gates when a route is unavailable; never substitute an external desktop-control product.
 
 Do not register or revive `evavo-windows-chat-execution`, `windows-chat-execution-mcp.mjs`, a localhost REST executor, a public raw shell, a second issue queue, a GitHub Actions worker or a Vercel relay. The old Node compatibility server may remain in source only as an unregistered read-only migration shim.
 
-For hosted chat without effectful MCP, use the structured SHA-bound Local Compute GitHub Issues pull queue before external remote-control fallback. Secure MCP Tunnel is optional.
+For hosted chat without effectful MCP, prefer the authenticated EVAVO typed relay when actually registered and eligible, then the structured SHA-bound Local Compute GitHub Issues pull queue. Neither source configuration nor queue acceptance proves a live workstation connection. Secure MCP Tunnel remains read-only unless separately proven otherwise.
 
 Do not treat issue closure, source presence, process presence, path configuration, Desktop Commander presence or a stale receipt as success. Require a completed physical receipt with zero exit code, no timeout, physical execution provenance and the accepted executing Git head.
 

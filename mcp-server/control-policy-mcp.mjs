@@ -46,7 +46,7 @@ async function handle(raw) {
     const params = object(raw.params) ? raw.params : {};
     if (typeof params.name !== 'string') { send(rpcError(id, -32602, 'tool name is required')); return; }
     try {
-      const result = await callControlPolicyTool(params.name, object(params.arguments) ? params.arguments : {});
+      const result = await callControlPolicyTool(params.name, Object.hasOwn(params, 'arguments') ? params.arguments : {});
       send(response(id, { content: [{ type: 'text', text: `${JSON.stringify(result)}\n` }], structuredContent: result }));
     } catch (error) {
       send(response(id, { content: [{ type: 'text', text: `${error instanceof Error ? error.message : String(error)}\n` }], isError: true }));

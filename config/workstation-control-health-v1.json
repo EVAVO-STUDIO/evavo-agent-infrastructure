@@ -2,10 +2,14 @@
   "schemaVersion": 1,
   "kind": "evavo-workstation-control-health-v1",
   "canonical": true,
-  "goal": "keep workstation execution, visual-inspection and recovery capabilities healthy using the narrowest owner-specific repair before escalating to physical-console or external fallback transport",
+  "goal": "keep workstation execution, visual-inspection and recovery capabilities healthy using the narrowest owner-specific repair before escalating to admitted native physical-console recovery",
+  "executionPolicy": {
+    "externalDesktopCommanderEnabled": false,
+    "externalRemoteDesktopFallbackAllowed": false
+  },
   "observedState": {
     "observedAt": "2026-09-05T03:11:42Z",
-    "historicalSnapshot": false,
+    "historicalSnapshot": true,
     "currentMachineAvailabilityAuthoritative": false,
     "localCompute": "both-queue-lanes-current-liveness-unproven-after-recent-normal-transport-proof",
     "normalQueueTransportLastProvenLive": true,
@@ -38,7 +42,6 @@
     "automatedTestingVisualQaRuntimeState": "unproven-from-this-agent-until-fresh-visual-qa-doctor-receipt",
     "visualInspectionRequiresRemoteDesktopCommander": false,
     "visualQaRequiresRemoteDesktopCommander": false,
-    "remoteDesktopCommanderFallbackReachableFromObservedAgent": false,
     "remoteDesktopCommanderMachineStateInferenceAllowed": false,
     "machineOnline": "not-inferred-from-route-evidence",
     "providerNativeReadsMayContinue": true,
@@ -206,19 +209,6 @@
       "disruption": "physical-console-or-recovery-impact",
       "selfHeal": ["expire stale session/admission state", "refresh read-only provider observation"],
       "forbiddenSelfHeal": ["unapproved keyboard or pointer input", "automatic hard reset", "automatic virtual-media mount"]
-    },
-    {
-      "id": "desktop-commander-fallback",
-      "repository": null,
-      "healthClass": "external-fallback-transport",
-      "disruption": "none-or-foreground-depending-on-operation",
-      "canonical": false,
-      "machineHealthAuthority": false,
-      "localVerificationRequirement": false,
-      "visualInspectionRequirement": false,
-      "visualQaRequirement": false,
-      "selfHeal": ["owned fallback process restart", "half-open channel recycle", "bounded reconnect backoff"],
-      "forbiddenSelfHeal": ["machine offline inference", "authority takeover from native EVAVO owner", "blind replay after unknown effect", "visual-inspection gate", "visual-QA gate"]
     }
   ],
   "evaluationOrder": [
@@ -232,8 +222,7 @@
     "network-studio",
     "computer-agent-native-desktop",
     "hardware-gateway-s3-hid",
-    "out-of-band-control",
-    "desktop-commander-fallback"
+    "out-of-band-control"
   ],
   "rules": [
     "Health checks should be read-only and non-focus-disruptive whenever possible.",
@@ -251,7 +240,7 @@
     "A failed route or failed lane describes that route or lane only; it cannot prove the MSI or workstation is offline.",
     "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
     "Before declaring browser pixel inspection unavailable, evaluate Computer Agent direct/retained visual routes and the independent Automated Testing visual-QA lane when QA evidence satisfies the task.",
-    "Desktop Commander is external fallback only and cannot define workstation health, gate local verification, gate screenshot inspection or gate visual QA.",
+    "Desktop Commander is excluded entirely, including discovery, probing, installation, repair and fallback use. Continue only through eligible native EVAVO routes.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
     "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed.",
     "While one route or lane is degraded, disable unsafe submissions through that route or lane without suppressing independent routes that remain eligible."
