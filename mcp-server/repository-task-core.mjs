@@ -24,12 +24,13 @@ const runEnv = () => ({
 });
 
 export const repositoryTaskMcpContract = Object.freeze({
-  schemaVersion: 1,
-  kind: 'evavo-repository-task-mcp-contract-v1',
+  schemaVersion: 2,
+  kind: 'evavo-repository-task-mcp-contract-v2',
   serverName: 'evavo-repository-task',
-  serverVersion: '1.0.0',
+  serverVersion: '1.1.0',
   localStorageAuthority: true,
   fragmentAware: true,
+  catalogueDiscovery: true,
   callerExecutableAllowed: false,
   callerScriptAllowed: false,
   callerArgvAllowed: false,
@@ -38,6 +39,18 @@ export const repositoryTaskMcpContract = Object.freeze({
 });
 
 export const repositoryTaskTools = Object.freeze([
+  {
+    name: 'evavo_repository_task_catalog',
+    description: 'List or search the exact governed named-task set for one clean EVAVO repository, including tracked evavo.tasks.d fragments. Returns task names, descriptions, runtime/network policy, parameter names and manifest-set-bound task SHAs. Performs no execution and returns no physical paths.',
+    inputSchema: {
+      type: 'object', additionalProperties: false, required: ['repository'],
+      properties: {
+        repository: { type: 'string', pattern: '^EVAVO-STUDIO/[A-Za-z0-9][A-Za-z0-9._-]{0,99}$' },
+        query: { type: 'string', maxLength: 256 },
+        limit: { type: 'integer', minimum: 1, maximum: 500 },
+      },
+    },
+  },
   {
     name: 'evavo_repository_task_describe',
     description: 'Describe one exact governed EVAVO named repository task, including fragment-defined tasks, without executing it. Returns the parameter schema and manifest-set-bound task identity; no physical paths are returned.',
@@ -86,10 +99,15 @@ function object(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('arguments must be an object');
   return value;
 }
+function repositoryIdentity(value) {
+  const repository = String(value ?? '');
+  if (!REPOSITORY.test(repository)) throw new Error('repository identity is invalid');
+  return repository;
+}
 function identity(args) {
-  const repository = String(args.repository ?? '');
+  const repository = repositoryIdentity(args.repository);
   const taskName = String(args.taskName ?? '');
-  if (!REPOSITORY.test(repository) || !TASK.test(taskName)) throw new Error('repository/task identity is invalid');
+  if (!TASK.test(taskName)) throw new Error('task identity is invalid');
   return { repository, taskName };
 }
 function jsonBytes(value) {
@@ -108,10 +126,7 @@ async function pythonModule(moduleName, argv, timeout) {
     maxBuffer: MAX_STDOUT_BYTES,
     encoding: 'utf8',
   });
-  if (stderr?.trim()) {
-    // Successful CLIs are expected to keep stderr empty; do not expose unbounded diagnostics.
-    throw new Error(`Local Storage repository-task CLI returned stderr: ${stderr.trim().slice(-2000)}`);
-  }
+  if (stderr?.trim()) throw new Error(`Local Storage repository-task CLI returned stderr: ${stderr.trim().slice(-2000)}`);
   let result;
   try { result = object(JSON.parse(stdout)); }
   catch { throw new Error('Local Storage repository-task CLI returned invalid JSON'); }
@@ -127,6 +142,15 @@ async function withTemporaryJson(value, callback) {
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
+}
+async function catalog(raw) {
+  const args = object(raw);
+  const repository = repositoryIdentity(args.repository);
+  if (Object.keys(args).some((key) => !['repository', 'query', 'limit'].includes(key))) throw new Error('unsupported catalog field');
+  const query = args.query === undefined ? '' : String(args.query);
+  const limit = args.limit === undefined ? 100 : Number(args.limit);
+  if (query.length > 256 || !Number.isInteger(limit) || limit < 1 || limit > 500) throw new Error('catalog query/limit is outside bounds');
+  return pythonModule('evavo_local_storage.repository_task_catalog_current', ['--repository', repository, '--query', query, '--limit', String(limit), '--git-root', GIT_ROOT], 60000);
 }
 async function describe(raw) {
   const args = object(raw); const { repository, taskName } = identity(args);
@@ -168,6 +192,7 @@ async function run(raw) {
 }
 
 export async function callRepositoryTaskTool(name, raw = {}) {
+  if (name === 'evavo_repository_task_catalog') return catalog(raw);
   if (name === 'evavo_repository_task_describe') return describe(raw);
   if (name === 'evavo_repository_task_plan') return plan(raw);
   if (name === 'evavo_repository_task_run') return run(raw);
