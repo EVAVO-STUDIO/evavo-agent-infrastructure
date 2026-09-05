@@ -49,6 +49,7 @@ type DispatchRecord = {
   action: string;
   status: DispatchStatus;
   deliveryState: DeliveryState;
+  connectionId: string | null;
   requestedAt: string;
   deadline: string;
   sentAt: string | null;
@@ -67,6 +68,8 @@ type Pending = {
   resolve: (value: ResultMessage) => void;
   reject: (reason: Error) => void;
   timer: ReturnType<typeof setTimeout>;
+  socket: WebSocket;
+  connectionId: string | null;
 };
 
 const OBJECT_NAME = "primary-workstation";
@@ -326,6 +329,15 @@ export class WorkstationRelay extends DurableObject<Env> {
 
   private requestKey(id: string): string { return `request:${id}`; }
 
+  private socketConnectionId(socket: WebSocket): string | null {
+    try {
+      const attachment = socket.deserializeAttachment() as Record<string, unknown> | null;
+      return attachment && typeof attachment.connectionId === "string" ? attachment.connectionId : null;
+    } catch {
+      return null;
+    }
+  }
+
   private async presence(): Promise<Presence | null> {
     return (await this.ctx.storage.get<Presence>("presence")) ?? null;
   }
@@ -384,6 +396,7 @@ export class WorkstationRelay extends DurableObject<Env> {
       ...record,
       status,
       deliveryState,
+      connectionId: record.connectionId ?? null,
       sentAt: record.sentAt ?? null,
       executionAttempted: record.executionAttempted ?? (terminal ? true : deliveryState === "not_sent" ? false : null),
       sideEffectMayHaveCommitted: record.sideEffectMayHaveCommitted ?? (effectful && deliveryState !== "not_sent"),
@@ -460,7 +473,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (!isTerminalStatus(record.status)) await this.scheduleDeadline(record.deadline);
   }
 
-  private async finish(message: ResultMessage): Promise<void> {
+  private async finish(message: ResultMessage, sourceConnectionId: string | null): Promise<void> {
     const oldPresence = await this.presence();
     if (oldPresence) {
       await this.ctx.storage.put("presence", {
@@ -474,6 +487,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (!stored || stored.action !== message.action) return;
     const existing = this.normalizeRecord(stored);
     if (existing.deliveryState === "not_sent") return;
+    if (existing.connectionId !== null && existing.connectionId !== sourceConnectionId) return;
     const effectful = isEffectful(existing.action);
     await this.remember({
       ...existing,
@@ -497,6 +511,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (!stored) return json({ ok: false, error: "request-not-found", requestId: id }, { status: 404 });
     const record = this.reconcileExpiredRecord(stored);
     await this.ctx.storage.put(this.requestKey(id), record);
+    if (!isTerminalStatus(record.status)) await this.scheduleDeadline(record.deadline);
     return json({ ok: true, request: record });
   }
 
@@ -506,6 +521,7 @@ export class WorkstationRelay extends DurableObject<Env> {
       return json({ ok: false, error: sockets.length ? "multiple-workstations-connected" : "workstation-offline" }, { status: 503 });
     }
     const socket = sockets[0];
+    const connectionId = this.socketConnectionId(socket);
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return json({ ok: false, error: "action-not-admitted" }, { status: 400 });
     const args = body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
@@ -540,6 +556,7 @@ export class WorkstationRelay extends DurableObject<Env> {
       action,
       status: "queued",
       deliveryState: "not_sent",
+      connectionId,
       requestedAt: message.requestedAt,
       deadline,
       sentAt: null,
@@ -595,7 +612,7 @@ export class WorkstationRelay extends DurableObject<Env> {
           this.pending.delete(id);
           reject(new Error("workstation-dispatch-timeout"));
         }, waitMs);
-        this.pending.set(id, { resolve, reject, timer });
+        this.pending.set(id, { resolve, reject, timer, socket, connectionId });
       });
     }
 
@@ -736,15 +753,17 @@ export class WorkstationRelay extends DurableObject<Env> {
       }
       const pair = new WebSocketPair();
       const [client, server] = Object.values(pair);
+      const connectedAt = new Date().toISOString();
+      const connectionId = crypto.randomUUID();
       this.ctx.acceptWebSocket(server, ["workstation"]);
-      server.serializeAttachment({ connectedAt: new Date().toISOString() });
+      server.serializeAttachment({ connectedAt, connectionId });
       await this.updatePresence({ type: "connected" });
       return new Response(null, { status: 101, webSocket: client });
     }
     return new Response("Not Found", { status: 404 });
   }
 
-  async webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
+  async webSocketMessage(socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== "string" || new TextEncoder().encode(message).byteLength > MAX_RESULT_BYTES) return;
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(message) as Record<string, unknown>; } catch { return; }
@@ -761,9 +780,11 @@ export class WorkstationRelay extends DurableObject<Env> {
       || !Number.isFinite(Date.parse(parsed.completedAt))
     ) return;
     const result = parsed as unknown as ResultMessage;
-    await this.finish(result);
+    const sourceConnectionId = this.socketConnectionId(socket);
+    await this.finish(result, sourceConnectionId);
     const pending = this.pending.get(result.id);
-    if (!pending) return;
+    if (!pending || pending.socket !== socket) return;
+    if (pending.connectionId !== null && pending.connectionId !== sourceConnectionId) return;
     clearTimeout(pending.timer);
     this.pending.delete(result.id);
     pending.resolve(result);
@@ -772,14 +793,16 @@ export class WorkstationRelay extends DurableObject<Env> {
   webSocketClose(socket: WebSocket, code: number, reason: string, _wasClean: boolean): void {
     try { socket.close(code, reason); } catch { /* ignore */ }
     for (const [id, pending] of this.pending) {
+      if (pending.socket !== socket) continue;
       clearTimeout(pending.timer);
       pending.reject(new Error("workstation-disconnected"));
       this.pending.delete(id);
     }
   }
 
-  webSocketError(_socket: WebSocket, _error: unknown): void {
+  webSocketError(socket: WebSocket, _error: unknown): void {
     for (const [id, pending] of this.pending) {
+      if (pending.socket !== socket) continue;
       clearTimeout(pending.timer);
       pending.reject(new Error("workstation-websocket-error"));
       this.pending.delete(id);
