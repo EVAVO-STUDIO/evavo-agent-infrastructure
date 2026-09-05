@@ -51,7 +51,18 @@ function assertVisualInspectionRouting() {
     throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual route fragment must be an array');
   }
   const browser = routes.find((route) => route?.capability === 'browser.visual-inspect');
-  if (!browser) throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: browser.visual-inspect route is required');
+  const bootstrap = routes.find((route) => route?.capability === 'browser.visual-bootstrap');
+  const windows = routes.find((route) => route?.capability === 'windows.visual-inspect');
+  if (!browser || !bootstrap || !windows) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: browser inspect, browser bootstrap and windows inspect routes are required');
+  }
+  if (browser.requestedEffect !== 'read' || windows.requestedEffect !== 'read') {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual inspection routes must remain read-only');
+  }
+  if (bootstrap.requestedEffect !== 'execute') {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual bootstrap must remain a separate effectful capability');
+  }
+
   const ids = (browser.strategies ?? []).map((strategy) => strategy?.id);
   if (ids[0] !== 'browser-visual-inspect-computer-agent-playwright') {
     throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: native Playwright must be first visual inspection strategy');
@@ -59,21 +70,29 @@ function assertVisualInspectionRouting() {
   if (!ids.includes('browser-visual-inspect-visual-review-mcp')) {
     throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Visual Review MCP must be available to ChatGPT Pro');
   }
-  if (!ids.includes('browser-visual-inspect-typed-relay') || !ids.includes('browser-visual-inspect-issue-queue-bootstrap')) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: typed relay and issue-queue bootstrap fallbacks are required');
+  if (!ids.includes('browser-visual-inspect-typed-relay')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: typed relay visual inspection fallback is required');
   }
-  if (ids.some((id) => typeof id === 'string' && id.includes('desktop-commander'))) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Desktop Commander must not be a canonical visual inspection strategy');
+  if (ids.some((id) => typeof id === 'string' && (id.includes('desktop-commander') || id.includes('issue-queue')))) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: read-only visual inspection cannot use Desktop Commander or an effectful issue queue');
   }
-  const truth = browser.truth ?? {};
-  if (truth.desktopCommanderRequired !== false || truth.desktopCommanderAuthoritative !== false) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Desktop Commander must remain optional and non-authoritative');
+
+  const bootstrapIds = (bootstrap.strategies ?? []).map((strategy) => strategy?.id);
+  if (!bootstrapIds.includes('browser-visual-bootstrap-typed-relay') || !bootstrapIds.includes('browser-visual-bootstrap-issue-queue')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: ChatGPT visual bootstrap needs typed-relay and issue-queue recovery routes');
   }
-  if (truth.msiConnectorRequired !== false || truth.connectorFailureCanImplyMachineOffline !== false) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: connector availability must not define visual capability or machine state');
+  if ((bootstrap.strategies ?? []).some((strategy) => strategy?.authority !== 'local-compute')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Local Compute must remain the sole effectful visual bootstrap authority');
   }
-  if (truth.captureReceiptRequired !== true || truth.screenshotSha256Required !== true || truth.pixelBytesRequiredForPixelInspection !== true) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: pixel inspection must require capture receipt, digest and pixel bytes');
+
+  const policyPath = path.join(root, 'docs', 'VISUAL_INSPECTION_ROUTING_POLICY_V1.md');
+  const policy = fs.readFileSync(policyPath, 'utf8');
+  if (!policy.includes('A Remote Desktop Commander failure is never machine-state evidence')
+    && !policy.includes('Desktop Commander is not a canonical visual-inspection authority')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual truth policy must reject connector-based machine-state inference');
+  }
+  for (const marker of ['PNG capture', 'SHA-256', 'pixel-byte source']) {
+    if (!policy.includes(marker)) throw new Error(`EVAVO_VISUAL_INSPECTION_ROUTING: pixel proof policy is missing ${marker}`);
   }
   return visualPath;
 }
@@ -93,6 +112,7 @@ try {
       visualInspectionRouting: path.relative(root, visualPath).replaceAll(path.sep, '/'),
       desktopCommanderRole: 'external-fallback-only',
       browserVisualInspectionAuthority: 'evavo-computer-agent',
+      browserVisualBootstrapAuthority: 'evavo-local-compute',
       browserVisualInspectionRequiresDesktopCommander: false,
       digestSha256: validated.digestSha256,
       routeCount: validated.routeCount,
