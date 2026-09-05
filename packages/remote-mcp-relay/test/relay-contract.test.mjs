@@ -47,6 +47,9 @@ test("public MCP request status is coarse and cannot expose execution output", (
   assert.ok(start >= 0 && end > start);
   const redaction = source.slice(start, end);
   assert.match(redaction, /detailedResultExposedThroughMcp:\s*false/);
+  assert.match(redaction, /sideEffectMayHaveCommitted/);
+  assert.match(redaction, /retrySafe/);
+  assert.match(redaction, /deliveryState/);
   assert.doesNotMatch(redaction, /request\.result|request\.error|raw\.result/);
   assert.match(source, /publicRequestStatus\(await internalRequestStatus/);
   assert.match(source, /\/api\/request/);
@@ -83,6 +86,96 @@ test("effectful dispatch is separately authenticated, typed and end-to-end imple
   assert.match(source, /action-not-admitted/);
   assert.doesNotMatch(source, /powershell\.command/i);
   assert.doesNotMatch(source, /shell\.command/i);
+});
+
+test("delivery journal distinguishes never-sent, attempted, sent and ambiguous outcomes", () => {
+  assert.match(source, /type DeliveryState = "not_sent" \| "send_attempted" \| "sent"/);
+  assert.match(source, /type DispatchStatus = "queued" \| "dispatching" \| "sent" \| "completed" \| "failed" \| "ambiguous"/);
+  assert.match(source, /DELIVERY_JOURNAL_VERSION = 1/);
+  assert.match(source, /sideEffectMayHaveCommitted/);
+  assert.match(source, /effectState/);
+  assert.match(source, /retrySafe/);
+  assert.match(source, /deadline-expired-before-send/);
+  assert.match(source, /deadline-without-correlated-receipt/);
+  assert.match(source, /workstation-effect-outcome-ambiguous/);
+  assert.match(source, /automaticReplayAllowed:\s*false/);
+  assert.match(source, /automaticReplayOfUncertainEffect:\s*false/);
+});
+
+test("write-ahead delivery state and waiter are persisted before websocket send", () => {
+  const start = source.indexOf("private async dispatch");
+  const end = source.indexOf("async alarm()", start);
+  assert.ok(start >= 0 && end > start);
+  const dispatch = source.slice(start, end);
+  const queued = dispatch.indexOf('deliveryState: "not_sent"');
+  const attempted = dispatch.indexOf('deliveryState: "send_attempted"');
+  const waiter = dispatch.indexOf("this.pending.set");
+  const send = dispatch.indexOf("socket.send");
+  const sent = dispatch.indexOf('deliveryState: "sent"', send);
+  assert.ok(queued >= 0 && attempted > queued, "not_sent must precede send_attempted");
+  assert.ok(waiter > attempted && waiter < send, "sync waiter must exist before send");
+  assert.ok(send > attempted, "send attempt journal must be durable before send");
+  assert.ok(sent > send, "sent state can only be persisted after send returns");
+});
+
+test("Durable Object alarm reconciles abandoned requests without polling", () => {
+  assert.match(source, /getAlarm\(\)/);
+  assert.match(source, /setAlarm\(/);
+  assert.match(source, /deleteAlarm\(\)/);
+  assert.match(source, /async alarm\(\): Promise<void>/);
+  const alarmStart = source.indexOf("async alarm(): Promise<void>");
+  const alarmEnd = source.indexOf("async fetch(request", alarmStart);
+  assert.ok(alarmStart >= 0 && alarmEnd > alarmStart);
+  const alarm = source.slice(alarmStart, alarmEnd);
+  assert.match(alarm, /reconcileExpiredRecord/);
+  assert.match(alarm, /request-index/);
+});
+
+test("legacy queued records migrate conservatively and are never assumed unsent", () => {
+  const start = source.indexOf("private normalizeRecord");
+  const end = source.indexOf("private reconcileExpiredRecord", start);
+  assert.ok(start >= 0 && end > start);
+  const normalize = source.slice(start, end);
+  assert.match(normalize, /legacyDelivery/);
+  assert.match(normalize, /"send_attempted"/);
+  assert.match(normalize, /record\.status === "queued" \? "dispatching"/);
+  assert.doesNotMatch(normalize, /legacyDelivery[^\n]+"not_sent"/);
+});
+
+test("receipt must correlate before terminal storage and caller settlement", () => {
+  const finishStart = source.indexOf("private async finish");
+  const finishEnd = source.indexOf("private async requestStatus", finishStart);
+  assert.ok(finishStart >= 0 && finishEnd > finishStart);
+  const finish = source.slice(finishStart, finishEnd);
+  assert.match(finish, /stored\.action !== message\.action/);
+  assert.match(finish, /existing\.connectionId !== sourceConnectionId/);
+  assert.match(finish, /existing\.status === "completed" \|\| existing\.status === "failed"/);
+  const durableTerminal = finish.indexOf("await this.remember");
+  const presenceUpdate = finish.indexOf('this.ctx.storage.put("presence"');
+  assert.ok(durableTerminal >= 0 && presenceUpdate > durableTerminal, "receipt health metadata follows durable terminal journal");
+
+  const messageStart = source.indexOf("async webSocketMessage");
+  const messageEnd = source.indexOf("webSocketClose", messageStart);
+  assert.ok(messageStart >= 0 && messageEnd > messageStart);
+  const handler = source.slice(messageStart, messageEnd);
+  const finishCall = handler.indexOf("const accepted = await this.finish");
+  const acceptedGuard = handler.indexOf("if (!accepted) return");
+  const resolveCall = handler.indexOf("pending.resolve");
+  assert.ok(finishCall >= 0 && acceptedGuard > finishCall && resolveCall > acceptedGuard, "caller settles only after accepted durable receipt");
+  assert.match(handler, /pending\.action !== result\.action/);
+});
+
+test("receipts and disconnects are bound to the workstation connection that received the request", () => {
+  assert.match(source, /connectionId = crypto\.randomUUID\(\)/);
+  assert.match(source, /serializeAttachment\(\{ connectedAt, connectionId \}\)/);
+  assert.match(source, /deserializeAttachment\(\)/);
+  assert.match(source, /connectionId:\s*string \| null/);
+  assert.match(source, /pending\.socket !== socket/);
+  assert.match(source, /pending\.connectionId !== sourceConnectionId/);
+  const closeStart = source.indexOf("webSocketClose");
+  const closeEnd = source.indexOf("webSocketError", closeStart);
+  assert.ok(closeStart >= 0 && closeEnd > closeStart);
+  assert.match(source.slice(closeStart, closeEnd), /if \(pending\.socket !== socket\) continue/);
 });
 
 test("workstation connection is outbound hibernating websocket with independent token", () => {
