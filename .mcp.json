@@ -106,6 +106,14 @@
         "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage"
       }
     },
+    "evavo-repository-task": {
+      "command": "node",
+      "args": ["./mcp-server/repository-task-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_STORAGE_ROOT": "C:\\GitRepos\\evavo-local-storage",
+        "EVAVO_GIT_WORKSPACE": "C:\\GitRepos"
+      }
+    },
     "evavo-windows-physical-control-status": {
       "command": "node",
       "args": ["./mcp-server/windows-physical-control-status-mcp.mjs"],
