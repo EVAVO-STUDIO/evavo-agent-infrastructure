@@ -6,7 +6,7 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Capture and inspect exact browser pixels with digest-bound evidence. Prefer Computer Agent Playwright screenshot evidence and retained Visual Review MCP evidence; use Local Compute only to bootstrap or host native visual tooling. A Remote Desktop Commander failure is never machine-state evidence and never gates this capability.",
+    "description": "Capture and inspect exact browser pixels with digest-bound evidence. Prefer Computer Agent Playwright screenshot evidence and retained Visual Review MCP evidence. A Remote Desktop Commander failure is never machine-state evidence and never gates this capability.",
     "strategies": [
       {
         "id": "browser-visual-inspect-computer-agent-playwright",
@@ -42,34 +42,56 @@
         "transport": "durable-local-execution",
         "clients": ["claude-code", "codex", "api-agent"],
         "minimumState": "transport_online"
+      }
+    ]
+  },
+  {
+    "id": "browser-visual-bootstrap",
+    "capability": "browser.visual-bootstrap",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 3,
+    "description": "Repair or bootstrap the native Computer Agent browser visual-inspection runtime when its read-only inspection routes are unavailable. Local Compute owns the bounded effectful bootstrap; successful bootstrap does not itself prove that a target screenshot was inspected.",
+    "strategies": [
+      {
+        "id": "browser-visual-bootstrap-workstation-bridge",
+        "authority": "local-compute",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
       },
       {
-        "id": "browser-visual-inspect-issue-queue-bootstrap",
-        "authority": "computer-agent",
+        "id": "browser-visual-bootstrap-durable-local",
+        "authority": "local-compute",
+        "transport": "durable-local-execution",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "browser-visual-bootstrap-typed-relay",
+        "authority": "local-compute",
+        "transport": "cloudflare-typed-relay",
+        "clients": ["chatgpt-pro", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "browser-visual-bootstrap-issue-queue",
+        "authority": "local-compute",
         "transport": "github-issue-queue",
         "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
         "minimumState": "configured"
       }
-    ],
-    "truth": {
-      "captureReceiptRequired": true,
-      "screenshotSha256Required": true,
-      "pixelBytesRequiredForPixelInspection": true,
-      "semanticDomCanSupplementPixels": true,
-      "desktopCommanderRequired": false,
-      "desktopCommanderAuthoritative": false,
-      "msiConnectorRequired": false,
-      "connectorFailureCanImplyMachineOffline": false
-    }
+    ]
   },
   {
     "id": "windows-visual-inspect",
     "capability": "windows.visual-inspect",
     "requestedEffect": "read",
     "completionState": "completed",
-    "physicalState": "physically_verified",
+    "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Inspect interactive Windows UI through Computer Agent UIA plus bounded screenshot evidence. Prefer semantic UIA and owned screenshot adapters; physical remote-desktop capture is an external fallback only.",
+    "description": "Inspect interactive Windows UI through Computer Agent UIA plus bounded screenshot evidence. Prefer semantic UIA and owned screenshot adapters; physical remote-desktop capture is an external fallback only and never machine-health authority.",
     "strategies": [
       {
         "id": "windows-visual-inspect-computer-agent",
@@ -91,21 +113,7 @@
         "transport": "cloudflare-typed-relay",
         "clients": ["chatgpt-pro", "api-agent"],
         "minimumState": "transport_online"
-      },
-      {
-        "id": "windows-visual-inspect-issue-queue-bootstrap",
-        "authority": "computer-agent",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
       }
-    ],
-    "truth": {
-      "interactiveSessionReceiptRequired": true,
-      "screenshotDigestRequired": true,
-      "desktopCommanderRequired": false,
-      "desktopCommanderAuthoritative": false,
-      "connectorFailureCanImplyMachineOffline": false
-    }
+    ]
   }
 ]
