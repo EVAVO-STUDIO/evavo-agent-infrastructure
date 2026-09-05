@@ -4,11 +4,15 @@ import path from "node:path";
 import test from "node:test";
 
 const root = process.cwd();
-const routing = JSON.parse(fs.readFileSync(path.join(root, "config", "agent-capability-routing-v1.json"), "utf8"));
-const policy = JSON.parse(fs.readFileSync(path.join(root, "config", "control-path-policy-v1.json"), "utf8"));
-const health = JSON.parse(fs.readFileSync(path.join(root, "config", "workstation-control-health-v1.json"), "utf8"));
+const readJson = (name) => JSON.parse(fs.readFileSync(path.join(root, "config", name), "utf8"));
+const routing = readJson("agent-capability-routing-v1.json");
+const policy = readJson("control-path-policy-v1.json");
+const health = readJson("workstation-control-health-v1.json");
+const transports = readJson("agent-capability-transports-v1.json");
+const chatgpt = readJson("chatgpt-unified-capability-surface.v1.json");
+const registration = readJson("chatgpt-unified-mcp-registration.v1.json");
 
-test("strict routing schema stays zero-cost while sibling control policy governs disruption", () => {
+test("strict routing stays zero-cost while control policy governs disruption", () => {
   assert.equal(routing.policy.selection, "first-eligible-in-declared-order");
   assert.equal(routing.policy.allowGitHubActions, false);
   assert.equal(routing.policy.allowVercelAsExecutionAuthority, false);
@@ -34,10 +38,41 @@ test("background and isolated routes precede real-console routes", () => {
   assert.equal(byClass["oob-recovery"].disruption, "recovery-impact");
 });
 
-test("ChatGPT and Claude have explicit local-control client rules", () => {
+test("Desktop Commander and external desktop-control fallbacks are disabled", () => {
+  assert.equal(policy.default.externalDesktopCommanderEnabled, false);
+  assert.equal(policy.default.externalRemoteDesktopFallbackAllowed, false);
+  assert.equal(policy.default.localVerificationRequiresExternalDesktopTool, false);
+  assert.ok(!policy.routeOrder.some((route) => /desktop-commander|external-fallback/i.test(String(route.routeClass))));
+  assert.ok(!Object.keys(transports).some((name) => /desktop-commander/i.test(name)));
+  assert.equal(chatgpt.routing.externalDesktopControlAllowed, false);
+  assert.equal(chatgpt.remoteRelay.desktopCommanderAllowed, false);
+  assert.equal(registration.hostPolicy.externalDesktopControlAllowed, false);
+  assert.equal(fs.existsSync(path.join(root, "config", "desktop-commander-interop-v1.json")), false);
+});
+
+test("EVAVO typed relay outranks the GitHub queue for remote effectful work", () => {
+  const localCompute = policy.routeOrder.find((item) => item.routeClass === "local-compute-background");
+  assert.deepEqual(localCompute.remoteTransportPreference, ["cloudflare-typed-relay", "github-issue-queue"]);
+  assert.deepEqual(chatgpt.sessionContinuity.fallbackOrderWhenNativeNamespaceAbsent, ["cloudflare-typed-relay", "github-receipt-relay"]);
+  assert.equal(chatgpt.routing.remoteEffectfulPrimary, "cloudflare-typed-relay");
+  assert.equal(chatgpt.routing.remoteEffectfulFallback, "github-receipt-relay");
+  assert.equal(chatgpt.remoteRelay.transport, "cloudflare-typed-relay");
+  assert.equal(chatgpt.remoteRelay.workstationConnection, "outbound-websocket-only");
+  assert.equal(chatgpt.remoteRelay.typedAllowlistRequired, true);
+  assert.equal(chatgpt.remoteRelay.automaticReplayAllowed, false);
+  assert.equal(transports["cloudflare-typed-relay"].physicalReceiptCapable, true);
+  assert.equal(transports["github-issue-queue"].minimumState, "configured");
+  assert.equal(registration.hostPolicy.remoteEffectfulPrimaryTransport, "cloudflare-typed-relay");
+  assert.equal(registration.hostPolicy.githubReceiptRelayRole, "asynchronous-fallback");
+});
+
+test("ChatGPT and Claude client rules remain explicit and native-only", () => {
   assert.match(policy.clientRules["chatgpt-pro"], /registration/i);
   assert.match(policy.clientRules["chatgpt-pro"], /reconnect|negotiated/i);
+  assert.match(policy.clientRules["chatgpt-pro"], /cloudflare-typed-relay/i);
+  assert.match(policy.clientRules["chatgpt-pro"], /never use Desktop Commander/i);
   assert.match(policy.clientRules["claude-code"], /local mcp|local compute/i);
+  assert.match(policy.clientRules["claude-code"], /cloudflare-typed-relay/i);
 });
 
 test("hardware profiles distinguish current stage from full fabric", () => {

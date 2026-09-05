@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "evavo-control-path-policy-v1",
   "canonical": true,
-  "goal": "complete work using the least disruptive eligible authority while preserving evidence and recovery capability",
+  "goal": "complete work using the least disruptive eligible EVAVO authority while preserving evidence and recovery capability",
   "default": {
     "preferBackground": true,
     "preserveUserFocus": true,
@@ -15,15 +15,17 @@
     "githubIssueStateIsNotPhysicalOutcomeProof": true,
     "genericProcessExitIsNotPostconditionProof": true,
     "singleTransportFailureIsNotMachineFailure": true,
-    "desktopCommanderIsFallbackOnly": true
+    "externalDesktopCommanderEnabled": false,
+    "externalRemoteDesktopFallbackAllowed": false,
+    "localVerificationRequiresExternalDesktopTool": false,
+    "continueNativeRouteDiscoveryWhenOneTransportFails": true
   },
   "disruptionLevels": {
     "none": "No interaction with the user's visible desktop or active physical console.",
     "isolated-ui": "UI automation runs in an isolated/headless/separate browser context and should not take focus from the user's active application.",
     "foreground-ui": "Automation may change focus or manipulate a visible application in the current user session.",
     "physical-console": "Keyboard, pointer or KVM input targets the real workstation console and can interrupt the human user.",
-    "recovery-impact": "Power, reboot, virtual media or other recovery action can interrupt workloads and requires the strongest governance.",
-    "external-fallback": "External remote-control interoperability used only after the owning native EVAVO route is unavailable or insufficient."
+    "recovery-impact": "Power, reboot, virtual media or other recovery action can interrupt workloads and requires the strongest governance."
   },
   "routeOrder": [
     {
@@ -47,14 +49,15 @@
       "disruption": "none",
       "authorities": ["local-compute", "development-governance", "local-storage"],
       "transports": ["structured-workstation-bridge", "durable-local-execution", "cloudflare-typed-relay", "github-issue-queue"],
-      "rule": "Preferred route for code, Git, file, build, test, package, process, service and local-model work when the singleton gateway does not expose the required typed operation. Windows non-interactive child processes should use hidden/no-console launch policy."
+      "remoteTransportPreference": ["cloudflare-typed-relay", "github-issue-queue"],
+      "rule": "Preferred route for code, Git, file, build, test, package, process, service and local-model work when the singleton gateway does not expose the required typed operation. For remote effectful ChatGPT work prefer the EVAVO outbound cloudflare-typed-relay; use the GitHub queue only as an asynchronous fallback. Windows non-interactive child processes should use hidden/no-console launch policy."
     },
     {
       "rank": 30,
       "routeClass": "local-mcp",
       "disruption": "none",
       "transports": ["local-specialist-mcp", "openai-secure-mcp-tunnel"],
-      "rule": "Direct specialist MCP is an independent route for capabilities not available through the singleton gateway. MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
+      "rule": "Direct specialist MCP is an independent route for capabilities not available through the singleton gateway. MCP stdio remains attached to client pipes. The secure MCP tunnel is read-only unless its currently negotiated capability proves otherwise."
     },
     {
       "rank": 40,
@@ -68,7 +71,7 @@
       "routeClass": "native-desktop",
       "disruption": "foreground-ui",
       "authorities": ["computer-agent"],
-      "rule": "Use only when a real desktop application/UI must be manipulated. Declare focus disruption and keep the interaction bounded."
+      "rule": "Use the EVAVO Computer Agent only when a real desktop application/UI must be manipulated. Declare focus disruption and keep the interaction bounded."
     },
     {
       "rank": 60,
@@ -93,14 +96,6 @@
       "authorities": ["out-of-band-control", "super-admin"],
       "recoveryBootstrap": "BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1",
       "rule": "Power, reset and virtual-media operations are last-resort native EVAVO recovery and must not be selected for routine work. After machine/session recovery, restore the software control plane only through the V6 remote-control bootstrap and require its fresh Current durable-intent proof."
-    },
-    {
-      "rank": 90,
-      "routeClass": "desktop-commander-external-fallback",
-      "disruption": "external-fallback",
-      "authorities": ["external-fallback"],
-      "transports": ["desktop-commander-remote"],
-      "rule": "Optional convenience/recovery fallback only after the owning native EVAVO route is unavailable or insufficient. Its availability never defines MSI health, its failure never means the workstation is offline, and its results require reconciliation through the owning EVAVO authority before physical completion is claimed."
     }
   ],
   "hardwareProfiles": {
@@ -115,10 +110,10 @@
     }
   },
   "clientRules": {
-    "chatgpt-pro": "Use connected/native tools first, then the authenticated singleton gateway when registered and healthy, then other native EVAVO routes by declared order. Desktop Commander is external fallback interoperability only. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
-    "claude-code": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP before interactive terminal or desktop control. Desktop Commander is fallback only.",
-    "codex": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP and isolated browser control before actual-console routes. Desktop Commander is fallback only.",
-    "api-agent": "Select the first eligible native EVAVO route by this policy and retain receipts for effectful work. Use Desktop Commander only when native route eligibility is exhausted for the requested operation."
+    "chatgpt-pro": "Use connected/native tools first, then the authenticated singleton gateway when registered and healthy, then the EVAVO cloudflare-typed-relay for effectful remote workstation operations, then the GitHub receipt queue as asynchronous fallback. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity. Never use Desktop Commander or any external desktop-control product as a route.",
+    "claude-code": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP. For remote effectful work use the EVAVO cloudflare-typed-relay before the GitHub queue. Never use Desktop Commander or another external desktop-control route.",
+    "codex": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP and isolated browser control before actual-console routes. For remote effectful work use the EVAVO cloudflare-typed-relay before the GitHub queue. Never use Desktop Commander or another external desktop-control route.",
+    "api-agent": "Select the first eligible native EVAVO route by this policy and retain receipts for effectful work. Continue native route discovery after a transport failure; no external desktop-control fallback is admitted."
   },
   "healthRules": [
     "Health and self-heal should use status endpoints, process/service APIs and watchdogs before GUI interaction.",
@@ -127,10 +122,11 @@
     "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
     "A failed transport describes that transport only. Do not infer machine power/offline state without independent machine-level evidence.",
     "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
-    "Desktop Commander is external fallback only and is not required for local verification.",
-    "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient.",
-    "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the Current queue emits a fresh durable invocation receipt.",
-    "Task Scheduler accepting Start-ScheduledTask, a GitHub issue becoming closed, a transport returning 2xx, or a generic process exiting 0 may establish transport/progress evidence only; none of them alone proves that the intended physical postcondition occurred.",
+    "Desktop Commander and external desktop-control products are disabled, not admitted as fallback routes, and not required for local verification.",
+    "For remote effectful ChatGPT work prefer cloudflare-typed-relay when configured and fresh; use github-issue-queue only when the typed relay is unavailable or insufficient for the admitted operation.",
+    "Escalate to physical-console or OOB recovery only after narrower in-band EVAVO paths are unavailable or insufficient.",
+    "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the owning authority emits fresh durable invocation/postcondition evidence.",
+    "Task Scheduler accepting Start-ScheduledTask, a GitHub issue becoming closed, a relay returning 2xx, or a generic process exiting 0 may establish transport/progress evidence only; none of them alone proves that the intended physical postcondition occurred.",
     "After execution may have begun, any missing, degraded, contradictory or unrecognized terminal receipt requires postcondition reconciliation before re-executing the underlying action."
   ]
 }

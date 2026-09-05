@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "evavo-chatgpt-unified-capability-surface-v1",
   "status": "canonical",
   "server": {
@@ -13,7 +13,7 @@
       "2025-11-25",
       "2025-06-18"
     ],
-    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires an explicit user task, reviewed mode and an authoritative receipt."
+    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. For remote effectful workstation work use the EVAVO cloudflare-typed-relay when configured and healthy, with the GitHub receipt queue only as asynchronous fallback. Never use an external desktop-control product. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires explicit user intent, reviewed mode and an authoritative correlated receipt."
   },
   "stableTools": [
     "evavo_capabilities",
@@ -33,8 +33,13 @@
     "newCapabilityDoesNotRequireNewTopLevelTool": true,
     "existingAttachedChatCanDiscoverNewCapabilityThroughCatalog": true,
     "unattachedChatCannotBeMutatedByRepositoryCode": true,
-    "fallbackWhenNativeNamespaceAbsent": "github-receipt-relay",
-    "fallbackRequiresConnectedGitHub": true
+    "fallbackWhenNativeNamespaceAbsent": "cloudflare-typed-relay",
+    "fallbackOrderWhenNativeNamespaceAbsent": [
+      "cloudflare-typed-relay",
+      "github-receipt-relay"
+    ],
+    "cloudflareTypedRelayRequiresCommissionedEndpoint": true,
+    "githubFallbackRequiresConnectedGitHub": true
   },
   "catalog": {
     "refreshSeconds": 30,
@@ -118,8 +123,12 @@
     "preference": [
       "typed-child-mcp",
       "local-agent-receipt-route",
+      "cloudflare-typed-relay",
       "github-receipt-relay"
     ],
+    "remoteEffectfulPrimary": "cloudflare-typed-relay",
+    "remoteEffectfulFallback": "github-receipt-relay",
+    "externalDesktopControlAllowed": false,
     "arbitraryShellAccepted": false,
     "rawPowerShellAccepted": false,
     "callerSelectedExecutableAccepted": false,
@@ -130,7 +139,21 @@
     "authoritativeReceiptRequired": true,
     "automaticReplayOfUncertainEffect": false
   },
+  "remoteRelay": {
+    "transport": "cloudflare-typed-relay",
+    "workstationConnection": "outbound-websocket-only",
+    "typedAllowlistRequired": true,
+    "arbitraryShellAllowed": false,
+    "physicalReceiptRequired": true,
+    "unknownOutcomeRequiresReconciliation": true,
+    "automaticReplayAllowed": false,
+    "desktopCommanderAllowed": false,
+    "githubActionsRequired": false,
+    "vercelRequired": false
+  },
   "relay": {
+    "transport": "github-receipt-relay",
+    "role": "asynchronous-fallback",
     "repository": "EVAVO-STUDIO/evavo-github-mcp",
     "jobMarker": "EVAVO_WORKSTATION_JOB:v1",
     "schema": "evavo.chatgpt-workstation-job.v1",
@@ -152,6 +175,7 @@
     ],
     "sourcePresenceIsExecutionProof": false,
     "issueClosureIsExecutionProof": false,
+    "transportAcceptanceIsPhysicalExecutionProof": false,
     "receiptRequiredForExecuted": true,
     "credentialValuesReturned": false
   }

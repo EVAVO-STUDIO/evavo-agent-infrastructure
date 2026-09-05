@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "kind": "evavo-chatgpt-unified-mcp-registration-v1",
   "status": "canonical",
   "mcpServers": {
@@ -23,7 +23,11 @@
     "perChatManualRegistrationPreferred": false,
     "stableMetaToolsRequired": true,
     "dynamicCapabilityCatalogRequired": true,
-    "githubReceiptRelayFallbackRequired": true
+    "remoteEffectfulPrimaryTransport": "cloudflare-typed-relay",
+    "cloudflareTypedRelayCommissioningRequired": true,
+    "githubReceiptRelayRole": "asynchronous-fallback",
+    "githubReceiptRelayFallbackRequired": true,
+    "externalDesktopControlAllowed": false
   },
   "safety": {
     "rawShell": false,
@@ -31,6 +35,7 @@
     "callerSelectedExecutable": false,
     "callerSelectedScriptSource": false,
     "automaticReplayOfUncertainEffect": false,
+    "unknownEffectRequiresReconciliation": true,
     "credentialsReturned": false
   }
 }
