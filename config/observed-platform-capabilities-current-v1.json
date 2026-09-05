@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-observed-platform-capabilities-current-v1",
+  "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "canonicalObservedState": "EVAVO-STUDIO/evavo-development-studio:config/observed-platform-capabilities-v1.json",
+  "routingRule": "MCP and worker agents must consult observed capability state before effectful handoff. A configured connector, installed CLI or authenticated account is not sufficient evidence of write readiness unless the observed state marks the route proven.",
+  "handoffAuthorities": {
+    "workstationExecution": "EVAVO-STUDIO/evavo-local-compute",
+    "providerCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
+    "brainRouting": "EVAVO-STUDIO/the-brain:config/observed-platform-capabilities-current-v1.json"
+  },
+  "failClosed": true
+}
