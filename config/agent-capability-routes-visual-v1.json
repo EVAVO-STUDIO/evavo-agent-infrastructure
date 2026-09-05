@@ -8,41 +8,27 @@
     "minimumIndependentIngressDomains": 2,
     "description": "Capture and inspect exact browser pixels with digest-bound evidence. Prefer Computer Agent Playwright screenshot evidence and retained Visual Review MCP evidence. A Remote Desktop Commander failure is never machine-state evidence and never gates this capability.",
     "strategies": [
-      {
-        "id": "browser-visual-inspect-computer-agent-playwright",
-        "authority": "computer-agent",
-        "transport": "local-specialist-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-inspect-visual-review-mcp",
-        "authority": "computer-agent",
-        "transport": "openai-secure-mcp-tunnel",
-        "clients": ["chatgpt-pro"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-inspect-typed-relay",
-        "authority": "computer-agent",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-inspect-workstation-bridge",
-        "authority": "computer-agent",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-inspect-durable-local",
-        "authority": "computer-agent",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      }
+      {"id":"browser-visual-inspect-computer-agent-playwright","authority":"computer-agent","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-inspect-visual-review-mcp","authority":"computer-agent","transport":"openai-secure-mcp-tunnel","clients":["chatgpt-pro"],"minimumState":"transport_online"},
+      {"id":"browser-visual-inspect-typed-relay","authority":"computer-agent","transport":"cloudflare-typed-relay","clients":["chatgpt-pro","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-inspect-workstation-bridge","authority":"computer-agent","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-inspect-durable-local","authority":"computer-agent","transport":"durable-local-execution","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"}
+    ]
+  },
+  {
+    "id": "browser-visual-qa",
+    "capability": "browser.visual-qa",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 3,
+    "description": "Run an Automated Testing visual-QA campaign with real Playwright PNG capture, exact screenshot SHA-256 and byte length, source-bound observation and layout evidence, geometry checks and retained findings. Passing automation is QA evidence, not human UX, brand or creative approval.",
+    "strategies": [
+      {"id":"browser-visual-qa-local-specialist","authority":"automated-testing","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-qa-workstation-bridge","authority":"automated-testing","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-qa-durable-local","authority":"automated-testing","transport":"durable-local-execution","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-qa-typed-relay","authority":"automated-testing","transport":"cloudflare-typed-relay","clients":["chatgpt-pro","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-qa-issue-queue","authority":"automated-testing","transport":"github-issue-queue","clients":["chatgpt-pro","claude-code","codex","api-agent"],"minimumState":"configured"}
     ]
   },
   {
@@ -54,34 +40,10 @@
     "minimumIndependentIngressDomains": 3,
     "description": "Repair or bootstrap the native Computer Agent browser visual-inspection runtime when its read-only inspection routes are unavailable. Local Compute owns the bounded effectful bootstrap; successful bootstrap does not itself prove that a target screenshot was inspected.",
     "strategies": [
-      {
-        "id": "browser-visual-bootstrap-workstation-bridge",
-        "authority": "local-compute",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-bootstrap-durable-local",
-        "authority": "local-compute",
-        "transport": "durable-local-execution",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-bootstrap-typed-relay",
-        "authority": "local-compute",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "browser-visual-bootstrap-issue-queue",
-        "authority": "local-compute",
-        "transport": "github-issue-queue",
-        "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-        "minimumState": "configured"
-      }
+      {"id":"browser-visual-bootstrap-workstation-bridge","authority":"local-compute","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-bootstrap-durable-local","authority":"local-compute","transport":"durable-local-execution","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-bootstrap-typed-relay","authority":"local-compute","transport":"cloudflare-typed-relay","clients":["chatgpt-pro","api-agent"],"minimumState":"transport_online"},
+      {"id":"browser-visual-bootstrap-issue-queue","authority":"local-compute","transport":"github-issue-queue","clients":["chatgpt-pro","claude-code","codex","api-agent"],"minimumState":"configured"}
     ]
   },
   {
@@ -93,27 +55,9 @@
     "minimumIndependentIngressDomains": 2,
     "description": "Inspect interactive Windows UI through Computer Agent UIA plus bounded screenshot evidence. Prefer semantic UIA and owned screenshot adapters; physical remote-desktop capture is an external fallback only and never machine-health authority.",
     "strategies": [
-      {
-        "id": "windows-visual-inspect-computer-agent",
-        "authority": "computer-agent",
-        "transport": "local-specialist-mcp",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "windows-visual-inspect-workstation-bridge",
-        "authority": "computer-agent",
-        "transport": "structured-workstation-bridge",
-        "clients": ["claude-code", "codex", "api-agent"],
-        "minimumState": "transport_online"
-      },
-      {
-        "id": "windows-visual-inspect-typed-relay",
-        "authority": "computer-agent",
-        "transport": "cloudflare-typed-relay",
-        "clients": ["chatgpt-pro", "api-agent"],
-        "minimumState": "transport_online"
-      }
+      {"id":"windows-visual-inspect-computer-agent","authority":"computer-agent","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"windows-visual-inspect-workstation-bridge","authority":"computer-agent","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"windows-visual-inspect-typed-relay","authority":"computer-agent","transport":"cloudflare-typed-relay","clients":["chatgpt-pro","api-agent"],"minimumState":"transport_online"}
     ]
   }
 ]
