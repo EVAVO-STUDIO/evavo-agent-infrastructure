@@ -1,0 +1,27 @@
+[
+  {
+    "id": "repository-named-task",
+    "capability": "repository.named-task",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 2,
+    "description": "Discover, plan and execute one exact tracked EVAVO repository task through the fragment-aware Local Storage named-task authority. Prefer this route over generic host/operator execution whenever an admitted named task represents the requested work.",
+    "strategies": [
+      {
+        "id": "repository-named-task-specialist-mcp",
+        "authority": "local-storage",
+        "transport": "local-specialist-mcp",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "repository-named-task-workstation-bridge",
+        "authority": "local-storage",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      }
+    ]
+  }
+]
