@@ -70,6 +70,7 @@ type Pending = {
   timer: ReturnType<typeof setTimeout>;
   socket: WebSocket;
   connectionId: string | null;
+  action: string;
 };
 
 const OBJECT_NAME = "primary-workstation";
@@ -473,7 +474,28 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (!isTerminalStatus(record.status)) await this.scheduleDeadline(record.deadline);
   }
 
-  private async finish(message: ResultMessage, sourceConnectionId: string | null): Promise<void> {
+  private async finish(message: ResultMessage, sourceConnectionId: string | null): Promise<boolean> {
+    const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
+    if (!stored || stored.action !== message.action) return false;
+    const existing = this.normalizeRecord(stored);
+    if (existing.deliveryState === "not_sent") return false;
+    if (existing.connectionId !== null && existing.connectionId !== sourceConnectionId) return false;
+    if (existing.status === "completed" || existing.status === "failed") return false;
+    const effectful = isEffectful(existing.action);
+    await this.remember({
+      ...existing,
+      status: message.ok ? "completed" : "failed",
+      deliveryState: "sent",
+      completedAt: message.completedAt,
+      ok: message.ok,
+      executionAttempted: message.ok ? true : null,
+      sideEffectMayHaveCommitted: effectful,
+      effectState: effectful ? "receipt_returned" : "not_applicable",
+      retrySafe: !effectful,
+      terminalReason: message.ok ? "correlated-success-receipt" : "correlated-failure-receipt",
+      ...(message.result === undefined ? {} : { result: message.result }),
+      ...(message.error === undefined ? {} : { error: message.error.slice(0, 1024) }),
+    });
     const oldPresence = await this.presence();
     if (oldPresence) {
       await this.ctx.storage.put("presence", {
@@ -483,26 +505,7 @@ export class WorkstationRelay extends DurableObject<Env> {
         lastReceiptAt: message.completedAt,
       } satisfies Presence);
     }
-    const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
-    if (!stored || stored.action !== message.action) return;
-    const existing = this.normalizeRecord(stored);
-    if (existing.deliveryState === "not_sent") return;
-    if (existing.connectionId !== null && existing.connectionId !== sourceConnectionId) return;
-    const effectful = isEffectful(existing.action);
-    await this.remember({
-      ...existing,
-      status: message.ok ? "completed" : "failed",
-      deliveryState: "sent",
-      completedAt: message.completedAt,
-      ok: message.ok,
-      executionAttempted: true,
-      sideEffectMayHaveCommitted: effectful,
-      effectState: effectful ? "receipt_returned" : "not_applicable",
-      retrySafe: !effectful,
-      terminalReason: message.ok ? "correlated-success-receipt" : "correlated-failure-receipt",
-      ...(message.result === undefined ? {} : { result: message.result }),
-      ...(message.error === undefined ? {} : { error: message.error.slice(0, 1024) }),
-    });
+    return true;
   }
 
   private async requestStatus(id: string): Promise<Response> {
@@ -612,7 +615,7 @@ export class WorkstationRelay extends DurableObject<Env> {
           this.pending.delete(id);
           reject(new Error("workstation-dispatch-timeout"));
         }, waitMs);
-        this.pending.set(id, { resolve, reject, timer, socket, connectionId });
+        this.pending.set(id, { resolve, reject, timer, socket, connectionId, action });
       });
     }
 
@@ -781,9 +784,10 @@ export class WorkstationRelay extends DurableObject<Env> {
     ) return;
     const result = parsed as unknown as ResultMessage;
     const sourceConnectionId = this.socketConnectionId(socket);
-    await this.finish(result, sourceConnectionId);
+    const accepted = await this.finish(result, sourceConnectionId);
+    if (!accepted) return;
     const pending = this.pending.get(result.id);
-    if (!pending || pending.socket !== socket) return;
+    if (!pending || pending.socket !== socket || pending.action !== result.action) return;
     if (pending.connectionId !== null && pending.connectionId !== sourceConnectionId) return;
     clearTimeout(pending.timer);
     this.pending.delete(result.id);
