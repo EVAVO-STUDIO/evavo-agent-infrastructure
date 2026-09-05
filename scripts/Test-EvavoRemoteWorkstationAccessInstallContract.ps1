@@ -18,15 +18,17 @@ foreach($Needle in @(
  'Install-EvavoChatGPTWindowsExecutionTunnel.ps1',
  'Deploy-EvavoRemoteMcpRelayV2.ps1',
  'EnableWindowsExecution',
- 'windowsExecutionExplicitlyRequested',
- 'windowsExecutionEstablished',
- 'effectfulWorkstationToolsExposed=',
- 'arbitraryCommandTextAccepted=',
- 'currentWindowsUserAuthority=',
- 'supportedExecutionShells=',
- 'acceptedRestExecutorAttestationRequired=',
+ 'windowsExecutionCompatibilityExplicitlyRequested',
+ 'windowsExecutionCompatibilityEstablished',
+ 'windowsExecutionEstablished=$false',
+ 'effectfulWorkstationToolsExposed=$false',
+ 'rawShellExecutionRemoved=$true',
+ 'arbitraryCommandTextAccepted=$false',
+ 'inlineCodeAccepted=$false',
+ "canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'",
+ "canonicalEffectfulHostedRoutes=@('cloudflare-typed-relay','github-issue-queue')",
  'observerArbitraryShellExposed=$false',
- 'executionShellSeparatedFromObserver=$true',
+ 'compatibilityTunnelArbitraryShellExposed=$false',
  'cloudflareProvisionExplicitlyRequested',
  'openAiCredentialValuesReturned=$false',
  'cloudflareCredentialValuesReturned=$false',
@@ -37,12 +39,14 @@ foreach($Needle in @(
  'effectfulWorkstationToolsExposed=$false'
 )){if(-not$ObserverSource.Contains($Needle)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_OBSERVER_BOUNDARY_MISSING:$Needle"}}
 foreach($Needle in @(
- 'effectfulWorkstationToolsExposed=$true',
- 'arbitraryCommandTextAccepted=$true',
- 'inlineCodeAccepted=$true',
- 'currentWindowsUserAuthority=$true',
- "supportedShells=@('powershell','cmd','bash','python')",
- 'acceptedRestExecutorAttestationRequired=$true',
+ 'effectfulWorkstationToolsExposed=$false',
+ 'rawShellExecutionRemoved=$true',
+ 'arbitraryCommandTextAccepted=$false',
+ 'inlineCodeAccepted=$false',
+ 'currentWindowsUserRawShellAuthorityExposed=$false',
+ "canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'",
+ "canonicalWorkstationBridge='evavo-windows-workstation-bridge'",
+ "effectfulCloudFallbacks=@('cloudflare-typed-relay','github-issue-queue')",
  'localPublicListenerRequired=$false',
  'outboundOnly=$true'
 )){if(-not$ExecutionSource.Contains($Needle)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_EXECUTION_RULE_MISSING:$Needle"}}
@@ -50,20 +54,31 @@ foreach($Needle in @(
  'CLOUDFLARE_API_TOKEN','CF_API_TOKEN','CLOUDFLARE_ACCOUNT_ID','CF_ACCOUNT_ID',
  'cloudflareCredentialValueReturned=$false','cloudflareAccountIdReturned=$false','credentialPersistedByThisWrapper=$false'
 )){if(-not$RelaySource.Contains($Needle)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_CLOUDFLARE_RULE_MISSING:$Needle"}}
-foreach($Forbidden in @('Invoke-Expression','OPENAI_API_KEY=','CONTROL_PLANE_API_KEY=','cloudflareCredentialValue=','cloudflareAccountId=')){if($Source.Contains($Forbidden)-or$ObserverSource.Contains($Forbidden)-or$ExecutionSource.Contains($Forbidden)-or$RelaySource.Contains($Forbidden)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_FORBIDDEN:$Forbidden"}}
+foreach($Forbidden in @(
+ 'Invoke-Expression',
+ 'effectfulWorkstationToolsExposed=$true',
+ 'arbitraryCommandTextAccepted=$true',
+ 'inlineCodeAccepted=$true',
+ 'currentWindowsUserAuthority=$true',
+ 'OPENAI_API_KEY=',
+ 'CONTROL_PLANE_API_KEY=',
+ 'cloudflareCredentialValue=',
+ 'cloudflareAccountId='
+)){if($Source.Contains($Forbidden)-or$ExecutionSource.Contains($Forbidden)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_FORBIDDEN:$Forbidden"}}
 [ordered]@{
- schemaVersion=3
- kind='evavo-remote-workstation-access-install-contract-v3'
+ schemaVersion=4
+ kind='evavo-remote-workstation-access-install-contract-v4'
  ok=$true
  powershellSyntaxValid=$true
  localRecoveryBootstrapRequired=$true
  observerTunnelSeparateAndReadOnly=$true
- windowsExecutionTunnelExplicitOptIn=$true
- windowsExecutionTunnelEffectful=$true
- arbitraryCommandTextAcceptedWhenExplicitlyEnabled=$true
- currentWindowsUserAuthority=$true
- supportedExecutionShells=@('powershell','cmd','bash','python')
- acceptedRestExecutorAttestationRequired=$true
+ windowsExecutionCompatibilityTunnelExplicitOptIn=$true
+ windowsExecutionCompatibilityTunnelEffectful=$false
+ rawShellExecutionRemoved=$true
+ arbitraryCommandTextAccepted=$false
+ inlineCodeAccepted=$false
+ canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'
+ canonicalHostedEffectfulRoutes=@('cloudflare-typed-relay','github-issue-queue')
  localPublicListenerRequired=$false
  outboundSecureMcpTunnel=$true
  cloudflareCredentialAwareDeployV2Used=$true
