@@ -3,6 +3,7 @@
   "kind": "evavo-provider-database-routing-v1",
   "owner": "EVAVO-STUDIO/evavo-agent-infrastructure",
   "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
+  "observedState": "EVAVO-STUDIO/evavo-development-studio:config/observed-platform-capabilities-v1.json",
   "routing": {
     "supabase": {
       "authority": "Development Studio Supabase connector",
@@ -14,6 +15,16 @@
       "authority": "Local Compute Firebase adapter",
       "production": true,
       "state": "provider-auth-proven-cli-15.28.1-current-project-inventory-proven"
+    },
+    "cloudinary": {
+      "authority": "Cloudinary provider connector",
+      "production": true,
+      "state": "provider-read-write-delete-lifecycle-proven"
+    },
+    "cloudflare": {
+      "authority": "Development Studio Provider Transport then Local Compute Wrangler",
+      "production": true,
+      "state": "provider-read-authority-proven-local-write-authority-observed-state-required"
     },
     "neon-postgres": {
       "authority": "Neon connected provider",
@@ -31,13 +42,14 @@
       "production": false,
       "state": "postgres17-docker-write-read-proven"
     },
-    "redis": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
-    "mysql": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
-    "mariadb": {"authority":"Local Compute","production":false,"state":"docker-on-demand"},
-    "sqlite": {"authority":"Local Compute","production":false,"state":"python-stdlib-proven"},
-    "duckdb": {"authority":"Local Compute","production":false,"state":"disposable-venv-on-demand"}
+    "redis": {"authority":"Local Compute","production":false,"state":"redis7-docker-write-read-proven"},
+    "mysql": {"authority":"Local Compute","production":false,"state":"mysql84-docker-write-read-proven"},
+    "mariadb": {"authority":"Local Compute","production":false,"state":"mariadb11-docker-write-read-proven"},
+    "sqlite": {"authority":"Local Compute","production":false,"state":"python-stdlib-write-read-proven"},
+    "duckdb": {"authority":"Local Compute","production":false,"state":"duckdb-1.5.1-disposable-venv-write-read-proven"}
   },
   "sources": {
+    "observedState": "EVAVO-STUDIO/evavo-development-studio:config/observed-platform-capabilities-v1.json",
     "connectorCatalog": "EVAVO-STUDIO/evavo-development-studio:config/agent-automation-connectors.json",
     "providerCapabilityPlane": "EVAVO-STUDIO/evavo-development-studio:config/agent-cloud-provider-capability-plane.json",
     "brainDatabaseRouting": "EVAVO-STUDIO/the-brain:config/database-provider-routing-v1.json",
@@ -46,6 +58,7 @@
   },
   "rules": {
     "providerNativeFirst": true,
+    "observedStateWinsOnConflict": true,
     "productionDdlRequiresMigrationOrBranch": true,
     "unknownSchemaChangesUseSandboxFirst": true,
     "databaseIdentityRequiredBeforeEffects": true,
