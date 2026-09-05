@@ -12,18 +12,18 @@ if(@($Errors).Count-gt0){throw'EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_PARSE_FAI
 $Text=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
 foreach($Required in @(
     'evavo-windows-execution',
-    'EVAVO Windows Execution',
+    'EVAVO Windows Execution Compatibility',
     'windows-chat-execution-mcp.mjs',
-    'EVAVO_WINDOWS_CHAT_EXECUTION_ENABLED',
-    'EVAVO_WINDOWS_CHAT_EXECUTION_AUTO_RECOVER',
-    'EVAVO ChatGPT Windows Execution Tunnel',
+    'EVAVO ChatGPT Windows Execution Compatibility Tunnel',
     'sample_mcp_stdio_local',
-    'effectfulWorkstationToolsExposed=$true',
-    'arbitraryCommandTextAccepted=$true',
-    'inlineCodeAccepted=$true',
-    'currentWindowsUserAuthority=$true',
-    "supportedShells=@('powershell','cmd','bash','python')",
-    'acceptedRestExecutorAttestationRequired=$true',
+    'effectfulWorkstationToolsExposed=$false',
+    'rawShellExecutionRemoved=$true',
+    'arbitraryCommandTextAccepted=$false',
+    'inlineCodeAccepted=$false',
+    'currentWindowsUserRawShellAuthorityExposed=$false',
+    "canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'",
+    "canonicalWorkstationBridge='evavo-windows-workstation-bridge'",
+    "effectfulCloudFallbacks=@('cloudflare-typed-relay','github-issue-queue')",
     'localPublicListenerRequired=$false',
     'outboundOnly=$true',
     'chatGptProductSideConnectorSetupStillRequired=$true',
@@ -31,25 +31,30 @@ foreach($Required in @(
     'tunnelIdValueReturned=$false'
 )){if(-not$Text.Contains($Required)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_MISSING:$Required"}}
 foreach($Forbidden in @(
-    "TaskName='EVAVO ChatGPT Workstation Observer Tunnel'",
-    'observerReadOnly=$true',
-    'effectfulWorkstationToolsExposed=$false',
+    'effectfulWorkstationToolsExposed=$true',
+    'arbitraryCommandTextAccepted=$true',
+    'inlineCodeAccepted=$true',
+    'currentWindowsUserAuthority=$true',
+    "supportedShells=@('powershell','cmd','bash','python')",
+    'acceptedRestExecutorAttestationRequired=$true',
     'localPublicListenerRequired=$true',
     'runtimeCredentialValueReturned=$true',
     'adminKeyReturned=$true'
 )){if($Text.Contains($Forbidden)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_FORBIDDEN:$Forbidden"}}
 [ordered]@{
-    schemaVersion=1
-    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v1'
+    schemaVersion=2
+    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v2'
     ok=$true
     separateFromObserverTunnel=$true
+    compatibilityShim=$true
     outboundOnly=$true
-    effectfulWorkstationToolsExposed=$true
-    arbitraryCommandTextAccepted=$true
-    inlineCodeAccepted=$true
-    currentWindowsUserAuthority=$true
-    supportedShells=@('powershell','cmd','bash','python')
-    acceptedRestExecutorAttestationRequired=$true
+    effectfulWorkstationToolsExposed=$false
+    rawShellExecutionRemoved=$true
+    arbitraryCommandTextAccepted=$false
+    inlineCodeAccepted=$false
+    currentWindowsUserRawShellAuthorityExposed=$false
+    canonicalStructuredExecutor='EVAVO-STUDIO/evavo-local-compute'
+    canonicalWorkstationBridge='evavo-windows-workstation-bridge'
     localPublicListenerRequired=$false
     immutableBundle=$true
     scheduledTaskPersistence=$true
