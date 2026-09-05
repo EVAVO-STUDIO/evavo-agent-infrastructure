@@ -40,14 +40,25 @@ type ResultMessage = {
   error?: string;
 };
 
+type DispatchStatus = "queued" | "dispatching" | "sent" | "completed" | "failed" | "ambiguous";
+type DeliveryState = "not_sent" | "send_attempted" | "sent";
+type EffectState = "not_applicable" | "not_attempted" | "unknown" | "receipt_returned";
+
 type DispatchRecord = {
   id: string;
   action: string;
-  status: "queued" | "completed" | "failed";
+  status: DispatchStatus;
+  deliveryState: DeliveryState;
   requestedAt: string;
   deadline: string;
+  sentAt: string | null;
   completedAt: string | null;
   ok: boolean | null;
+  executionAttempted: boolean | null;
+  sideEffectMayHaveCommitted: boolean;
+  effectState: EffectState;
+  retrySafe: boolean;
+  terminalReason: string | null;
   result?: unknown;
   error?: string;
 };
@@ -64,6 +75,7 @@ const MAX_RESULT_BYTES = 128 * 1024;
 const MAX_SYNC_WAIT_MS = 60_000;
 const MAX_DEADLINE_MS = 10 * 60_000;
 const MAX_STORED_REQUESTS = 256;
+const DELIVERY_JOURNAL_VERSION = 1;
 const STORAGE_ACTIONS = new Set([
   "storage.status",
   "storage.inventory.refresh",
@@ -72,6 +84,13 @@ const STORAGE_ACTIONS = new Set([
 ]);
 const GATEWAY_READ_ACTIONS = new Set([
   "gateway.fabric_status",
+]);
+const EFFECTFUL_ACTIONS = new Set([
+  "workstation.repair",
+  "workstation.bootstrap",
+  "storage.inventory.refresh",
+  "storage.google_pressure.activate",
+  "storage.estate.activate",
 ]);
 const ACTIONS = new Set([
   "workstation.status",
@@ -101,6 +120,14 @@ function constantTimeEqual(left: string, right: string): boolean {
   return diff === 0;
 }
 
+function isEffectful(action: string): boolean {
+  return EFFECTFUL_ACTIONS.has(action);
+}
+
+function isTerminalStatus(status: DispatchStatus): boolean {
+  return status === "completed" || status === "failed" || status === "ambiguous";
+}
+
 function stub(env: Env): DurableObjectStub<WorkstationRelay> {
   return env.WORKSTATION_RELAY.get(env.WORKSTATION_RELAY.idFromName(OBJECT_NAME));
 }
@@ -123,6 +150,8 @@ function publicStatus(raw: Record<string, unknown>): Record<string, unknown> {
     lastReceiptKind: raw.lastReceiptKind ?? null,
     lastReceiptAt: raw.lastReceiptAt ?? null,
     transport: "outbound-websocket-via-cloudflare-durable-object",
+    deliveryJournalVersion: DELIVERY_JOURNAL_VERSION,
+    automaticReplayOfUncertainEffect: false,
     dispatchExposedThroughProMcp: false,
     typedReadDispatchExposedThroughProMcp: true,
     rawShellExposed: false,
@@ -158,11 +187,19 @@ function publicRequestStatus(raw: Record<string, unknown>): Record<string, unkno
       id: request.id ?? null,
       action: request.action ?? null,
       status: request.status ?? null,
+      deliveryState: request.deliveryState ?? null,
       requestedAt: request.requestedAt ?? null,
+      sentAt: request.sentAt ?? null,
       deadline: request.deadline ?? null,
       completedAt: request.completedAt ?? null,
       succeeded: request.ok ?? null,
+      executionAttempted: request.executionAttempted ?? null,
+      sideEffectMayHaveCommitted: request.sideEffectMayHaveCommitted === true,
+      retrySafe: request.retrySafe === true,
+      effectState: request.effectState ?? null,
+      terminalReason: request.terminalReason ?? null,
     },
+    automaticReplayAllowed: false,
     detailedResultExposedThroughMcp: false,
   };
 }
@@ -310,6 +347,8 @@ export class WorkstationRelay extends DurableObject<Env> {
       capabilities: presence?.capabilities ?? [],
       lastReceiptKind: presence?.lastReceiptKind ?? null,
       lastReceiptAt: presence?.lastReceiptAt ?? null,
+      deliveryJournalVersion: DELIVERY_JOURNAL_VERSION,
+      automaticReplayOfUncertainEffect: false,
     };
   }
 
@@ -319,6 +358,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     const capabilities = Array.isArray(message.capabilities)
       ? message.capabilities.filter((value): value is string => typeof value === "string").slice(0, 64)
       : old?.capabilities ?? [];
+    const newConnection = message.type === "connected";
     await this.ctx.storage.put("presence", {
       nodeId: typeof message.nodeId === "string" ? message.nodeId.slice(0, 128) : old?.nodeId ?? "windows-workstation",
       clientVersion: typeof message.clientVersion === "string" ? message.clientVersion.slice(0, 64) : old?.clientVersion ?? "unknown",
@@ -326,10 +366,88 @@ export class WorkstationRelay extends DurableObject<Env> {
       workerFabricProfile: typeof message.workerFabricProfile === "string" ? message.workerFabricProfile.slice(0, 64) : old?.workerFabricProfile ?? null,
       capabilities,
       lastSeen: now,
-      connectedAt: old?.connectedAt ?? now,
+      connectedAt: newConnection ? now : old?.connectedAt ?? now,
       lastReceiptKind: old?.lastReceiptKind ?? null,
       lastReceiptAt: old?.lastReceiptAt ?? null,
     } satisfies Presence);
+  }
+
+  private normalizeRecord(record: DispatchRecord): DispatchRecord {
+    const effectful = isEffectful(record.action);
+    const legacyDelivery = record.deliveryState == null;
+    const terminal = record.status === "completed" || record.status === "failed";
+    const deliveryState: DeliveryState = legacyDelivery
+      ? (terminal ? "sent" : "send_attempted")
+      : record.deliveryState;
+    const status: DispatchStatus = legacyDelivery && record.status === "queued" ? "dispatching" : record.status;
+    return {
+      ...record,
+      status,
+      deliveryState,
+      sentAt: record.sentAt ?? null,
+      executionAttempted: record.executionAttempted ?? (terminal ? true : deliveryState === "not_sent" ? false : null),
+      sideEffectMayHaveCommitted: record.sideEffectMayHaveCommitted ?? (effectful && deliveryState !== "not_sent"),
+      effectState: record.effectState ?? (effectful ? (terminal ? "receipt_returned" : deliveryState === "not_sent" ? "not_attempted" : "unknown") : "not_applicable"),
+      retrySafe: record.retrySafe ?? (!effectful || deliveryState === "not_sent"),
+      terminalReason: record.terminalReason ?? (terminal ? "legacy-correlated-receipt" : null),
+    };
+  }
+
+  private reconcileExpiredRecord(record: DispatchRecord, nowMs = Date.now()): DispatchRecord {
+    const normalized = this.normalizeRecord(record);
+    if (isTerminalStatus(normalized.status)) return normalized;
+    const deadlineMs = Date.parse(normalized.deadline);
+    if (!Number.isFinite(deadlineMs) || deadlineMs > nowMs) return normalized;
+    const effectful = isEffectful(normalized.action);
+    const completedAt = new Date(nowMs).toISOString();
+    if (normalized.deliveryState === "not_sent") {
+      return {
+        ...normalized,
+        status: "failed",
+        completedAt,
+        ok: false,
+        executionAttempted: false,
+        sideEffectMayHaveCommitted: false,
+        effectState: effectful ? "not_attempted" : "not_applicable",
+        retrySafe: true,
+        terminalReason: "deadline-expired-before-send",
+        error: "workstation-dispatch-expired-before-send",
+      };
+    }
+    if (!effectful) {
+      return {
+        ...normalized,
+        status: "failed",
+        completedAt,
+        ok: false,
+        executionAttempted: normalized.executionAttempted ?? null,
+        sideEffectMayHaveCommitted: false,
+        effectState: "not_applicable",
+        retrySafe: true,
+        terminalReason: "read-deadline-without-correlated-receipt",
+        error: "workstation-read-deadline-without-correlated-receipt",
+      };
+    }
+    return {
+      ...normalized,
+      status: "ambiguous",
+      completedAt,
+      ok: null,
+      executionAttempted: normalized.executionAttempted ?? null,
+      sideEffectMayHaveCommitted: true,
+      effectState: "unknown",
+      retrySafe: false,
+      terminalReason: "deadline-without-correlated-receipt",
+      error: "workstation-effect-outcome-ambiguous",
+    };
+  }
+
+  private async scheduleDeadline(deadline: string): Promise<void> {
+    const deadlineMs = Date.parse(deadline);
+    if (!Number.isFinite(deadlineMs)) return;
+    const target = Math.max(Date.now() + 1, deadlineMs);
+    const existing = await this.ctx.storage.getAlarm();
+    if (existing === null || target < existing) await this.ctx.storage.setAlarm(target);
   }
 
   private async remember(record: DispatchRecord): Promise<void> {
@@ -339,6 +457,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     const expired = ids.length > MAX_STORED_REQUESTS ? ids.splice(0, ids.length - MAX_STORED_REQUESTS) : [];
     if (expired.length) await Promise.all(expired.map((id) => this.ctx.storage.delete(this.requestKey(id))));
     await this.ctx.storage.put("request-index", ids);
+    if (!isTerminalStatus(record.status)) await this.scheduleDeadline(record.deadline);
   }
 
   private async finish(message: ResultMessage): Promise<void> {
@@ -351,13 +470,22 @@ export class WorkstationRelay extends DurableObject<Env> {
         lastReceiptAt: message.completedAt,
       } satisfies Presence);
     }
-    const existing = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
-    if (!existing || existing.action !== message.action) return;
+    const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(message.id));
+    if (!stored || stored.action !== message.action) return;
+    const existing = this.normalizeRecord(stored);
+    if (existing.deliveryState === "not_sent") return;
+    const effectful = isEffectful(existing.action);
     await this.remember({
       ...existing,
       status: message.ok ? "completed" : "failed",
+      deliveryState: "sent",
       completedAt: message.completedAt,
       ok: message.ok,
+      executionAttempted: true,
+      sideEffectMayHaveCommitted: effectful,
+      effectState: effectful ? "receipt_returned" : "not_applicable",
+      retrySafe: !effectful,
+      terminalReason: message.ok ? "correlated-success-receipt" : "correlated-failure-receipt",
       ...(message.result === undefined ? {} : { result: message.result }),
       ...(message.error === undefined ? {} : { error: message.error.slice(0, 1024) }),
     });
@@ -365,8 +493,10 @@ export class WorkstationRelay extends DurableObject<Env> {
 
   private async requestStatus(id: string): Promise<Response> {
     if (!/^[0-9a-f-]{36}$/i.test(id)) return json({ ok: false, error: "invalid-request-id" }, { status: 400 });
-    const record = await this.ctx.storage.get<DispatchRecord>(this.requestKey(id));
-    if (!record) return json({ ok: false, error: "request-not-found", requestId: id }, { status: 404 });
+    const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(id));
+    if (!stored) return json({ ok: false, error: "request-not-found", requestId: id }, { status: 404 });
+    const record = this.reconcileExpiredRecord(stored);
+    await this.ctx.storage.put(this.requestKey(id), record);
     return json({ ok: true, request: record });
   }
 
@@ -375,6 +505,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (sockets.length !== 1) {
       return json({ ok: false, error: sockets.length ? "multiple-workstations-connected" : "workstation-offline" }, { status: 503 });
     }
+    const socket = sockets[0];
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return json({ ok: false, error: "action-not-admitted" }, { status: 400 });
     const args = body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
@@ -403,19 +534,141 @@ export class WorkstationRelay extends DurableObject<Env> {
       requestedAt: requestedAt.toISOString(),
       deadline,
     };
-    await this.remember({ id, action, status: "queued", requestedAt: message.requestedAt, deadline, completedAt: null, ok: null });
-    sockets[0].send(JSON.stringify(message));
+    const effectful = isEffectful(action);
+    let record: DispatchRecord = {
+      id,
+      action,
+      status: "queued",
+      deliveryState: "not_sent",
+      requestedAt: message.requestedAt,
+      deadline,
+      sentAt: null,
+      completedAt: null,
+      ok: null,
+      executionAttempted: false,
+      sideEffectMayHaveCommitted: false,
+      effectState: effectful ? "not_attempted" : "not_applicable",
+      retrySafe: true,
+      terminalReason: null,
+    };
+    await this.remember(record);
+
+    if (socket.readyState !== WebSocket.OPEN) {
+      record = {
+        ...record,
+        status: "failed",
+        completedAt: new Date().toISOString(),
+        ok: false,
+        terminalReason: "socket-closed-before-send",
+        error: "workstation-socket-closed-before-send",
+      };
+      await this.remember(record);
+      return json({
+        ok: false,
+        id,
+        action,
+        status: record.status,
+        deliveryState: record.deliveryState,
+        retrySafe: record.retrySafe,
+        sideEffectMayHaveCommitted: record.sideEffectMayHaveCommitted,
+        error: record.error,
+      }, { status: 503 });
+    }
+
+    record = {
+      ...record,
+      status: "dispatching",
+      deliveryState: "send_attempted",
+      executionAttempted: null,
+      sideEffectMayHaveCommitted: effectful,
+      effectState: effectful ? "unknown" : "not_applicable",
+      retrySafe: !effectful,
+    };
+    await this.remember(record);
 
     const wait = typeof body.wait === "boolean" ? body.wait : !STORAGE_ACTIONS.has(action);
-    if (!wait) return json({ ok: true, id, action, status: "queued", deadline }, { status: 202 });
     const waitMs = Math.min(MAX_SYNC_WAIT_MS, deadlineMs);
-    const resultPromise = new Promise<ResultMessage>((resolve, reject) => {
-      const timer = setTimeout(() => {
+    let resultPromise: Promise<ResultMessage> | null = null;
+    if (wait) {
+      resultPromise = new Promise<ResultMessage>((resolve, reject) => {
+        const timer = setTimeout(() => {
+          this.pending.delete(id);
+          reject(new Error("workstation-dispatch-timeout"));
+        }, waitMs);
+        this.pending.set(id, { resolve, reject, timer });
+      });
+    }
+
+    try {
+      socket.send(JSON.stringify(message));
+      record = {
+        ...record,
+        status: "sent",
+        deliveryState: "sent",
+        sentAt: new Date().toISOString(),
+      };
+      await this.remember(record);
+    } catch (error) {
+      const pending = this.pending.get(id);
+      if (pending) {
+        clearTimeout(pending.timer);
         this.pending.delete(id);
-        reject(new Error("workstation-dispatch-timeout"));
-      }, waitMs);
-      this.pending.set(id, { resolve, reject, timer });
-    });
+      }
+      const errorText = error instanceof Error ? error.message.slice(0, 512) : "websocket-send-failed";
+      record = effectful
+        ? {
+            ...record,
+            status: "ambiguous",
+            completedAt: new Date().toISOString(),
+            ok: null,
+            sideEffectMayHaveCommitted: true,
+            effectState: "unknown",
+            retrySafe: false,
+            terminalReason: "send-threw-after-send-attempt",
+            error: `workstation-dispatch-send-uncertain:${errorText}`,
+          }
+        : {
+            ...record,
+            status: "failed",
+            completedAt: new Date().toISOString(),
+            ok: false,
+            sideEffectMayHaveCommitted: false,
+            effectState: "not_applicable",
+            retrySafe: true,
+            terminalReason: "read-send-threw-after-send-attempt",
+            error: `workstation-read-send-failed:${errorText}`,
+          };
+      await this.remember(record);
+      return json({
+        ok: effectful,
+        id,
+        action,
+        status: record.status,
+        deliveryState: record.deliveryState,
+        pollingRequired: effectful,
+        reconciliationRequired: effectful,
+        sideEffectMayHaveCommitted: record.sideEffectMayHaveCommitted,
+        retrySafe: record.retrySafe,
+        automaticReplayAllowed: false,
+        error: record.error,
+      }, { status: effectful ? 202 : 503 });
+    }
+
+    if (!wait || resultPromise === null) {
+      return json({
+        ok: true,
+        id,
+        action,
+        status: record.status,
+        deliveryState: record.deliveryState,
+        deadline,
+        pollingRequired: true,
+        sideEffectMayHaveCommitted: record.sideEffectMayHaveCommitted,
+        retrySafe: record.retrySafe,
+        automaticReplayAllowed: false,
+      }, { status: 202 });
+    }
+
     try {
       const result = await resultPromise;
       if (new TextEncoder().encode(JSON.stringify(result)).byteLength > MAX_RESULT_BYTES) {
@@ -428,15 +681,43 @@ export class WorkstationRelay extends DurableObject<Env> {
         clearTimeout(pending.timer);
         this.pending.delete(id);
       }
+      const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(id));
+      const current = stored ? this.reconcileExpiredRecord(stored) : record;
+      if (stored) await this.ctx.storage.put(this.requestKey(id), current);
       return json({
         ok: true,
         id,
         action,
-        status: "queued",
+        status: current.status,
+        deliveryState: current.deliveryState,
         pollingRequired: true,
+        reconciliationRequired: current.status === "ambiguous",
+        sideEffectMayHaveCommitted: current.sideEffectMayHaveCommitted,
+        retrySafe: current.retrySafe,
+        automaticReplayAllowed: false,
         error: error instanceof Error ? error.message : "dispatch-wait-ended",
       }, { status: 202 });
     }
+  }
+
+  async alarm(): Promise<void> {
+    const ids = (await this.ctx.storage.get<string[]>("request-index")) ?? [];
+    const now = Date.now();
+    let nextDeadline: number | null = null;
+    for (const id of ids) {
+      const stored = await this.ctx.storage.get<DispatchRecord>(this.requestKey(id));
+      if (!stored) continue;
+      const record = this.reconcileExpiredRecord(stored, now);
+      await this.ctx.storage.put(this.requestKey(id), record);
+      if (!isTerminalStatus(record.status)) {
+        const deadlineMs = Date.parse(record.deadline);
+        if (Number.isFinite(deadlineMs) && deadlineMs > now) {
+          nextDeadline = nextDeadline === null ? deadlineMs : Math.min(nextDeadline, deadlineMs);
+        }
+      }
+    }
+    if (nextDeadline === null) await this.ctx.storage.deleteAlarm();
+    else await this.ctx.storage.setAlarm(nextDeadline);
   }
 
   async fetch(request: Request): Promise<Response> {
@@ -463,12 +744,12 @@ export class WorkstationRelay extends DurableObject<Env> {
     return new Response("Not Found", { status: 404 });
   }
 
-  webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): void {
+  async webSocketMessage(_socket: WebSocket, message: string | ArrayBuffer): Promise<void> {
     if (typeof message !== "string" || new TextEncoder().encode(message).byteLength > MAX_RESULT_BYTES) return;
     let parsed: Record<string, unknown>;
     try { parsed = JSON.parse(message) as Record<string, unknown>; } catch { return; }
     if (parsed.type === "hello" || parsed.type === "heartbeat") {
-      this.ctx.waitUntil(this.updatePresence(parsed));
+      await this.updatePresence(parsed);
       return;
     }
     if (
@@ -477,9 +758,10 @@ export class WorkstationRelay extends DurableObject<Env> {
       || typeof parsed.action !== "string"
       || typeof parsed.ok !== "boolean"
       || typeof parsed.completedAt !== "string"
+      || !Number.isFinite(Date.parse(parsed.completedAt))
     ) return;
     const result = parsed as unknown as ResultMessage;
-    this.ctx.waitUntil(this.finish(result));
+    await this.finish(result);
     const pending = this.pending.get(result.id);
     if (!pending) return;
     clearTimeout(pending.timer);
@@ -546,7 +828,13 @@ export default {
     }
     if (url.pathname === "/health" && request.method === "GET") {
       const status = publicStatus(await internalStatus(env));
-      return json({ ok: true, service: "evavo-workstation-mcp-relay", workstationOnline: status.online });
+      return json({
+        ok: true,
+        service: "evavo-workstation-mcp-relay",
+        workstationOnline: status.online,
+        deliveryJournalVersion: DELIVERY_JOURNAL_VERSION,
+        automaticReplayOfUncertainEffect: false,
+      });
     }
     if (url.pathname === "/mcp") {
       return createMcpHandler(() => makeMcpServer(env), {
