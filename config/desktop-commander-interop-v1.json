@@ -2,25 +2,39 @@
   "schemaVersion": 1,
   "kind": "evavo-desktop-commander-interop-v1",
   "provider": "@wonderwhy-er/desktop-commander",
-  "remoteDeviceCommand": "npx @wonderwhy-er/desktop-commander@latest remote",
+  "pinnedRemoteVersion": "0.2.48",
+  "remoteDeviceCommand": "npx --yes @wonderwhy-er/desktop-commander@0.2.48 remote",
   "remoteMcpService": "mcp.desktopcommander.app",
-  "role": "optional remote workstation MCP/control bridge",
-  "state": "user-configured-live-pairing-proof-pending",
+  "role": "external fallback remote workstation bridge",
+  "state": "optional-user-configured-fallback",
   "routing": {
     "canonicalBackgroundExecution": "evavo-local-compute",
     "canonicalForegroundGui": "evavo-computer-agent",
+    "canonicalLocalGateway": "evavo-local-ai-agent-gateway",
+    "canonicalWorkstationTruth": "evavo-workstation-manager",
+    "canonicalPrebootPhysicalRecovery": "evavo-out-of-band-control",
     "optionalPairedRemoteBridge": "desktop-commander-remote",
-    "canonicalPrebootPhysicalRecovery": "evavo-local-ai-agent-gateway"
+    "desktopCommanderPriority": "after-native-evavo-routes"
   },
   "policy": {
+    "fallbackOnly": true,
+    "preferNativeEvavoRoutes": true,
     "requiresPairingAndLiveAvailabilityProof": true,
     "remoteCloudRelay": true,
     "desktopCommanderEffectIsNotAutomaticallyAnEvavoTerminalReceipt": true,
+    "desktopCommanderAvailabilityDoesNotDefineMachineHealth": true,
+    "desktopCommanderFailureDoesNotDefineMachineOffline": true,
+    "desktopCommanderIsNotRequiredForLocalVerification": true,
+    "continueNativeRouteDiscoveryWhenUnavailable": true,
     "reconciliationRequiredAfterEffect": true,
     "blindRetryAfterUnknownEffect": false,
     "mustNotBypassProviderSpecificAuthority": true,
     "mustNotBypassMutationRootLockingForSharedRepositories": true,
     "credentialValuesReturned": false
   },
-  "clientNote": "For local stdio clients, Desktop Commander can also be launched as the normal @wonderwhy-er/desktop-commander MCP server. This record describes the remote device-agent mode the user configured."
+  "healthLanguage": {
+    "unavailable": "Remote Desktop Commander fallback bridge is currently unreachable from this agent.",
+    "forbiddenInferenceWithoutSeparateMachineEvidence": "MSI is offline"
+  },
+  "clientNote": "Desktop Commander may be useful as an optional remote fallback. It must never outrank the native EVAVO Local Compute, Computer Agent, Local Gateway, Workstation Manager or admitted out-of-band authorities for work they own."
 }
