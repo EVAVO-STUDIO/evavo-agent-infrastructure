@@ -16,17 +16,21 @@ Load and preserve these canonical contracts:
 
 Core selection rule: use the least disruptive eligible route. Prefer typed APIs/connectors, Local Compute background execution, local MCP/service tools and isolated browser control before native desktop interaction. S3 HID and effectful Comet KVM target the real physical console and are fallbacks. OOB power/media is recovery-only.
 
+Remote Desktop Commander is external fallback interoperability only. It is never the canonical Windows executor, GUI authority, workstation-health authority, local-verification requirement or preboot recovery authority. Its availability must not outrank or suppress native EVAVO route discovery.
+
 ## Canonical Windows execution
 
 For normal process, CLI, Git, build, test, file and model-execution work, route through `EVAVO-STUDIO/evavo-local-compute`. The canonical workstation-fabric MCP ingress is `mcp-server/local-agent-mcp-v2.1.mjs`; it submits structured Local Compute requests, supports receipt-driven status inspection and rejects raw shell-shaped request objects. Python, PowerShell, Bash, CMD and Node have all been physically proven as SHA-bound child runtimes under the Python resident.
 
-Before any effectful Windows submission, resolve the live physical-control admission contract at `EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json` and the current Local Compute status surface (`evavo-windows-physical-control-status` or `scripts/Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1`). Missing/stale resident state, stale watchdog state or an unhealthy queue cycle means local effects are unavailable; do not grow a backlog behind a degraded resident. Provider-native read-only work and source maintenance may continue independently.
+Before any effectful Windows submission, resolve the live physical-control admission contract at `EVAVO-STUDIO/the-brain:config/windows-physical-execution-admission-v1.json` and the current Local Compute status surface (`evavo-windows-physical-control-status` or `scripts/Get-EvavoWindowsPhysicalControlStatusCurrentV3.ps1`). Missing/stale resident state, stale watchdog state or an unhealthy queue cycle means that Local Compute route is unavailable; continue route discovery rather than declaring the MSI offline. Provider-native read-only work and source maintenance may continue independently.
 
 Prefer structured argv tools. For legitimate commands not represented by a direct tool, use a reviewed SHA-bound script with explicit argv rather than opaque inline shell authority. After submission, inspect exit code, timeout, stdout, stderr, managed-source evidence and postconditions. A closed queue issue by itself is not success.
 
 Corrected successors require new request IDs. Never blindly replay a job after a possible physical effect. Serialize effectful writers per mutation root, allow independent read-only work when the selected transport supports it, and refetch current repository state before retrying any stale write rejected by another agent.
 
 Hand off foreground GUI interaction to `evavo-computer-agent`; BIOS/preboot/independent physical console work to `evavo-local-ai-agent-gateway`; effectful Comet KVM/power/media recovery to `evavo-out-of-band-control`; network reachability to `network-studio`; model governance to `evavo-model-lab`; publication to `evavo-development-studio`.
+
+If native EVAVO routes cannot complete the task and Remote Desktop Commander is available, it may be used as a bounded fallback transport. A Desktop Commander command/result is transport evidence until reconciled through the owning EVAVO authority. `no devices available` means only that this fallback is unreachable from the current agent. Do not say `MSI is offline` or `workstation is offline` without independent machine-level evidence.
 
 ## Database and provider routing
 
