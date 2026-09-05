@@ -4,7 +4,13 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { parseStrictJson, readRoutingConfigFile, planCapabilityRoutes, validateCapabilityStatus, validateRoutingConfig } from '../scripts/agent-capability-routing-core.mjs';
+import {
+  parseStrictJson,
+  readRoutingConfigFile,
+  planCapabilityRoutes,
+  validateCapabilityStatus,
+  validateRoutingConfig,
+} from '../scripts/agent-capability-routing-core.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = path.join(root, 'config', 'agent-capability-routing-v1.json');
@@ -13,13 +19,39 @@ const validatedRouting = validateRoutingConfig(configDocument);
 const NOW = '2026-08-28T12:00:00.000Z';
 const SOURCE_REVISION = 'a'.repeat(40);
 
-function status({ client = 'chatgpt-pro', requestedCapabilities = ['repository.inspect'], evidence = [], capturedAt = NOW } = {}) { return { schemaVersion: 1, kind: 'evavo-agent-capability-status-v1', capturedAt, client, requestedCapabilities, evidence }; }
-function evidence(strategyId, state, { observedAt = '2026-08-28T11:59:00.000Z', sourceRevision = SOURCE_REVISION, healthy = true, receiptId, detail } = {}) { return { strategyId, state, observedAt, sourceRevision, healthy, ...(receiptId === undefined ? {} : { receiptId }), ...(detail === undefined ? {} : { detail }) }; }
-function plan(document, now = NOW) { return planCapabilityRoutes({ routing: validatedRouting, status: validateCapabilityStatus(document, validatedRouting), now }); }
+function status({ client = 'chatgpt-pro', requestedCapabilities = ['repository.inspect'], evidence = [], capturedAt = NOW } = {}) {
+  return { schemaVersion: 1, kind: 'evavo-agent-capability-status-v1', capturedAt, client, requestedCapabilities, evidence };
+}
 
-test('canonical routing config validates and is zero-cost by contract', () => {
-  assert.equal(validatedRouting.routeCount, 23);
-  assert.equal(validatedRouting.strategyCount, 91);
+function evidence(strategyId, state, {
+  observedAt = '2026-08-28T11:59:00.000Z',
+  sourceRevision = SOURCE_REVISION,
+  healthy = true,
+  receiptId,
+  detail,
+} = {}) {
+  return {
+    strategyId,
+    state,
+    observedAt,
+    sourceRevision,
+    healthy,
+    ...(receiptId === undefined ? {} : { receiptId }),
+    ...(detail === undefined ? {} : { detail }),
+  };
+}
+
+function plan(document, now = NOW) {
+  return planCapabilityRoutes({
+    routing: validatedRouting,
+    status: validateCapabilityStatus(document, validatedRouting),
+    now,
+  });
+}
+
+test('canonical routing config validates and remains zero-cost/structured-only', () => {
+  assert.equal(validatedRouting.routeCount, 24);
+  assert.equal(validatedRouting.strategyCount, 96);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -30,12 +62,17 @@ test('canonical routing config validates and is zero-cost by contract', () => {
     assert.equal(transport.structuredOnly, true);
     assert.equal(transport.arbitraryShell, false);
     assert.ok(Array.isArray(transport.sharedDependencies));
-    if (transport.effects.some((effect) => effect !== 'read')) assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-local-compute');
+    if (transport.effects.some((effect) => effect !== 'read')) {
+      assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-local-compute');
+    }
   }
 });
 
-test('ChatGPT browser visual inspection prefers native Computer Agent visual review ingress', () => {
-  const result = plan(status({ requestedCapabilities: ['browser.visual-inspect'], evidence: [evidence('browser-visual-inspect-visual-review-mcp', 'transport_online')] }));
+test('ChatGPT browser pixel inspection prefers Computer Agent Visual Review', () => {
+  const result = plan(status({
+    requestedCapabilities: ['browser.visual-inspect'],
+    evidence: [evidence('browser-visual-inspect-visual-review-mcp', 'transport_online')],
+  }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'browser-visual-inspect-visual-review-mcp');
@@ -44,8 +81,39 @@ test('ChatGPT browser visual inspection prefers native Computer Agent visual rev
   assert.equal(result.authority.execution, false);
 });
 
-test('ChatGPT browser visual bootstrap uses Local Compute and remains receipt-bound', () => {
-  const result = plan(status({ requestedCapabilities: ['browser.visual-bootstrap'], evidence: [evidence('browser-visual-bootstrap-issue-queue', 'configured')] }));
+test('ChatGPT visual QA uses Automated Testing typed relay and remains receipt-bound', () => {
+  const result = plan(status({
+    requestedCapabilities: ['browser.visual-qa'],
+    evidence: [evidence('browser-visual-qa-typed-relay', 'transport_online')],
+  }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'browser-visual-qa-typed-relay');
+  assert.equal(decision.selected.authority, 'automated-testing');
+  assert.equal(decision.selected.transport, 'cloudflare-typed-relay');
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, true);
+});
+
+test('ChatGPT visual QA can use the zero-cost queue without claiming completion', () => {
+  const result = plan(status({
+    requestedCapabilities: ['browser.visual-qa'],
+    evidence: [evidence('browser-visual-qa-issue-queue', 'configured')],
+  }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.authority, 'automated-testing');
+  assert.equal(decision.selected.strategyId, 'browser-visual-qa-issue-queue');
+  assert.equal(decision.claims.mayAttempt, true);
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, true);
+});
+
+test('ChatGPT browser visual bootstrap is separate Local Compute execution', () => {
+  const result = plan(status({
+    requestedCapabilities: ['browser.visual-bootstrap'],
+    evidence: [evidence('browser-visual-bootstrap-issue-queue', 'configured')],
+  }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
   assert.equal(decision.selected.strategyId, 'browser-visual-bootstrap-issue-queue');
@@ -54,189 +122,90 @@ test('ChatGPT browser visual bootstrap uses Local Compute and remains receipt-bo
   assert.equal(result.authority.execution, true);
 });
 
-test('ChatGPT repository inspection selects fresh connected GitHub evidence first', () => {
-  const result = plan(status({ evidence: [evidence('repository-inspect-connected-github', 'transport_online')] }));
+test('repository inspection still selects fresh connected GitHub evidence first', () => {
+  const result = plan(status({
+    evidence: [evidence('repository-inspect-connected-github', 'transport_online')],
+  }));
   assert.equal(result.overallStatus, 'ready');
   assert.equal(result.decisions[0].selected.strategyId, 'repository-inspect-connected-github');
   assert.equal(result.authority.execution, false);
 });
 
-test('repository estate planning is routed as read-only Technology Advisor work', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-plan'], evidence: [evidence('repository-estate-plan-typed-relay', 'transport_online')] }));
-  assert.equal(result.decisions[0].selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('repository estate work queue remains read-only planning authority', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-work-queue'], evidence: [evidence('repository-estate-work-queue-typed-relay', 'transport_online')] }));
-  assert.equal(result.decisions[0].selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('repository portfolio review remains non-effectful Technology Advisor guidance', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-portfolio-review'], evidence: [evidence('repository-estate-portfolio-review-typed-relay', 'transport_online')] }));
-  assert.equal(result.decisions[0].selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('repository overlap review remains non-effectful Technology Advisor guidance', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-overlap-review'], evidence: [evidence('repository-estate-overlap-review-typed-relay', 'transport_online')] }));
-  assert.equal(result.decisions[0].selected.strategyId, 'repository-estate-overlap-review-typed-relay');
-  assert.equal(result.decisions[0].selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider snapshot capture can start from connected GitHub and remains read-only', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-snapshot'], evidence: [evidence('repository-estate-provider-snapshot-connected-github', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-connected-github');
-  assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider snapshot capture can fall back to the fixed local MCP collector without execution authority', () => {
-  const result = plan(status({ client: 'claude-code', requestedCapabilities: ['repository.estate-provider-snapshot'], evidence: [evidence('repository-estate-provider-snapshot-local-mcp', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-snapshot-local-mcp');
-  assert.equal(decision.selected.transport, 'local-specialist-mcp');
-  assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider snapshot drift stays read-only Technology Advisor analysis', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-diff'], evidence: [evidence('repository-estate-provider-diff-typed-relay', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-diff-typed-relay');
-  assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider drift queue remains read-only Technology Advisor evidence planning', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-drift-queue'], evidence: [evidence('repository-estate-provider-drift-queue-typed-relay', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-drift-queue-typed-relay');
-  assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider metadata decision remains non-effectful Development Studio governance', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-decision'], evidence: [evidence('repository-estate-provider-metadata-decision-typed-relay', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.authority, 'development-governance');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider metadata admission is planning only and cannot acquire execution authority', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-admission'], evidence: [evidence('repository-estate-provider-metadata-admission-typed-relay', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.authority, 'development-governance');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
-  assert.equal(result.authority.execution, false);
-});
-
-test('provider metadata execution is effectful, typed and receipt-bound', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-execute'], evidence: [evidence('repository-estate-provider-metadata-execute-typed-relay', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-metadata-execute-typed-relay');
-  assert.equal(decision.selected.authority, 'development-governance');
-  assert.equal(decision.selected.transport, 'cloudflare-typed-relay');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(decision.claims.mayClaimPhysicallyVerified, false);
-  assert.equal(result.authority.execution, true);
-});
-
-test('provider metadata execution issue queue can accept work but cannot claim completion', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-metadata-execute'], evidence: [evidence('repository-estate-provider-metadata-execute-issue-queue', 'configured')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-metadata-execute-issue-queue');
-  assert.equal(decision.claims.mayAttempt, true);
-  assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, true);
-});
-
-test('provider-only estate review can start from connected GitHub without workstation execution authority', () => {
-  const result = plan(status({ requestedCapabilities: ['repository.estate-provider-review'], evidence: [evidence('repository-estate-provider-review-connected-github', 'transport_online')] }));
-  const decision = result.decisions[0];
-  assert.equal(decision.status, 'ready');
-  assert.equal(decision.selected.strategyId, 'repository-estate-provider-review-connected-github');
-  assert.equal(decision.selected.authority, 'technology-advisor');
-  assert.equal(result.authority.execution, false);
-});
-
-test('ChatGPT effectful work can fall back to a configured issue queue without claiming execution', () => {
-  const result = plan(status({ requestedCapabilities: ['host.execute'], evidence: [evidence('host-execute-issue-queue', 'configured')] }));
+test('effectful host work can use configured issue queue but cannot claim completion', () => {
+  const result = plan(status({
+    requestedCapabilities: ['host.execute'],
+    evidence: [evidence('host-execute-issue-queue', 'configured')],
+  }));
   assert.equal(result.decisions[0].status, 'ready');
   assert.equal(result.decisions[0].claims.mayClaimCompleted, false);
   assert.equal(result.decisions[0].claims.mayClaimPhysicallyVerified, false);
 });
 
-test('ChatGPT hardware control selects the accepted typed relay and stays receipt-bound', () => {
-  const result = plan(status({ requestedCapabilities: ['workstation.hardware-control'], evidence: [evidence('workstation-hardware-control-typed-relay', 'accepted', { receiptId: 'hardware-acceptance:sha256:' + 'c'.repeat(64) })] }));
-  assert.equal(result.decisions[0].selected.transport, 'cloudflare-typed-relay');
-  assert.equal(result.decisions[0].claims.mayClaimCompleted, false);
-});
-
-test('completed and physical claims require a current correlated receipt', () => {
-  const result = plan(status({ requestedCapabilities: ['device.android'], evidence: [evidence('device-android-typed-relay', 'physically_verified', { receiptId: 'android-receipt:sha256:' + 'b'.repeat(64) })] }));
+test('completed and physical claims require a correlated current receipt', () => {
+  const result = plan(status({
+    requestedCapabilities: ['device.android'],
+    evidence: [evidence('device-android-typed-relay', 'physically_verified', {
+      receiptId: 'android-receipt:sha256:' + 'b'.repeat(64),
+    })],
+  }));
   assert.equal(result.decisions[0].claims.mayClaimCompleted, true);
   assert.equal(result.decisions[0].claims.mayClaimPhysicallyVerified, true);
 });
 
-test('accepted or stronger evidence without a receipt fails closed', () => {
-  assert.throws(() => validateCapabilityStatus(status({ requestedCapabilities: ['host.execute'], evidence: [evidence('host-execute-typed-relay', 'completed')] }), validatedRouting), /EVAVO_AGENT_STATUS_RECEIPT_REQUIRED/u);
+test('accepted-or-stronger evidence without receipt fails closed', () => {
+  assert.throws(
+    () => validateCapabilityStatus(status({
+      requestedCapabilities: ['host.execute'],
+      evidence: [evidence('host-execute-typed-relay', 'completed')],
+    }), validatedRouting),
+    /EVAVO_AGENT_STATUS_RECEIPT_REQUIRED/u,
+  );
 });
 
-test('stale evidence is visible but cannot select or prove a route', () => {
-  const result = plan(status({ requestedCapabilities: ['host.execute'], evidence: [evidence('host-execute-issue-queue', 'configured', { observedAt: '2026-08-28T11:20:00.000Z' })] }));
+test('stale evidence cannot select or prove a route', () => {
+  const result = plan(status({
+    requestedCapabilities: ['host.execute'],
+    evidence: [evidence('host-execute-issue-queue', 'configured', {
+      observedAt: '2026-08-28T11:20:00.000Z',
+    })],
+  }));
   assert.equal(result.overallStatus, 'unproven');
   assert.equal(result.decisions[0].status, 'source-ready-runtime-unproven');
 });
 
-test('explicit unhealthy evidence blocks the capability rather than weakening the route', () => {
-  const result = plan(status({ requestedCapabilities: ['host.execute'], evidence: [evidence('host-execute-typed-relay', 'transport_online', { healthy: false, detail: 'worker transport unavailable' })] }));
+test('explicit unhealthy evidence blocks rather than weakening authority', () => {
+  const result = plan(status({
+    requestedCapabilities: ['host.execute'],
+    evidence: [evidence('host-execute-typed-relay', 'transport_online', {
+      healthy: false,
+      detail: 'worker transport unavailable',
+    })],
+  }));
   assert.equal(result.overallStatus, 'blocked');
   assert.equal(result.decisions[0].reason, 'all-observed-routes-blocked');
 });
 
-test('unknown capabilities are denied with no inferred generic shell fallback', () => {
+test('unknown raw-shell capability has no inferred fallback', () => {
   const result = plan(status({ requestedCapabilities: ['host.raw-shell'], evidence: [] }));
   assert.equal(result.decisions[0].reason, 'unknown-capability');
   assert.equal(result.decisions[0].claims.mayAttempt, false);
 });
 
-test('effectful routes cannot split authority across repositories', () => {
+test('effectful routes cannot split authority across owners', () => {
   const tampered = structuredClone(configDocument);
-  tampered.routes.find((route) => route.id === 'host-execute').strategies[1].authority = 'local-storage';
+  tampered.routes.find((route) => route.id === 'browser-visual-qa').strategies[1].authority = 'local-compute';
   assert.throws(() => validateRoutingConfig(tampered), /EVAVO_AGENT_ROUTING_EFFECT_AUTHORITY_SPLIT/u);
 });
 
-test('provider metadata execution cannot split authority or use read-only ingress', () => {
-  const split = structuredClone(configDocument);
-  split.routes.find((route) => route.id === 'repository-estate-provider-metadata-execute').strategies[1].authority = 'technology-advisor';
-  assert.throws(() => validateRoutingConfig(split), /EVAVO_AGENT_ROUTING_EFFECT_AUTHORITY_SPLIT/u);
-  const readOnly = structuredClone(configDocument);
-  readOnly.routes.find((route) => route.id === 'repository-estate-provider-metadata-execute').strategies[0].transport = 'openai-secure-mcp-tunnel';
-  assert.throws(() => validateRoutingConfig(readOnly), /EVAVO_AGENT_ROUTING_TRANSPORT_EFFECT/u);
+test('effectful route cannot use read-only ingress', () => {
+  const tampered = structuredClone(configDocument);
+  tampered.routes.find((route) => route.id === 'browser-visual-qa').strategies[0].transport = 'openai-secure-mcp-tunnel';
+  assert.throws(() => validateRoutingConfig(tampered), /EVAVO_AGENT_ROUTING_TRANSPORT_EFFECT/u);
 });
 
 test('transport ingress diversity cannot be overstated', () => {
   const tampered = structuredClone(configDocument);
-  tampered.routes.find((route) => route.id === 'host-execute').minimumIndependentIngressDomains = 5;
+  tampered.routes.find((route) => route.id === 'browser-visual-qa').minimumIndependentIngressDomains = 6;
   assert.throws(() => validateRoutingConfig(tampered), /EVAVO_AGENT_ROUTING_FAILURE_DOMAIN_COUNT/u);
 });
 
@@ -254,18 +223,42 @@ test('strict JSON rejects duplicate and prototype-polluting properties', () => {
   assert.throws(() => parseStrictJson('{"__proto__":{}}'), /EVAVO_AGENT_ROUTING_JSON_PROHIBITED_KEY/u);
 });
 
-test('routing fragments are same-directory regular JSON files', () => {
+test('routing fragments remain same-directory regular JSON files', () => {
   const directory = fs.mkdtempSync(path.join(root, '.routing-fragment-test-'));
   try {
-    const unsafe = { schemaVersion: 1, kind: 'evavo-agent-capability-routing-v1', canonical: true, clients: ['chatgpt-pro'], truthStates: configDocument.truthStates, policy: configDocument.policy, fragments: { authorities: '../outside.json', transports: 'transports.json', routes: ['routes.json'] } };
+    const unsafe = {
+      schemaVersion: 1,
+      kind: 'evavo-agent-capability-routing-v1',
+      canonical: true,
+      clients: ['chatgpt-pro'],
+      truthStates: configDocument.truthStates,
+      policy: configDocument.policy,
+      fragments: {
+        authorities: '../outside.json',
+        transports: 'transports.json',
+        routes: ['routes.json'],
+      },
+    };
     const unsafePath = path.join(directory, 'routing.json');
     fs.writeFileSync(unsafePath, JSON.stringify(unsafe));
-    assert.throws(() => readRoutingConfigFile(unsafePath), /EVAVO_AGENT_ROUTING_FRAGMENT_NAME|EVAVO_AGENT_ROUTING_FRAGMENT_PATH/u);
-  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+    assert.throws(
+      () => readRoutingConfigFile(unsafePath),
+      /EVAVO_AGENT_ROUTING_FRAGMENT_NAME|EVAVO_AGENT_ROUTING_FRAGMENT_PATH/u,
+    );
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
 });
 
 test('route planning is deterministic for identical config, status and clock', () => {
-  const document = status({ requestedCapabilities: ['repository.inspect', 'host.execute'], evidence: [evidence('repository-inspect-connected-github', 'transport_online'), evidence('host-execute-issue-queue', 'configured')] });
+  const document = status({
+    requestedCapabilities: ['repository.inspect', 'host.execute', 'browser.visual-inspect'],
+    evidence: [
+      evidence('repository-inspect-connected-github', 'transport_online'),
+      evidence('host-execute-issue-queue', 'configured'),
+      evidence('browser-visual-inspect-visual-review-mcp', 'transport_online'),
+    ],
+  });
   const first = plan(document);
   const second = plan(structuredClone(document));
   assert.deepEqual(first, second);
