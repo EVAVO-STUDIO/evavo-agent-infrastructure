@@ -50,8 +50,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and remains zero-cost/structured-only', () => {
-  assert.equal(validatedRouting.routeCount, 24);
-  assert.equal(validatedRouting.strategyCount, 96);
+  assert.equal(validatedRouting.routeCount, 25);
+  assert.equal(validatedRouting.strategyCount, 98);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -129,6 +129,24 @@ test('repository inspection still selects fresh connected GitHub evidence first'
   assert.equal(result.overallStatus, 'ready');
   assert.equal(result.decisions[0].selected.strategyId, 'repository-inspect-connected-github');
   assert.equal(result.authority.execution, false);
+});
+
+test('named repository work prefers the specialist named-task MCP before workstation bridge', () => {
+  const result = plan(status({
+    client: 'claude-code',
+    requestedCapabilities: ['repository.named-task'],
+    evidence: [
+      evidence('repository-named-task-specialist-mcp', 'transport_online'),
+      evidence('repository-named-task-workstation-bridge', 'transport_online'),
+    ],
+  }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'repository-named-task-specialist-mcp');
+  assert.equal(decision.selected.authority, 'local-storage');
+  assert.equal(decision.selected.transport, 'local-specialist-mcp');
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(result.authority.execution, true);
 });
 
 test('effectful host work can use configured issue queue but cannot claim completion', () => {
