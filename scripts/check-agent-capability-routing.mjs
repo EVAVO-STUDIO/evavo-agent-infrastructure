@@ -36,10 +36,53 @@ function assertFallbackInterop() {
   return interopPath;
 }
 
+function assertVisualInspectionRouting() {
+  const routingPath = path.join(root, 'config', 'agent-capability-routing-v1.json');
+  const routing = parseStrictJson(fs.readFileSync(routingPath, 'utf8'));
+  const visualName = 'agent-capability-routes-visual-v1.json';
+  const routeFragments = routing?.fragments?.routes;
+  if (!Array.isArray(routeFragments) || !routeFragments.includes(visualName)) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: canonical routing must load the visual route fragment');
+  }
+
+  const visualPath = path.join(root, 'config', visualName);
+  const routes = parseStrictJson(fs.readFileSync(visualPath, 'utf8'));
+  if (!Array.isArray(routes)) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual route fragment must be an array');
+  }
+  const browser = routes.find((route) => route?.capability === 'browser.visual-inspect');
+  if (!browser) throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: browser.visual-inspect route is required');
+  const ids = (browser.strategies ?? []).map((strategy) => strategy?.id);
+  if (ids[0] !== 'browser-visual-inspect-computer-agent-playwright') {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: native Playwright must be first visual inspection strategy');
+  }
+  if (!ids.includes('browser-visual-inspect-visual-review-mcp')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Visual Review MCP must be available to ChatGPT Pro');
+  }
+  if (!ids.includes('browser-visual-inspect-typed-relay') || !ids.includes('browser-visual-inspect-issue-queue-bootstrap')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: typed relay and issue-queue bootstrap fallbacks are required');
+  }
+  if (ids.some((id) => typeof id === 'string' && id.includes('desktop-commander'))) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Desktop Commander must not be a canonical visual inspection strategy');
+  }
+  const truth = browser.truth ?? {};
+  if (truth.desktopCommanderRequired !== false || truth.desktopCommanderAuthoritative !== false) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Desktop Commander must remain optional and non-authoritative');
+  }
+  if (truth.msiConnectorRequired !== false || truth.connectorFailureCanImplyMachineOffline !== false) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: connector availability must not define visual capability or machine state');
+  }
+  if (truth.captureReceiptRequired !== true || truth.screenshotSha256Required !== true || truth.pixelBytesRequiredForPixelInspection !== true) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: pixel inspection must require capture receipt, digest and pixel bytes');
+  }
+  return visualPath;
+}
+
 try {
   const configPath = path.resolve(argument('--config', path.join(root, 'config', 'agent-capability-routing-v1.json')));
   const validated = validateRoutingConfig(readRoutingConfigFile(configPath));
   const interopPath = assertFallbackInterop();
+  const visualPath = assertVisualInspectionRouting();
   process.stdout.write(
     canonicalJson({
       schemaVersion: 1,
@@ -47,7 +90,10 @@ try {
       status: 'passed',
       configPath: path.relative(root, configPath).replaceAll(path.sep, '/'),
       supplementalWorkstationInterop: path.relative(root, interopPath).replaceAll(path.sep, '/'),
+      visualInspectionRouting: path.relative(root, visualPath).replaceAll(path.sep, '/'),
       desktopCommanderRole: 'external-fallback-only',
+      browserVisualInspectionAuthority: 'evavo-computer-agent',
+      browserVisualInspectionRequiresDesktopCommander: false,
       digestSha256: validated.digestSha256,
       routeCount: validated.routeCount,
       strategyCount: validated.strategyCount,
