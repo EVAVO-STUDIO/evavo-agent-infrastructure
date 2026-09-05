@@ -145,6 +145,7 @@ async function internalStatus(env: Env): Promise<Record<string, unknown>> {
 function publicStatus(raw: Record<string, unknown>): Record<string, unknown> {
   return {
     online: raw.online === true,
+    journalReady: raw.journalReady === true,
     lastSeen: raw.lastSeen ?? null,
     ageSeconds: raw.ageSeconds ?? null,
     clientVersion: raw.clientVersion ?? null,
@@ -286,6 +287,7 @@ function makeMcpServer(env: Env): McpServer {
           type: "text",
           text: JSON.stringify({
             online: status.online,
+            journalReady: status.journalReady,
             capabilities: status.capabilities,
             workerFabricProfile: status.workerFabricProfile,
             dispatchRequiresSeparateAuthenticatedApi: true,
@@ -345,13 +347,17 @@ export class WorkstationRelay extends DurableObject<Env> {
 
   private async status(): Promise<Record<string, unknown>> {
     const presence = await this.presence();
+    const sockets = this.sockets();
+    const soleSocket = sockets.length === 1 ? sockets[0] : null;
+    const journalReady = soleSocket !== null && this.socketConnectionId(soleSocket) !== null;
     let ageSeconds: number | null = null;
     if (presence?.lastSeen) {
       const time = Date.parse(presence.lastSeen);
       if (Number.isFinite(time)) ageSeconds = Math.max(0, Math.floor((Date.now() - time) / 1000));
     }
     return {
-      online: this.sockets().length > 0,
+      online: sockets.length > 0,
+      journalReady,
       lastSeen: presence?.lastSeen ?? null,
       ageSeconds,
       clientVersion: presence?.clientVersion ?? null,
@@ -525,6 +531,15 @@ export class WorkstationRelay extends DurableObject<Env> {
     }
     const socket = sockets[0];
     const connectionId = this.socketConnectionId(socket);
+    if (connectionId === null) {
+      return json({
+        ok: false,
+        error: "workstation-connection-needs-journal-reconnect",
+        reconnectRequired: true,
+        executionAttempted: false,
+        sideEffectMayHaveCommitted: false,
+      }, { status: 503 });
+    }
     const action = typeof body.action === "string" ? body.action : "";
     if (!ACTIONS.has(action)) return json({ ok: false, error: "action-not-admitted" }, { status: 400 });
     const args = body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
@@ -859,6 +874,7 @@ export default {
         ok: true,
         service: "evavo-workstation-mcp-relay",
         workstationOnline: status.online,
+        journalReady: status.journalReady,
         deliveryJournalVersion: DELIVERY_JOURNAL_VERSION,
         automaticReplayOfUncertainEffect: false,
       });
