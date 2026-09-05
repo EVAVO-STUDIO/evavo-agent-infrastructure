@@ -5,15 +5,19 @@
   "goal": "keep the workstation automation fabric healthy using the narrowest owner-specific repair before escalating to physical-console or out-of-band recovery",
   "observedState": {
     "observedDate": "2026-09-04",
+    "historicalSnapshot": true,
+    "currentMachineAvailabilityAuthoritative": false,
     "localCompute": "degraded-normal-and-control-queue-not-consuming",
     "normalQueueLivenessIssue": 2224,
     "normalQueueTerminalReceiptObserved": false,
-    "remoteDesktopCommanderMsiOnline": false,
+    "remoteDesktopCommanderFallbackReachableFromObservedAgent": false,
+    "remoteDesktopCommanderMachineStateInferenceAllowed": false,
+    "machineOnline": "unknown-from-this-snapshot",
     "effectfulLocalSubmissionsAdmitted": false,
     "hashOnlyLocalSubmissionsAdmitted": false,
     "providerNativeReadsMayContinue": true,
     "sourceOnlyRepositoryWorkMayContinue": true,
-    "resumeCondition": "Current canonical ensure must succeed and queue-liveness issue 2224 must receive an authoritative terminal receipt."
+    "resumeCondition": "Current canonical ensure must succeed and queue-liveness issue 2224 must receive an authoritative terminal receipt. Re-evaluate every native EVAVO route before concluding local execution is unavailable."
   },
   "components": [
     {
@@ -50,9 +54,10 @@
         "bounded stale-state cleanup"
       ],
       "degradedBehavior": [
-        "do not submit effectful Windows jobs",
-        "do not submit hash-only Windows jobs",
+        "do not submit effectful Windows jobs through this degraded route",
+        "do not submit hash-only Windows jobs through this degraded route",
         "do not grow a queue backlog behind an unhealthy resident",
+        "continue discovery of other native EVAVO routes capable of the requested operation",
         "allow provider-native read-only operations that do not require the workstation",
         "allow source maintenance and physical-control diagnostics"
       ],
@@ -96,6 +101,17 @@
       "disruption": "physical-console-or-recovery-impact",
       "selfHeal": ["expire stale session/admission state", "refresh read-only provider observation"],
       "forbiddenSelfHeal": ["unapproved keyboard or pointer input", "automatic hard reset", "automatic virtual-media mount"]
+    },
+    {
+      "id": "desktop-commander-fallback",
+      "repository": null,
+      "healthClass": "external-fallback-transport",
+      "disruption": "none-or-foreground-depending-on-operation",
+      "canonical": false,
+      "machineHealthAuthority": false,
+      "localVerificationRequirement": false,
+      "selfHeal": ["owned fallback process restart", "half-open channel recycle", "bounded reconnect backoff"],
+      "forbiddenSelfHeal": ["machine offline inference", "authority takeover from native EVAVO owner", "blind replay after unknown effect"]
     }
   ],
   "evaluationOrder": [
@@ -105,15 +121,20 @@
     "network-studio",
     "computer-agent-native-desktop",
     "hardware-gateway-s3-hid",
-    "out-of-band-control"
+    "out-of-band-control",
+    "desktop-commander-fallback"
   ],
   "rules": [
     "Health checks should be read-only and non-focus-disruptive whenever possible.",
     "A component may repair only state it owns.",
     "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
     "Configured or historically proven authority does not imply current physical liveness.",
+    "A historical observedState snapshot must never be treated as current machine availability without fresh evidence.",
+    "A failed route describes that route only; one failed route cannot prove the MSI or workstation is offline.",
+    "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
+    "Desktop Commander is external fallback only and cannot define workstation health or gate local verification.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
     "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed.",
-    "While the normal queue is degraded, local effect submission is disabled even if provider-native reads and repository-source work remain available."
+    "While one route is degraded, disable submissions through that route without suppressing independent routes that remain eligible."
   ]
 }
