@@ -47,20 +47,20 @@ function assertVisualInspectionRouting() {
 
   const visualPath = path.join(root, 'config', visualName);
   const routes = parseStrictJson(fs.readFileSync(visualPath, 'utf8'));
-  if (!Array.isArray(routes)) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual route fragment must be an array');
-  }
+  if (!Array.isArray(routes)) throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual route fragment must be an array');
+
   const browser = routes.find((route) => route?.capability === 'browser.visual-inspect');
+  const visualQa = routes.find((route) => route?.capability === 'browser.visual-qa');
   const bootstrap = routes.find((route) => route?.capability === 'browser.visual-bootstrap');
   const windows = routes.find((route) => route?.capability === 'windows.visual-inspect');
-  if (!browser || !bootstrap || !windows) {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: browser inspect, browser bootstrap and windows inspect routes are required');
+  if (!browser || !visualQa || !bootstrap || !windows) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: browser inspect, browser visual QA, browser bootstrap and windows inspect routes are required');
   }
   if (browser.requestedEffect !== 'read' || windows.requestedEffect !== 'read') {
     throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual inspection routes must remain read-only');
   }
-  if (bootstrap.requestedEffect !== 'execute') {
-    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual bootstrap must remain a separate effectful capability');
+  if (visualQa.requestedEffect !== 'execute' || bootstrap.requestedEffect !== 'execute') {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual QA and visual bootstrap must remain explicit effectful capabilities');
   }
 
   const ids = (browser.strategies ?? []).map((strategy) => strategy?.id);
@@ -75,6 +75,18 @@ function assertVisualInspectionRouting() {
   }
   if (ids.some((id) => typeof id === 'string' && (id.includes('desktop-commander') || id.includes('issue-queue')))) {
     throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: read-only visual inspection cannot use Desktop Commander or an effectful issue queue');
+  }
+
+  const visualQaIds = (visualQa.strategies ?? []).map((strategy) => strategy?.id);
+  if (!visualQaIds.includes('browser-visual-qa-typed-relay') || !visualQaIds.includes('browser-visual-qa-issue-queue')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: ChatGPT visual QA needs typed-relay and issue-queue execution routes');
+  }
+  if ((visualQa.strategies ?? []).some((strategy) => strategy?.authority !== 'automated-testing')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: Automated Testing must remain the sole browser visual-QA authority');
+  }
+  if (!String(visualQa.description ?? '').includes('real Playwright PNG capture')
+    || !String(visualQa.description ?? '').includes('screenshot SHA-256')) {
+    throw new Error('EVAVO_VISUAL_INSPECTION_ROUTING: visual QA must retain real PNG and digest evidence');
   }
 
   const bootstrapIds = (bootstrap.strategies ?? []).map((strategy) => strategy?.id);
@@ -112,6 +124,7 @@ try {
       visualInspectionRouting: path.relative(root, visualPath).replaceAll(path.sep, '/'),
       desktopCommanderRole: 'external-fallback-only',
       browserVisualInspectionAuthority: 'evavo-computer-agent',
+      browserVisualQaAuthority: 'automated-testing',
       browserVisualBootstrapAuthority: 'evavo-local-compute',
       browserVisualInspectionRequiresDesktopCommander: false,
       digestSha256: validated.digestSha256,
