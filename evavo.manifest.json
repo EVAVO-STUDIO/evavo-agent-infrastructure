@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "evavo.repo-manifest.v1",
+  "identity": {
+    "key": "evavo-agent-infrastructure",
+    "name": "EVAVO Agent Infrastructure",
+    "owner": "EVAVO-STUDIO",
+    "category": "agent-capability-routing-foundation",
+    "status": "active"
+  },
+  "runtime": {
+    "language": "typescript",
+    "localFirst": true,
+    "requiresPaidHostedControlPlane": false
+  },
+  "summary": "Canonical chat-facing MCP routing, specialist capability discovery, typed remote relay and transport selection foundation for ChatGPT, Claude, Codex and EVAVO agents. It routes to owning executors but is not a generic shell authority.",
+  "defaultBranch": "main",
+  "providerPosture": {
+    "observedRepositoryVisibility": "public",
+    "trackedSourceMustRemainPublicSafe": true,
+    "visibilityIntentReviewRequired": true
+  },
+  "authority": {
+    "readOnly": [
+      "discover-agent-capabilities",
+      "plan-capability-route",
+      "inspect-remote-relay-status",
+      "inspect-coarse-request-state"
+    ],
+    "reversible": [
+      "submit-authenticated-typed-dispatch",
+      "enqueue-sha-bound-github-issue-fallback"
+    ],
+    "consequential": [],
+    "neverImplicit": [
+      "internet-facing-generic-run-endpoint",
+      "raw-shell-text",
+      "caller-selected-executable-or-local-path",
+      "treat-queue-acceptance-or-tool-presence-as-physical-completion",
+      "replace-local-compute-execution-authority",
+      "replace-development-studio-repository-mutation-authority"
+    ]
+  },
+  "integrations": [
+    "the-brain",
+    "evavo-local-compute",
+    "evavo-local-storage",
+    "evavo-service-control-plane",
+    "evavo-development-studio",
+    "evavo-browser-studio",
+    "evavo-local-ai-agent-gateway",
+    "evavo-out-of-band-control"
+  ],
+  "responsibilityBoundary": {
+    "owns": ["chat-facing-capability-routing","typed-remote-relay","client-transport-selection","specialist-tool-discovery"],
+    "delegatesNormalHostExecutionTo": "EVAVO-STUDIO/evavo-local-compute",
+    "delegatesPhysicalHidTo": "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
+    "delegatesOutOfBandRecoveryTo": "EVAVO-STUDIO/evavo-out-of-band-control"
+  },
+  "reviewedAt": "2026-09-05"
+}
