@@ -2,29 +2,37 @@
   "schemaVersion": 1,
   "kind": "evavo-workstation-control-health-v1",
   "canonical": true,
-  "goal": "keep the workstation automation fabric healthy using the narrowest owner-specific repair before escalating to physical-console or out-of-band recovery",
+  "goal": "keep workstation execution, visual-inspection and recovery capabilities healthy using the narrowest owner-specific repair before escalating to physical-console or external fallback transport",
   "observedState": {
-    "observedAt": "2026-09-05T00:17:38Z",
+    "observedAt": "2026-09-05T01:15:00Z",
     "historicalSnapshot": false,
     "currentMachineAvailabilityAuthoritative": false,
-    "localCompute": "queue-transport-live-request-admission-degraded",
-    "queueTransportOnline": true,
-    "queueReceiptProducerObserved": "evavo-local-compute/github-local-execution-queue",
-    "queueReceiptSemanticsVersion": 4,
-    "queueEvidenceIssue": 2304,
-    "queueTerminalReceiptObserved": true,
-    "queueExecutionAttempted": false,
-    "queueObservedAdmissionFailure": "request-authority-contract-rejected-before-execution",
-    "queueObservedSafeAutomaticReplay": true,
-    "queueObservedSideEffectMayHaveCommitted": false,
-    "effectfulLocalSubmissionsAdmitted": "unknown-until-corrected-canary-passes",
-    "hashOnlyLocalSubmissionsAdmitted": "unknown-until-corrected-canary-passes",
+    "localCompute": "execution-ingress-stalled-after-prior-transport-proof",
+    "queueTransportPreviouslyProvenLive": true,
+    "queuePriorEvidenceIssue": 2304,
+    "queuePriorTerminalReceiptObserved": true,
+    "queuePriorExecutionAttempted": false,
+    "queuePriorAdmissionFailure": "request-authority-contract-rejected-before-execution",
+    "queuePriorSafeAutomaticReplay": true,
+    "queuePriorSideEffectMayHaveCommitted": false,
+    "normalQueuePendingIssue": 2305,
+    "normalQueuePendingReceiptObserved": false,
+    "controlQueuePendingIssue": 2277,
+    "controlQueuePendingReceiptObserved": false,
+    "queueCurrentlyConsumingPendingCanaries": false,
+    "effectfulLocalSubmissionsAdmitted": "unproven-until-fresh-terminal-execution-receipt",
+    "computerAgentPixelInspectionSourceAvailable": true,
+    "computerAgentPixelEvidenceRuntimeState": "unproven-from-this-agent-until-fresh-specialist-or-retained-evidence-receipt",
+    "automatedTestingVisualQaSourceAvailable": true,
+    "automatedTestingVisualQaRuntimeState": "unproven-from-this-agent-until-fresh-visual-qa-doctor-receipt",
+    "visualInspectionRequiresRemoteDesktopCommander": false,
+    "visualQaRequiresRemoteDesktopCommander": false,
     "remoteDesktopCommanderFallbackReachableFromObservedAgent": false,
     "remoteDesktopCommanderMachineStateInferenceAllowed": false,
     "machineOnline": "not-inferred-from-route-evidence",
     "providerNativeReadsMayContinue": true,
     "sourceOnlyRepositoryWorkMayContinue": true,
-    "resumeCondition": "Repair the queue request-authority contract, submit one corrected bounded no-side-effect canary, require a fresh terminal execution receipt, and continue evaluating independent native EVAVO routes meanwhile."
+    "resumeCondition": "Recover one native execution ingress, run digest-bound Computer Agent Visual Review and Automated Testing browser visual-QA tasks, require fresh exact-byte/source-bound receipts, and continue evaluating independent native EVAVO routes rather than gating on Desktop Commander."
   },
   "components": [
     {
@@ -39,31 +47,35 @@
         "watchdogGeneration": 4,
         "singleNormalQueueResidentAuthority": true,
         "watchdogConsumesNormalQueue": false,
-        "staleSourceRejectionRequired": true
+        "staleSourceRejectionRequired": true,
+        "sourceReevaluationEveryCycleRequired": true
       },
       "healthyEvidence": [
         "resident process fresh",
         "resident state is running-cycle or sleeping",
-        "watchdog process fresh",
+        "watchdog process fresh and source-aware",
         "queue cycle healthy",
         "source branch is main",
         "source clean",
-        "source HEAD equals origin/main",
+        "source HEAD equals origin/main before each queue execution cycle",
         "canonical origin verified",
-        "corrected queue canary has authoritative successful terminal receipt"
+        "corrected bounded canary has authoritative successful terminal receipt"
       ],
       "selfHeal": [
-        "repair request authority/schema before changing transport",
+        "re-evaluate exact current source before each queue cycle",
+        "fast-forward only admitted clean managed current-main mirrors",
+        "never automatically mutate a stale engineering checkout",
         "current scripts/Ensure-EvavoCanonicalQueueResidentsCurrent.ps1",
         "owned canonical Python resident restart",
         "owned persistent control-resident restart",
-        "owned non-consuming watchdog restart",
+        "owned source-aware non-consuming watchdog restart",
         "durable-job reconciliation",
         "bounded stale-state cleanup"
       ],
       "degradedBehavior": [
-        "treat a consumed-and-rejected request as transport-live rather than worker-offline",
-        "if rejection occurred before execution and receipt says safeAutomaticReplay=true, repair the request contract before changing transport",
+        "treat a consumed-and-rejected request as transport-live evidence for that observation time rather than worker-offline",
+        "do not carry historical queue liveness forward as current liveness after pending jobs stop receiving receipts",
+        "if rejection occurred before execution and receipt says safeAutomaticReplay=true, repair the narrow contract before changing transport",
         "never replay automatically when sideEffectMayHaveCommitted=true or execution outcome is unknown",
         "do not grow a queue backlog with the same rejected payload shape",
         "continue discovery of other native EVAVO routes capable of the requested operation",
@@ -82,10 +94,57 @@
     {
       "id": "computer-agent",
       "repository": "EVAVO-STUDIO/evavo-computer-agent",
-      "healthClass": "ui-automation",
-      "disruption": "isolated-ui-or-foreground-ui",
-      "selfHeal": ["isolated browser-session recreation", "owned browser automation process restart"],
-      "forbiddenSelfHeal": ["unrequested native-desktop takeover", "physical HID escalation"]
+      "healthClass": "ui-perception-and-direct-pixel-inspection",
+      "disruption": "none-for-retained-evidence-read-isolated-browser-for-new-capture-foreground-only-when-explicitly-required",
+      "healthyEvidence": [
+        "browser visual-inspection route selected independently of machine connector state",
+        "actual admitted PNG bytes available to reviewer or retained Visual Review provider",
+        "screenshot SHA-256 and byte length match exact bytes",
+        "fresh source-bound retained-evidence receipt when using Visual Review",
+        "exact-byte MCP round trip verified when retained provider is used"
+      ],
+      "selfHeal": [
+        "read retained Visual Review evidence first",
+        "isolated browser-session recreation",
+        "owned browser automation process restart",
+        "request separate Local Compute browser.visual-bootstrap only when effectful startup or repair is needed"
+      ],
+      "forbiddenSelfHeal": [
+        "unrequested native-desktop takeover",
+        "physical HID escalation",
+        "Desktop Commander prerequisite",
+        "machine-offline inference from visual-route failure",
+        "claiming direct pixel inspection from DOM-only evidence"
+      ]
+    },
+    {
+      "id": "automated-testing-visual-qa",
+      "repository": "EVAVO-STUDIO/automated-testing",
+      "healthClass": "independent-browser-visual-qa",
+      "disruption": "isolated-headless-browser",
+      "healthyEvidence": [
+        "visual-test execution MCP source identity accepted",
+        "bounded Chromium visual-QA run completed",
+        "real PNG magic bytes verified",
+        "screenshot SHA-256 and byte length revalidated",
+        "observation image digest equals screenshot digest",
+        "layout and observation digests revalidated",
+        "viewport relationship verified",
+        "required visual assertions evaluated from non-truncated layout evidence",
+        "fresh source-bound visual-QA doctor receipt"
+      ],
+      "selfHeal": [
+        "rebuild source-bound visual-test execution runner",
+        "recreate isolated headless browser",
+        "rerun digest-bound browser-visual-qa-verify repository task through an eligible native execution ingress"
+      ],
+      "forbiddenSelfHeal": [
+        "human visual approval claim",
+        "brand or aesthetic approval claim",
+        "Desktop Commander prerequisite",
+        "queue acceptance treated as QA completion",
+        "machine-offline inference from visual-QA route failure"
+      ]
     },
     {
       "id": "hardware-gateway",
@@ -119,13 +178,18 @@
       "canonical": false,
       "machineHealthAuthority": false,
       "localVerificationRequirement": false,
+      "visualInspectionRequirement": false,
+      "visualQaRequirement": false,
       "selfHeal": ["owned fallback process restart", "half-open channel recycle", "bounded reconnect backoff"],
-      "forbiddenSelfHeal": ["machine offline inference", "authority takeover from native EVAVO owner", "blind replay after unknown effect"]
+      "forbiddenSelfHeal": ["machine offline inference", "authority takeover from native EVAVO owner", "blind replay after unknown effect", "visual-inspection gate", "visual-QA gate"]
     }
   ],
   "evaluationOrder": [
-    "local-compute",
+    "provider-native-read-route-when-applicable",
+    "computer-agent-retained-visual-evidence",
     "computer-agent-isolated-browser",
+    "automated-testing-isolated-browser-visual-qa",
+    "local-compute",
     "hardware-gateway-status",
     "network-studio",
     "computer-agent-native-desktop",
@@ -136,14 +200,16 @@
   "rules": [
     "Health checks should be read-only and non-focus-disruptive whenever possible.",
     "Model transport, request admission, execution and postcondition as separate health phases.",
-    "A terminal rejection before execution proves queue transport liveness when the authenticated worker produced the receipt; it does not prove execution readiness.",
+    "Model direct pixel inspection and visual-QA campaign readiness independently from generic workstation execution health.",
+    "A terminal rejection before execution proves queue transport liveness only for the observation that produced that authenticated receipt; it does not prove execution readiness or continuing queue liveness.",
     "A component may repair only state it owns.",
     "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
     "Configured or historically proven authority does not imply current physical liveness.",
     "A source snapshot must never be treated as current machine availability without fresh evidence.",
     "A failed route describes that route only; one failed route cannot prove the MSI or workstation is offline.",
     "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
-    "Desktop Commander is external fallback only and cannot define workstation health or gate local verification.",
+    "Before declaring browser pixel inspection unavailable, evaluate Computer Agent direct/retained visual routes and the independent Automated Testing visual-QA lane when QA evidence satisfies the task.",
+    "Desktop Commander is external fallback only and cannot define workstation health, gate local verification, gate screenshot inspection or gate visual QA.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
     "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed.",
     "While one route is degraded, disable unsafe submissions through that route without suppressing independent routes that remain eligible."
