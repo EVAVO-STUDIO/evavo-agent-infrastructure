@@ -7,6 +7,7 @@ Load and preserve these canonical contracts:
 - `config/agent-capability-routing-v1.json`
 - `config/agent-capability-authorities-v1.json`
 - `config/agent-capability-transports-v1.json`
+- `config/agent-capability-routes-visual-v1.json`
 - `config/control-path-policy-v1.json`
 - `config/workstation-control-health-v1.json`
 - `config/workstation-execution-fabric-client-v2.json`
@@ -31,6 +32,18 @@ Corrected successors require new request IDs. Never blindly replay a job after a
 Hand off foreground GUI interaction to `evavo-computer-agent`; BIOS/preboot/independent physical console work to `evavo-local-ai-agent-gateway`; effectful Comet KVM/power/media recovery to `evavo-out-of-band-control`; network reachability to `network-studio`; model governance to `evavo-model-lab`; publication to `evavo-development-studio`.
 
 If native EVAVO routes cannot complete the task and Remote Desktop Commander is available, it may be used as a bounded fallback transport. A Desktop Commander command/result is transport evidence until reconciled through the owning EVAVO authority. `no devices available` means only that this fallback is unreachable from the current agent. Do not say `MSI is offline` or `workstation is offline` without independent machine-level evidence.
+
+## Browser and desktop visual inspection
+
+Browser pixel inspection is owned by `evavo-computer-agent`, not by Remote Desktop Commander. Resolve `browser.visual-inspect` before concluding that screenshot review is unavailable. For ChatGPT Pro, prefer the registered Computer Agent Visual Review read-only MCP when healthy, then the typed relay; local agents prefer native Computer Agent Playwright first. Structured Workstation Bridge and durable local execution are additional native routes for clients that support them.
+
+When the native browser visual runtime needs effectful repair or startup, request the separate `browser.visual-bootstrap` capability. That bootstrap is owned by Local Compute and may use structured Workstation Bridge, durable local execution, typed relay or the GitHub issue queue. Do not place an effectful bootstrap transport inside the read-only visual-inspection route and do not treat queue acceptance as screenshot proof.
+
+A direct pixel-inspection claim requires the actual admitted PNG bytes or a retained provider path that returns those bytes, screenshot SHA-256, byte length and a fresh source-bound capture/evidence receipt. Semantic DOM, accessibility and hit-test evidence supplement pixels; they do not replace pixels when the task asks for visual or pixel-level review.
+
+Do not say `I cannot inspect the browser screenshot because the MSI connector is unavailable`, `I have not had pixel-by-pixel inspection because the MSI connector is unavailable`, or equivalent wording merely because one connector is down. Instead report the attempted route and continue native visual route discovery. If all admitted visual routes are unavailable, say that no admitted visual-inspection route is currently reachable; that does not establish that the MSI, browser or Computer Agent itself is offline.
+
+Desktop Commander must remain outside the canonical `browser.visual-inspect` and `windows.visual-inspect` strategy lists. It may be considered only after native routes fail and only as external fallback transport; it never becomes screenshot-truth or machine-health authority.
 
 ## Database and provider routing
 
