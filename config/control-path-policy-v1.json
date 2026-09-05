@@ -13,14 +13,17 @@
     "transportSuccessIsNotPhysicalOutcomeProof": true,
     "taskSchedulerStateIsNotPhysicalOutcomeProof": true,
     "githubIssueStateIsNotPhysicalOutcomeProof": true,
-    "genericProcessExitIsNotPostconditionProof": true
+    "genericProcessExitIsNotPostconditionProof": true,
+    "singleTransportFailureIsNotMachineFailure": true,
+    "desktopCommanderIsFallbackOnly": true
   },
   "disruptionLevels": {
     "none": "No interaction with the user's visible desktop or active physical console.",
     "isolated-ui": "UI automation runs in an isolated/headless/separate browser context and should not take focus from the user's active application.",
     "foreground-ui": "Automation may change focus or manipulate a visible application in the current user session.",
     "physical-console": "Keyboard, pointer or KVM input targets the real workstation console and can interrupt the human user.",
-    "recovery-impact": "Power, reboot, virtual media or other recovery action can interrupt workloads and requires the strongest governance."
+    "recovery-impact": "Power, reboot, virtual media or other recovery action can interrupt workloads and requires the strongest governance.",
+    "external-fallback": "External remote-control interoperability used only after the owning native EVAVO route is unavailable or insufficient."
   },
   "routeOrder": [
     {
@@ -44,14 +47,14 @@
       "disruption": "none",
       "authorities": ["local-compute", "development-governance", "local-storage"],
       "transports": ["structured-workstation-bridge", "durable-local-execution", "cloudflare-typed-relay", "github-issue-queue"],
-      "rule": "Preferred fallback for code, Git, file, build, test, package, process, service and local-model work when the singleton gateway does not expose the required typed operation. Windows non-interactive child processes should use hidden/no-console launch policy."
+      "rule": "Preferred route for code, Git, file, build, test, package, process, service and local-model work when the singleton gateway does not expose the required typed operation. Windows non-interactive child processes should use hidden/no-console launch policy."
     },
     {
       "rank": 30,
       "routeClass": "local-mcp",
       "disruption": "none",
       "transports": ["local-specialist-mcp", "openai-secure-mcp-tunnel"],
-      "rule": "Direct specialist MCP is an independent fallback for capabilities not available through the singleton gateway. MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
+      "rule": "Direct specialist MCP is an independent route for capabilities not available through the singleton gateway. MCP stdio remains attached to client pipes. Do not detach protocol processes merely to hide a console."
     },
     {
       "rank": 40,
@@ -89,7 +92,15 @@
       "disruption": "recovery-impact",
       "authorities": ["out-of-band-control", "super-admin"],
       "recoveryBootstrap": "BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1",
-      "rule": "Power, reset and virtual-media operations are last-resort recovery and must not be selected for routine work. After machine/session recovery, restore the software control plane only through the V6 remote-control bootstrap and require its fresh Current durable-intent proof."
+      "rule": "Power, reset and virtual-media operations are last-resort native EVAVO recovery and must not be selected for routine work. After machine/session recovery, restore the software control plane only through the V6 remote-control bootstrap and require its fresh Current durable-intent proof."
+    },
+    {
+      "rank": 90,
+      "routeClass": "desktop-commander-external-fallback",
+      "disruption": "external-fallback",
+      "authorities": ["external-fallback"],
+      "transports": ["desktop-commander-remote"],
+      "rule": "Optional convenience/recovery fallback only after the owning native EVAVO route is unavailable or insufficient. Its availability never defines MSI health, its failure never means the workstation is offline, and its results require reconciliation through the owning EVAVO authority before physical completion is claimed."
     }
   ],
   "hardwareProfiles": {
@@ -104,16 +115,19 @@
     }
   },
   "clientRules": {
-    "chatgpt-pro": "Use connected/native tools first, then the authenticated singleton gateway when registered and healthy. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
-    "claude-code": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP before interactive terminal or desktop control.",
-    "codex": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP and isolated browser control before actual-console routes.",
-    "api-agent": "Select the first eligible route by this policy and retain receipts for effectful work."
+    "chatgpt-pro": "Use connected/native tools first, then the authenticated singleton gateway when registered and healthy, then other native EVAVO routes by declared order. Desktop Commander is external fallback interoperability only. Local MCP capabilities require explicit client registration and a newly negotiated/reconnected tool session; repository presence alone is not connectivity.",
+    "claude-code": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP before interactive terminal or desktop control. Desktop Commander is fallback only.",
+    "codex": "Prefer the singleton gateway for shared storage/control operations, then Local Compute/direct specialist MCP and isolated browser control before actual-console routes. Desktop Commander is fallback only.",
+    "api-agent": "Select the first eligible native EVAVO route by this policy and retain receipts for effectful work. Use Desktop Commander only when native route eligibility is exhausted for the requested operation."
   },
   "healthRules": [
     "Health and self-heal should use status endpoints, process/service APIs and watchdogs before GUI interaction.",
     "Storage route health must distinguish logical gateway readiness, Local Storage writer readiness, BeeStation primary-writer readiness and Windows execution fallback readiness.",
     "A watchdog may restart only owned processes according to its repository contract; watchdog recovery must not silently send HID or change hardware identity.",
     "Network Studio owns private Comet LAN/Tailscale reachability and failover diagnosis.",
+    "A failed transport describes that transport only. Do not infer machine power/offline state without independent machine-level evidence.",
+    "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
+    "Desktop Commander is external fallback only and is not required for local verification.",
     "Escalate to physical-console or OOB recovery only after narrower in-band paths are unavailable or insufficient.",
     "Any S3/Comet/OOB software-plane recovery must converge through BOOTSTRAP-EVAVO-REMOTE-CONTROL-V6.ps1 and may claim success only after the Current queue emits a fresh durable invocation receipt.",
     "Task Scheduler accepting Start-ScheduledTask, a GitHub issue becoming closed, a transport returning 2xx, or a generic process exiting 0 may establish transport/progress evidence only; none of them alone proves that the intended physical postcondition occurred.",
