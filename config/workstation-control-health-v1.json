@@ -4,20 +4,27 @@
   "canonical": true,
   "goal": "keep the workstation automation fabric healthy using the narrowest owner-specific repair before escalating to physical-console or out-of-band recovery",
   "observedState": {
-    "observedDate": "2026-09-04",
-    "historicalSnapshot": true,
+    "observedAt": "2026-09-05T00:17:38Z",
+    "historicalSnapshot": false,
     "currentMachineAvailabilityAuthoritative": false,
-    "localCompute": "degraded-normal-and-control-queue-not-consuming",
-    "normalQueueLivenessIssue": 2224,
-    "normalQueueTerminalReceiptObserved": false,
+    "localCompute": "queue-transport-live-request-admission-degraded",
+    "queueTransportOnline": true,
+    "queueReceiptProducerObserved": "evavo-local-compute/github-local-execution-queue",
+    "queueReceiptSemanticsVersion": 4,
+    "queueEvidenceIssue": 2304,
+    "queueTerminalReceiptObserved": true,
+    "queueExecutionAttempted": false,
+    "queueObservedAdmissionFailure": "request-authority-contract-rejected-before-execution",
+    "queueObservedSafeAutomaticReplay": true,
+    "queueObservedSideEffectMayHaveCommitted": false,
+    "effectfulLocalSubmissionsAdmitted": "unknown-until-corrected-canary-passes",
+    "hashOnlyLocalSubmissionsAdmitted": "unknown-until-corrected-canary-passes",
     "remoteDesktopCommanderFallbackReachableFromObservedAgent": false,
     "remoteDesktopCommanderMachineStateInferenceAllowed": false,
-    "machineOnline": "unknown-from-this-snapshot",
-    "effectfulLocalSubmissionsAdmitted": false,
-    "hashOnlyLocalSubmissionsAdmitted": false,
+    "machineOnline": "not-inferred-from-route-evidence",
     "providerNativeReadsMayContinue": true,
     "sourceOnlyRepositoryWorkMayContinue": true,
-    "resumeCondition": "Current canonical ensure must succeed and queue-liveness issue 2224 must receive an authoritative terminal receipt. Re-evaluate every native EVAVO route before concluding local execution is unavailable."
+    "resumeCondition": "Repair the queue request-authority contract, submit one corrected bounded no-side-effect canary, require a fresh terminal execution receipt, and continue evaluating independent native EVAVO routes meanwhile."
   },
   "components": [
     {
@@ -43,9 +50,10 @@
         "source clean",
         "source HEAD equals origin/main",
         "canonical origin verified",
-        "queue-liveness canary has authoritative terminal receipt"
+        "corrected queue canary has authoritative successful terminal receipt"
       ],
       "selfHeal": [
+        "repair request authority/schema before changing transport",
         "current scripts/Ensure-EvavoCanonicalQueueResidentsCurrent.ps1",
         "owned canonical Python resident restart",
         "owned persistent control-resident restart",
@@ -54,9 +62,10 @@
         "bounded stale-state cleanup"
       ],
       "degradedBehavior": [
-        "do not submit effectful Windows jobs through this degraded route",
-        "do not submit hash-only Windows jobs through this degraded route",
-        "do not grow a queue backlog behind an unhealthy resident",
+        "treat a consumed-and-rejected request as transport-live rather than worker-offline",
+        "if rejection occurred before execution and receipt says safeAutomaticReplay=true, repair the request contract before changing transport",
+        "never replay automatically when sideEffectMayHaveCommitted=true or execution outcome is unknown",
+        "do not grow a queue backlog with the same rejected payload shape",
         "continue discovery of other native EVAVO routes capable of the requested operation",
         "allow provider-native read-only operations that do not require the workstation",
         "allow source maintenance and physical-control diagnostics"
@@ -126,15 +135,17 @@
   ],
   "rules": [
     "Health checks should be read-only and non-focus-disruptive whenever possible.",
+    "Model transport, request admission, execution and postcondition as separate health phases.",
+    "A terminal rejection before execution proves queue transport liveness when the authenticated worker produced the receipt; it does not prove execution readiness.",
     "A component may repair only state it owns.",
     "Self-heal must not silently cross a trust boundary such as hardware profile, identity, firmware, credentials or high-impact recovery authority.",
     "Configured or historically proven authority does not imply current physical liveness.",
-    "A historical observedState snapshot must never be treated as current machine availability without fresh evidence.",
+    "A source snapshot must never be treated as current machine availability without fresh evidence.",
     "A failed route describes that route only; one failed route cannot prove the MSI or workstation is offline.",
     "Before declaring local execution unavailable, evaluate all native EVAVO routes capable of the requested operation.",
     "Desktop Commander is external fallback only and cannot define workstation health or gate local verification.",
     "Escalation to physical-console control requires evidence that narrower routes are unavailable or insufficient.",
     "A successful process restart is not proof of end-to-end workstation recovery; downstream health must be re-observed.",
-    "While one route is degraded, disable submissions through that route without suppressing independent routes that remain eligible."
+    "While one route is degraded, disable unsafe submissions through that route without suppressing independent routes that remain eligible."
   ]
 }
