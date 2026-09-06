@@ -86,7 +86,9 @@ test('Brain specialist discovery is read-only and available to ChatGPT without i
   assert.equal(decision.selected.authority, 'brain');
   assert.equal(decision.selected.transport, 'openai-secure-mcp-tunnel');
   assert.equal(result.authority.execution, false);
-  assert.equal(result.authority.mutation, false);
+  assert.equal(result.authority.sourceMutation, false);
+  assert.equal(result.authority.repositoryWrite, false);
+  assert.equal(result.authority.publication, false);
 });
 
 test('ChatGPT browser pixel inspection prefers Computer Agent Visual Review', () => {
