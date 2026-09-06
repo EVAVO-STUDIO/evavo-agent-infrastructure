@@ -8,6 +8,14 @@
         "EVAVO_LOCAL_AGENT_MCP_CANONICAL_EXECUTOR": "evavo-agent-mcp"
       }
     },
+    "evavo-reviewed-workstation-actions": {
+      "command": "node",
+      "args": ["./mcp-server/reviewed-workstation-actions-mcp.mjs"],
+      "env": {
+        "EVAVO_LOCAL_COMPUTE_ROOT": "C:\\GitRepos\\evavo-local-compute",
+        "EVAVO_REVIEWED_WORKSTATION_ACTIONS_ROLE": "fixed-reviewed-actions-only"
+      }
+    },
     "evavo-control-policy": {
       "command": "node",
       "args": ["./mcp-server/control-policy-mcp.mjs"],
