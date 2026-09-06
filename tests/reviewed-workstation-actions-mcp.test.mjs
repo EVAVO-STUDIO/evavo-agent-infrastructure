@@ -70,3 +70,39 @@ test('reviewed image route explicitly stays out of Local Storage 4329', () => {
   assert.match(source, /callerMaySupplyScript: false/);
   assert.match(source, /callerMaySupplyArguments: false/);
 });
+
+test('nested V3 image proof is correlated to the authoritative outer queue receipt', () => {
+  assert.match(source, /IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3"/);
+  assert.match(source, /IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3"/);
+  assert.match(source, /function parseImageProof\(output\)/);
+  assert.match(source, /function imageProofCorrelation\(receipt, proof\)/);
+  assert.match(source, /proof\.outerQueueJobId === outerJobId/);
+  assert.match(source, /producerScriptSha256 === outerScriptSha256/);
+  assert.match(source, /proof\.technicalArtifactVerified === true && proof\.postconditionVerified === true/);
+  assert.match(source, /proof\.singleFilePhysicalProof === true/);
+  assert.match(source, /proof\.dynamicChildScriptLoaded === false/);
+  assert.match(source, /proof\.gitSha1ChildDependency === false/);
+});
+
+test('correlation requires the complete hash chain and fails closed on mismatch', () => {
+  for (const field of [
+    'manifestSha256',
+    'requestSha256',
+    'innerReceiptSha256',
+    'batchReceiptSha256',
+    'terminalReceiptSha256',
+    'receiptDigestSha256',
+  ]) assert.match(source, new RegExp(`proof\\.${field}`));
+  assert.match(source, /return "image-proof-correlation-failed"/);
+  assert.match(source, /const imageProofOk = !imageProofRequired \|\| correlation\?\.correlated === true/);
+  assert.match(source, /ok: outerOk && imageProofOk/);
+  assert.match(source, /authoredRequestMatchesReceiptJob/);
+});
+
+test('correlated proof cannot silently grant approval, publication, mutation or replay', () => {
+  assert.match(source, /proof\.safeAutomaticReplay === false/);
+  assert.match(source, /proof\.creativeApprovalGranted === false/);
+  assert.match(source, /proof\.modelPromotionGranted === false/);
+  assert.match(source, /proof\.publicationGranted === false/);
+  assert.match(source, /proof\.repositoryMutationGranted === false/);
+});
