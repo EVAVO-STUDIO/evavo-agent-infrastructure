@@ -8,8 +8,8 @@ const PROTOCOL_VERSION = "2024-11-05";
 const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAX_ISSUE_BODY_BYTES = 256 * 1024;
 const MAX_ISSUE_PUBLICATION_BYTES = MAX_ISSUE_BODY_BYTES + 16 * 1024;
-const DEFAULT_WAIT_SECONDS = 3600;
-const MAX_WAIT_SECONDS = 3900;
+const DEFAULT_WAIT_SECONDS = 90;
+const MAX_WAIT_SECONDS = 110;
 const DEFAULT_POLL_SECONDS = 5;
 const IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3";
 const IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3";
@@ -29,8 +29,18 @@ const TOOLS = Object.freeze([
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
+    name: "evavo_reviewed_workstation_submit",
+    description: "Author and publish one fixed reviewed workstation action through the SHA-bound Local Compute GitHub queue, then return its issue and request identity immediately. This is the preferred path for long-running image smoke proofs; follow with evavo_reviewed_workstation_job_status. Callers cannot choose scripts, arguments, manifests, output paths, commands, network authority, or execution policy.",
+    inputSchema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["action"],
+      properties: { action: { enum: ACTIONS } },
+    },
+  },
+  {
     name: "evavo_reviewed_workstation_submit_and_wait",
-    description: "Author one fixed reviewed workstation action through Local Compute, publish its exact SHA-bound GitHub queue issue, wait for the authoritative terminal receipt, and return correlated evidence. Callers cannot choose scripts, arguments, manifests, output paths, commands, network authority, or execution policy.",
+    description: "Author one fixed reviewed workstation action, publish its exact SHA-bound GitHub queue issue, and wait only within the bounded interactive MCP window for an authoritative terminal receipt. Long image jobs should use evavo_reviewed_workstation_submit plus evavo_reviewed_workstation_job_status. Callers cannot choose scripts, arguments, manifests, output paths, commands, network authority, or execution policy.",
     inputSchema: {
       type: "object",
       additionalProperties: false,
@@ -344,6 +354,34 @@ async function publishIssue(exactPlan) {
   return issueNumber;
 }
 
+async function submitReviewed(rawArgs) {
+  const args = asObject(rawArgs, "arguments");
+  const action = String(args.action || "").trim();
+  if (!ACTIONS.includes(action)) throw new Error("reviewed action is not allowlisted");
+  const authored = await authorReviewedAction(action);
+  const issueNumber = await publishIssue(authored);
+  return {
+    schemaVersion: 1,
+    kind: "evavo-reviewed-workstation-submission-v1",
+    ok: true,
+    terminal: false,
+    action,
+    issueNumber,
+    repository: authored.repository,
+    authoredRequestId: authored.plan.request?.requestId ?? null,
+    outerQueueJobIdBoundIntoProof: authored.plan.outerQueueJobIdBoundIntoProof === true,
+    callerSelectedScript: false,
+    callerSelectedArguments: false,
+    callerSelectedManifest: false,
+    callerSelectedOutputPath: false,
+    executionClaimed: false,
+    publicationPerformed: true,
+    followUpTool: "evavo_reviewed_workstation_job_status",
+    safeAutomaticReplay: false,
+    credentialValuesReturned: false,
+  };
+}
+
 async function waitForReceipt(repository, issueNumber, waitSeconds, pollSeconds) {
   const deadline = Date.now() + waitSeconds * 1000;
   while (Date.now() < deadline) {
@@ -378,21 +416,18 @@ async function waitForReceipt(repository, issueNumber, waitSeconds, pollSeconds)
 
 async function submitAndWait(rawArgs) {
   const args = asObject(rawArgs, "arguments");
-  const action = String(args.action || "").trim();
-  if (!ACTIONS.includes(action)) throw new Error("reviewed action is not allowlisted");
   const waitSeconds = Number.isInteger(args.waitSeconds) ? args.waitSeconds : DEFAULT_WAIT_SECONDS;
   const pollSeconds = Number.isInteger(args.pollSeconds) ? args.pollSeconds : DEFAULT_POLL_SECONDS;
   if (waitSeconds < 30 || waitSeconds > MAX_WAIT_SECONDS) throw new Error("waitSeconds is outside the reviewed bound");
   if (pollSeconds < 2 || pollSeconds > 30) throw new Error("pollSeconds is outside the reviewed bound");
-  const authored = await authorReviewedAction(action);
-  const issueNumber = await publishIssue(authored);
-  const result = await waitForReceipt(authored.repository, issueNumber, waitSeconds, pollSeconds);
+  const submission = await submitReviewed({ action: args.action });
+  const result = await waitForReceipt(submission.repository, submission.issueNumber, waitSeconds, pollSeconds);
   return {
     ...result,
-    action,
-    authoredRequestId: authored.plan.request?.requestId ?? null,
-    outerQueueJobIdBoundIntoProof: authored.plan.outerQueueJobIdBoundIntoProof === true,
-    authoredRequestMatchesReceiptJob: result.jobId ? result.jobId === authored.plan.request?.requestId : null,
+    action: submission.action,
+    authoredRequestId: submission.authoredRequestId,
+    outerQueueJobIdBoundIntoProof: submission.outerQueueJobIdBoundIntoProof,
+    authoredRequestMatchesReceiptJob: result.jobId ? result.jobId === submission.authoredRequestId : null,
     callerSelectedScript: false,
     callerSelectedArguments: false,
     callerSelectedManifest: false,
@@ -411,11 +446,16 @@ async function callTool(name, raw) {
       transport: "github-receipt-relay",
       primaryRemoteTransportMayBeCloudflareTypedRelay: true,
       localStorage4329UsedForImageExecution: false,
+      preferredLongRunningSequence: [
+        "evavo_reviewed_workstation_submit",
+        "evavo_reviewed_workstation_job_status",
+      ],
       callerMaySupplyScript: false,
       callerMaySupplyArguments: false,
       credentialValuesReturned: false,
     };
   }
+  if (name === "evavo_reviewed_workstation_submit") return submitReviewed(args);
   if (name === "evavo_reviewed_workstation_submit_and_wait") return submitAndWait(args);
   if (name === "evavo_reviewed_workstation_job_status") {
     if (!Number.isInteger(args.issueNumber) || args.issueNumber < 1) throw new Error("issueNumber is invalid");
@@ -449,7 +489,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.4.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.5.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
