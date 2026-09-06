@@ -13,7 +13,7 @@
       "2025-11-25",
       "2025-06-18"
     ],
-    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. For remote effectful workstation work use the EVAVO cloudflare-typed-relay when configured and healthy, with the GitHub receipt queue only as asynchronous fallback. Never use an external desktop-control product. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires explicit user intent, reviewed mode and an authoritative correlated receipt."
+    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. Use the Development Studio local capability planner for registered-repository specialist routing before falling back to generic execution. For remote effectful workstation work use the EVAVO cloudflare-typed-relay when configured and healthy, with the GitHub receipt queue only as asynchronous fallback. Never use an external desktop-control product. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires explicit user intent, reviewed mode and an authoritative correlated receipt."
   },
   "stableTools": [
     "evavo_capabilities",
@@ -103,6 +103,20 @@
       }
     },
     {
+      "id": "evavo-development-capability-planner",
+      "title": "EVAVO Development Capability Planner",
+      "authority": "EVAVO-STUDIO/evavo-development-studio",
+      "command": "node",
+      "arguments": [
+        "../evavo-development-studio/scripts/local-capability-fabric-mcp.mjs"
+      ],
+      "workingDirectory": ".",
+      "required": false,
+      "directExpose": false,
+      "readOnly": true,
+      "environment": {}
+    },
+    {
       "id": "evavo-database-provider-routing",
       "title": "EVAVO Database Provider Routing",
       "authority": "EVAVO-STUDIO/evavo-agent-infrastructure",
@@ -122,6 +136,7 @@
   "routing": {
     "preference": [
       "typed-child-mcp",
+      "development-capability-planner",
       "local-agent-receipt-route",
       "cloudflare-typed-relay",
       "github-receipt-relay"
