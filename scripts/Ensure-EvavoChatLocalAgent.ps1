@@ -17,8 +17,8 @@ $env:OS = 'Windows_NT'
 $AgentInfraRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
 $AcceptanceScript = Join-Path $PSScriptRoot 'Test-EvavoLocalAgentMcp043.ps1'
 $LocalStorageRoot = [IO.Path]::GetFullPath($LocalStorageRepo).TrimEnd('\')
-$RestDiagnosis = Join-Path $LocalStorageRoot 'scripts\Get-EvavoLocalAgentRestStartupDiagnosis043.ps1'
-$RestRepair = Join-Path $LocalStorageRoot 'REPAIR-EVAVO-LOCAL-AGENT-REST-043.ps1'
+$RestDiagnosis = Join-Path $LocalStorageRoot 'scripts\Get-EvavoLocalAgentRestManagedStartupDiagnosis043.ps1'
+$RestRepair = Join-Path $LocalStorageRoot 'REPAIR-EVAVO-LOCAL-AGENT-REST-MANAGED-043.ps1'
 $McpEstablishment = Join-Path $LocalStorageRoot 'START-EVAVO-LOCAL-AGENT-MCP-043.ps1'
 $NodeManager = Join-Path $LocalStorageRoot 'scripts\manage-autonomous-node.ps1'
 
@@ -98,12 +98,12 @@ if (-not $Initial.ok -and -not $NoRepair) {
     $CanonicalLocalRepairAttempted = $true
 
     $Diagnosis = Invoke-RestDiagnosis
-    $Steps.Add([pscustomobject]@{ step='rest-diagnosis'; ok=$Diagnosis.ok; exitCode=$Diagnosis.exitCode; authority='local-storage-local-agent-rest' })
+    $Steps.Add([pscustomobject]@{ step='rest-diagnosis'; ok=$Diagnosis.ok; exitCode=$Diagnosis.exitCode; authority='local-storage-managed-local-agent-rest' })
 
     $Rest = Invoke-RestRepair
-    $Steps.Add([pscustomobject]@{ step='rest-repair'; ok=$Rest.ok; exitCode=$Rest.exitCode; authority='local-storage-local-agent-rest' })
+    $Steps.Add([pscustomobject]@{ step='rest-repair'; ok=$Rest.ok; exitCode=$Rest.exitCode; authority='local-storage-managed-local-agent-rest' })
     if ($Rest.ok) { $RestReadyAfterRepair = Wait-LoopbackRest }
-    $Steps.Add([pscustomobject]@{ step='rest-loopback-wait'; ok=$RestReadyAfterRepair; exitCode=$(if($RestReadyAfterRepair){0}else{1}); authority='local-storage-local-agent-rest' })
+    $Steps.Add([pscustomobject]@{ step='rest-loopback-wait'; ok=$RestReadyAfterRepair; exitCode=$(if($RestReadyAfterRepair){0}else{1}); authority='local-storage-managed-local-agent-rest' })
 
     $McpRepair = Invoke-McpEstablishment
     $Steps.Add([pscustomobject]@{ step='mcp-establishment'; ok=$McpRepair.ok; exitCode=$McpRepair.exitCode; authority='local-storage-local-agent-mcp' })
@@ -112,9 +112,6 @@ if (-not $Initial.ok -and -not $NoRepair) {
     $Steps.Add([pscustomobject]@{ step='acceptance-after-canonical-local-repair'; ok=$Final.ok; exitCode=$Final.exitCode; authority='agent-infrastructure-acceptance' })
 
     if (-not $Final.ok) {
-        # Broader worker/queue recovery is a secondary dependency repair only. It is
-        # not the owner of the 4329 REST service and must never be treated as proof
-        # that Local Agent readiness was restored.
         $WorkerFallbackAttempted = $true
         $WorkerDiagnosis = Invoke-NodeManager -Action diagnose
         $Steps.Add([pscustomobject]@{ step='worker-diagnose-fallback'; ok=$WorkerDiagnosis.ok; exitCode=$WorkerDiagnosis.exitCode; authority='local-storage-zero-cost-worker-fabric' })
@@ -125,10 +122,10 @@ if (-not $Initial.ok -and -not $NoRepair) {
             $Steps.Add([pscustomobject]@{ step='worker-restart-fallback'; ok=$WorkerRestart.ok; exitCode=$WorkerRestart.exitCode; authority='local-storage-zero-cost-worker-fabric' })
         }
 
-        # Re-run the canonical Local Agent owners after dependency recovery. The
-        # worker fallback itself never establishes Local Agent readiness.
+        # Dependency recovery can advance the managed runtime. Always re-run the
+        # managed REST owner afterwards; worker recovery alone never proves 4329.
         $RestRetry = Invoke-RestRepair
-        $Steps.Add([pscustomobject]@{ step='rest-repair-after-worker-fallback'; ok=$RestRetry.ok; exitCode=$RestRetry.exitCode; authority='local-storage-local-agent-rest' })
+        $Steps.Add([pscustomobject]@{ step='rest-repair-after-worker-fallback'; ok=$RestRetry.ok; exitCode=$RestRetry.exitCode; authority='local-storage-managed-local-agent-rest' })
         $McpRetry = Invoke-McpEstablishment
         $Steps.Add([pscustomobject]@{ step='mcp-establishment-after-worker-fallback'; ok=$McpRetry.ok; exitCode=$McpRetry.exitCode; authority='local-storage-local-agent-mcp' })
         $Final = Invoke-Acceptance
@@ -137,9 +134,6 @@ if (-not $Initial.ok -and -not $NoRepair) {
     $Repaired = $Final.ok
 }
 
-# Worker automation is useful supporting health, but it is not an admission gate for
-# Chat Local Agent readiness. Keep it observable without conflating queue health with
-# current MCP/REST acceptance.
 $WorkerStatus = Invoke-NodeManager -Action status
 $Steps.Add([pscustomobject]@{ step='worker-status-observation'; ok=$WorkerStatus.ok; exitCode=$WorkerStatus.exitCode; authority='local-storage-zero-cost-worker-fabric'; admissionGate=$false })
 
@@ -151,7 +145,10 @@ $Receipt = [ordered]@{
     repairAttempted=[bool](-not $Initial.ok -and -not $NoRepair)
     noRepairRequested=[bool]$NoRepair
     canonicalLocalRepairAttempted=$CanonicalLocalRepairAttempted
-    canonicalRestRepairAuthority='REPAIR-EVAVO-LOCAL-AGENT-REST-043.ps1'
+    canonicalRestDiagnosisAuthority='Get-EvavoLocalAgentRestManagedStartupDiagnosis043.ps1'
+    canonicalRestRepairAuthority='REPAIR-EVAVO-LOCAL-AGENT-REST-MANAGED-043.ps1'
+    canonicalRestRuntime='zero-cost-updater-managed-current-main'
+    canonicalRestStableManagedPathRequired=$true
     canonicalMcpRepairAuthority='START-EVAVO-LOCAL-AGENT-MCP-043.ps1'
     workerRecoveryIsSecondaryFallback=$true
     workerFallbackAttempted=$WorkerFallbackAttempted
