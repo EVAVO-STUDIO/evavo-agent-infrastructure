@@ -318,7 +318,6 @@ export function readStrictJsonFile(filePath, options = {}) {
   }
 }
 
-
 const FRAGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}\.json$/u;
 
 function readRoutingFragment(directory, fragmentName, options) {
@@ -336,7 +335,7 @@ export function readRoutingConfigFile(filePath, options = {}) {
   exactKeys(
     rootDocument,
     ['schemaVersion', 'kind', 'canonical', 'clients', 'truthStates', 'policy', 'fragments'],
-    [],
+    ['supplementalProviderRouting', 'supplementalWorkstationInterop'],
     'EVAVO_AGENT_ROUTING_ROOT',
   );
   exactKeys(
@@ -367,6 +366,19 @@ export function readRoutingConfigFile(filePath, options = {}) {
     assert(Array.isArray(fragment), 'EVAVO_AGENT_ROUTING_ROUTE_FRAGMENT_TYPE', fragmentName);
     return fragment;
   });
-  const { fragments: _fragments, ...base } = rootDocument;
+
+  if (Object.hasOwn(rootDocument, 'supplementalProviderRouting')) {
+    readRoutingFragment(directory, rootDocument.supplementalProviderRouting, options);
+  }
+  if (Object.hasOwn(rootDocument, 'supplementalWorkstationInterop')) {
+    readRoutingFragment(directory, rootDocument.supplementalWorkstationInterop, options);
+  }
+
+  const {
+    fragments: _fragments,
+    supplementalProviderRouting: _supplementalProviderRouting,
+    supplementalWorkstationInterop: _supplementalWorkstationInterop,
+    ...base
+  } = rootDocument;
   return { ...base, authorities, transports, routes };
 }
