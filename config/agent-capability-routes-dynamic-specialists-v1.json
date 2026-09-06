@@ -1,0 +1,34 @@
+[
+  {
+    "id": "capability-specialist-discovery",
+    "capability": "capability.specialist-discovery",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Resolve the current EVAVO specialist authority candidates for an objective through The Brain's live-first capability-estate reasoning. This route distinguishes source capability, lifecycle role, canonical ownership, configured routing, runtime readiness and authority. It is planning/read-only and never grants write, execute, control or publication authority from repository visibility or manifest claims.",
+    "strategies": [
+      {
+        "id": "capability-specialist-discovery-local-mcp",
+        "authority": "brain",
+        "transport": "local-specialist-mcp",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "capability-specialist-discovery-workstation-bridge",
+        "authority": "brain",
+        "transport": "structured-workstation-bridge",
+        "clients": ["claude-code", "codex", "api-agent"],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "capability-specialist-discovery-secure-tunnel",
+        "authority": "brain",
+        "transport": "openai-secure-mcp-tunnel",
+        "clients": ["chatgpt-pro"],
+        "minimumState": "transport_online"
+      }
+    ]
+  }
+]
