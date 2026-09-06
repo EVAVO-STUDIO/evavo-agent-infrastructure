@@ -50,8 +50,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and remains zero-cost/structured-only', () => {
-  assert.equal(validatedRouting.routeCount, 25);
-  assert.equal(validatedRouting.strategyCount, 98);
+  assert.equal(validatedRouting.routeCount, 26);
+  assert.equal(validatedRouting.strategyCount, 101);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -66,6 +66,27 @@ test('canonical routing config validates and remains zero-cost/structured-only',
       assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-local-compute');
     }
   }
+});
+
+test('Brain specialist discovery is read-only and available to ChatGPT without inventing execution authority', () => {
+  const route = configDocument.routes.find((candidate) => candidate.capability === 'capability.specialist-discovery');
+  assert.ok(route);
+  assert.equal(route.requestedEffect, 'read');
+  assert.equal(route.physicalState, null);
+  assert.ok(route.strategies.length >= 1);
+  assert.ok(route.strategies.every((strategy) => strategy.authority === 'brain'));
+
+  const result = plan(status({
+    requestedCapabilities: ['capability.specialist-discovery'],
+    evidence: [evidence('capability-specialist-discovery-secure-tunnel', 'transport_online')],
+  }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'capability-specialist-discovery-secure-tunnel');
+  assert.equal(decision.selected.authority, 'brain');
+  assert.equal(decision.selected.transport, 'openai-secure-mcp-tunnel');
+  assert.equal(result.authority.execution, false);
+  assert.equal(result.authority.mutation, false);
 });
 
 test('ChatGPT browser pixel inspection prefers Computer Agent Visual Review', () => {
