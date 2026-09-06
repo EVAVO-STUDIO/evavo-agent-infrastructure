@@ -8,9 +8,10 @@ const source = fs.readFileSync(path.join(root, 'scripts', 'Ensure-EvavoChatLocal
 for (const needle of [
   "Get-EvavoLocalAgentRestManagedStartupDiagnosis043.ps1",
   "REPAIR-EVAVO-LOCAL-AGENT-REST-MANAGED-043.ps1",
-  "START-EVAVO-LOCAL-AGENT-MCP-043.ps1",
+  "START-EVAVO-LOCAL-AGENT-MCP-MANAGED-043.ps1",
   "canonicalRestRuntime='zero-cost-updater-managed-current-main'",
   "canonicalRestStableManagedPathRequired=$true",
+  "canonicalMcpRestRebindRequired=$true",
   "workerRecoveryIsSecondaryFallback=$true",
   "workerAutomationHealthIsNotLocalAgentAdmissionGate=$true",
   "workerRepairAloneCanProveLocalAgentReady=$false",
@@ -37,7 +38,7 @@ for (const needle of [
   "step='mcp-establishment-after-worker-fallback'",
   "step='acceptance-after-worker-fallback'",
   "authority='local-storage-managed-local-agent-rest'",
-  "authority='local-storage-local-agent-mcp'",
+  "authority='local-storage-managed-local-agent-mcp'",
   "authority='local-storage-zero-cost-worker-fabric'",
 ]) {
   if (!source.includes(needle)) throw new Error(`CHAT_LOCAL_AGENT_RECOVERY_SEQUENCE_MISSING:${needle}`);
@@ -52,6 +53,9 @@ if (source.includes("ok=[bool]($Final.ok -and $Status.ok)")) {
 if (source.includes("Join-Path $LocalStorageRoot 'REPAIR-EVAVO-LOCAL-AGENT-REST-043.ps1'")) {
   throw new Error('CHAT_LOCAL_AGENT_MUST_NOT_USE_DEVELOPER_CHECKOUT_REST_REPAIR_AS_CANONICAL_AUTHORITY');
 }
+if (source.includes("Join-Path $LocalStorageRoot 'START-EVAVO-LOCAL-AGENT-MCP-043.ps1'")) {
+  throw new Error('CHAT_LOCAL_AGENT_MUST_NOT_USE_CHECKOUT_RELATIVE_MCP_ESTABLISHMENT_AS_CANONICAL_AUTHORITY');
+}
 
 const repairAfterWorker = source.indexOf("step='rest-repair-after-worker-fallback'");
 const workerRepair = source.indexOf("step='worker-repair-fallback'");
@@ -61,13 +65,15 @@ if (!(workerRepair >= 0 && repairAfterWorker > workerRepair && acceptanceAfterWo
 }
 
 console.log(JSON.stringify({
-  schemaVersion: 3,
+  schemaVersion: 4,
   kind: 'evavo-chat-local-agent-recovery-routing-contract-check-v1',
   ok: true,
   canonicalRestRepairFirst: true,
   canonicalRestUsesStableManagedRuntime: true,
   developerCheckoutRestRepairCanonical: false,
-  canonicalMcpEstablishmentFirst: true,
+  canonicalMcpUsesManagedWrapper: true,
+  checkoutRelativeMcpCanonical: false,
+  canonicalMcpRestRebindRequired: true,
   workerRecoverySecondaryOnly: true,
   canonicalRestRepairRequiredAfterWorkerFallback: true,
   canonicalMcpEstablishmentRequiredAfterWorkerFallback: true,
