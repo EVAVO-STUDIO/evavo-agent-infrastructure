@@ -10,6 +10,9 @@ const MAX_ISSUE_BODY_BYTES = 256 * 1024;
 const DEFAULT_WAIT_SECONDS = 3600;
 const MAX_WAIT_SECONDS = 3900;
 const DEFAULT_POLL_SECONDS = 5;
+const IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3";
+const IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3";
+const HEX64 = /^[0-9a-f]{64}$/u;
 const ACTIONS = Object.freeze([
   "resident-status",
   "image-smoke-cel-animation",
@@ -66,9 +69,7 @@ function reviewedActionAuthor() {
         path.join(root, ".venv", "Scripts", "evavo-reviewed-workstation-actions.exe"),
         path.join(root, ".venv", "Scripts", "evavo-reviewed-workstation-actions"),
       ]
-    : [
-        path.join(root, ".venv", "bin", "evavo-reviewed-workstation-actions"),
-      ];
+    : [path.join(root, ".venv", "bin", "evavo-reviewed-workstation-actions")];
   for (const candidate of candidates) {
     if (!existsSync(candidate)) continue;
     const stat = statSync(candidate);
@@ -128,8 +129,77 @@ function parseJsonReceiptText(text) {
   return null;
 }
 
-function classifyReceipt(receipt) {
+function parseImageProof(output) {
+  if (typeof output !== "string" || !output.trim()) return null;
+  let value;
+  try {
+    value = JSON.parse(output.trim());
+  } catch {
+    return null;
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  if (value.kind !== IMAGE_PROOF_KIND || value.receiptContract !== IMAGE_PROOF_CONTRACT) return null;
+  return value;
+}
+
+function imageProofCorrelation(receipt, proof) {
+  if (!proof) return null;
+  const outerJobId = String(receipt?.jobId ?? "");
+  const outerScriptSha256 = String(receipt?.scriptSha256 ?? "").toLowerCase();
+  const producerScriptSha256 = String(proof.producerScriptSha256 ?? "").toLowerCase();
+  const outerJobIdMatches = Boolean(outerJobId) && proof.outerQueueJobId === outerJobId;
+  const producerScriptSha256Matches = HEX64.test(outerScriptSha256)
+    && HEX64.test(producerScriptSha256)
+    && producerScriptSha256 === outerScriptSha256;
+  const evidenceHashesPresent = [
+    proof.manifestSha256,
+    proof.requestSha256,
+    proof.innerReceiptSha256,
+    proof.batchReceiptSha256,
+    proof.terminalReceiptSha256,
+    proof.receiptDigestSha256,
+  ].every((value) => HEX64.test(String(value ?? "").toLowerCase()));
+  const proofAuthorityValid = proof.outerQueueJobIdentityBound === true
+    && proof.singleFilePhysicalProof === true
+    && proof.dynamicChildScriptLoaded === false
+    && proof.gitSha1ChildDependency === false
+    && proof.safeAutomaticReplay === false
+    && proof.creativeApprovalGranted === false
+    && proof.modelPromotionGranted === false
+    && proof.publicationGranted === false
+    && proof.repositoryMutationGranted === false;
+  const technicalVerified = proof.technicalArtifactVerified === true && proof.postconditionVerified === true;
+  const correlated = outerJobIdMatches
+    && producerScriptSha256Matches
+    && evidenceHashesPresent
+    && proofAuthorityValid
+    && technicalVerified;
+  return {
+    correlated,
+    outerJobIdMatches,
+    producerScriptSha256Matches,
+    evidenceHashesPresent,
+    proofAuthorityValid,
+    technicalVerified,
+    outerJobId,
+    outerJobSha256: receipt?.jobSha256 ?? null,
+    outerRequestSha256: receipt?.requestSha256 ?? null,
+    producerScriptSha256: proof.producerScriptSha256 ?? null,
+    manifestSha256: proof.manifestSha256 ?? null,
+    innerRequestId: proof.requestId ?? null,
+    innerRequestSha256: proof.requestSha256 ?? null,
+    innerReceiptSha256: proof.innerReceiptSha256 ?? null,
+    batchReceiptSha256: proof.batchReceiptSha256 ?? null,
+    terminalReceiptSha256: proof.terminalReceiptSha256 ?? null,
+    proofReceiptDigestSha256: proof.receiptDigestSha256 ?? null,
+    physicalEffectState: proof.physicalEffectState ?? null,
+    reconciliationRequired: proof.reconciliationRequired ?? null,
+  };
+}
+
+function classifyReceipt(receipt, proofCorrelation = null) {
   if (!receipt) return "receipt-missing";
+  if (proofCorrelation && proofCorrelation.correlated !== true) return "image-proof-correlation-failed";
   if (receipt.executionAttempted === false) return receipt.outcome === "blocked" ? "admission-or-policy" : "pre-execution";
   if (receipt.execution?.timedOut === true) return "timeout";
   if (Number.isInteger(receipt.execution?.exitCode) && receipt.execution.exitCode !== 0) return "process-exit";
@@ -140,12 +210,20 @@ function classifyReceipt(receipt) {
 
 function normalizeReceipt(receipt, issueNumber) {
   const execution = receipt && typeof receipt.execution === "object" && receipt.execution ? receipt.execution : {};
+  const imageProof = parseImageProof(receipt?.output);
+  const correlation = imageProofCorrelation(receipt, imageProof);
+  const outerOk = receipt?.ok === true && receipt?.status === "completed";
+  const imageProofRequired = imageProof !== null;
+  const imageProofOk = !imageProofRequired || correlation?.correlated === true;
   return {
-    schemaVersion: 1,
-    kind: "evavo-reviewed-workstation-session-result-v1",
-    ok: receipt?.ok === true && receipt?.status === "completed",
+    schemaVersion: 2,
+    kind: "evavo-reviewed-workstation-session-result-v2",
+    ok: outerOk && imageProofOk,
     issueNumber,
     jobId: receipt?.jobId ?? null,
+    jobSha256: receipt?.jobSha256 ?? null,
+    scriptSha256: receipt?.scriptSha256 ?? null,
+    requestSha256: receipt?.requestSha256 ?? null,
     terminal: receipt?.terminal === true,
     status: receipt?.status ?? null,
     outcome: receipt?.outcome ?? null,
@@ -156,7 +234,20 @@ function normalizeReceipt(receipt, issueNumber) {
     reconciliationRequired: receipt?.reconciliationRequired ?? null,
     safeAutomaticReplay: receipt?.safeAutomaticReplay ?? null,
     sideEffectMayHaveCommitted: receipt?.sideEffectMayHaveCommitted ?? null,
-    failureClass: classifyReceipt(receipt),
+    imageProofPresent: imageProofRequired,
+    imageProofCorrelation: correlation,
+    imageProof: imageProof ? {
+      kind: imageProof.kind,
+      receiptContract: imageProof.receiptContract,
+      status: imageProof.status ?? null,
+      phase: imageProof.phase ?? null,
+      preset: imageProof.preset ?? null,
+      technicalArtifactVerified: imageProof.technicalArtifactVerified === true,
+      postconditionVerified: imageProof.postconditionVerified === true,
+      terminalReceiptPersisted: imageProof.terminalReceiptPersisted === true,
+      singleFilePhysicalProof: imageProof.singleFilePhysicalProof === true,
+    } : null,
+    failureClass: classifyReceipt(receipt, correlation),
     rawReceipt: receipt,
     credentialValuesReturned: false,
   };
@@ -221,8 +312,8 @@ async function waitForReceipt(repository, issueNumber, waitSeconds, pollSeconds)
     if (receipt) return normalizeReceipt(receipt, issueNumber);
     if (issue.state === "CLOSED") {
       return {
-        schemaVersion: 1,
-        kind: "evavo-reviewed-workstation-session-result-v1",
+        schemaVersion: 2,
+        kind: "evavo-reviewed-workstation-session-result-v2",
         ok: false,
         issueNumber,
         terminal: true,
@@ -234,8 +325,8 @@ async function waitForReceipt(repository, issueNumber, waitSeconds, pollSeconds)
     await new Promise((resolve) => setTimeout(resolve, pollSeconds * 1000));
   }
   return {
-    schemaVersion: 1,
-    kind: "evavo-reviewed-workstation-session-result-v1",
+    schemaVersion: 2,
+    kind: "evavo-reviewed-workstation-session-result-v2",
     ok: false,
     issueNumber,
     terminal: false,
@@ -262,6 +353,7 @@ async function submitAndWait(rawArgs) {
     action,
     authoredRequestId: authored.plan.request?.requestId ?? null,
     outerQueueJobIdBoundIntoProof: authored.plan.outerQueueJobIdBoundIntoProof === true,
+    authoredRequestMatchesReceiptJob: result.jobId ? result.jobId === authored.plan.request?.requestId : null,
     callerSelectedScript: false,
     callerSelectedArguments: false,
     callerSelectedManifest: false,
@@ -291,8 +383,8 @@ async function callTool(name, raw) {
     const { issue, receipt } = await readIssue("EVAVO-STUDIO/evavo-local-compute", args.issueNumber);
     if (receipt) return normalizeReceipt(receipt, args.issueNumber);
     return {
-      schemaVersion: 1,
-      kind: "evavo-reviewed-workstation-session-result-v1",
+      schemaVersion: 2,
+      kind: "evavo-reviewed-workstation-session-result-v2",
       ok: false,
       issueNumber: args.issueNumber,
       terminal: issue.state === "CLOSED",
@@ -318,7 +410,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.0.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.1.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
