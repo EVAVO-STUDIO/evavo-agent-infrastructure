@@ -7,6 +7,7 @@ import { createInterface } from "node:readline";
 const PROTOCOL_VERSION = "2024-11-05";
 const MAX_OUTPUT_BYTES = 8 * 1024 * 1024;
 const MAX_ISSUE_BODY_BYTES = 256 * 1024;
+const MAX_ISSUE_PUBLICATION_BYTES = MAX_ISSUE_BODY_BYTES + 16 * 1024;
 const DEFAULT_WAIT_SECONDS = 3600;
 const MAX_WAIT_SECONDS = 3900;
 const DEFAULT_POLL_SECONDS = 5;
@@ -79,12 +80,12 @@ function reviewedActionAuthor() {
   throw new Error("Local Compute reviewed-workstation action author is unavailable in the managed .venv");
 }
 
-function runFile(executable, args, timeoutMs = 30_000) {
+function runFile(executable, args, timeoutMs = 30_000, stdinText = null) {
   return new Promise((resolve, reject) => {
     const env = { ...process.env, GH_PROMPT_DISABLED: "1" };
     delete env.GH_DEBUG;
     delete env.DEBUG;
-    execFile(
+    const child = execFile(
       executable,
       args,
       { windowsHide: true, timeout: timeoutMs, maxBuffer: MAX_OUTPUT_BYTES, env },
@@ -96,11 +97,13 @@ function runFile(executable, args, timeoutMs = 30_000) {
         resolve(String(stdout || ""));
       },
     );
+    if (stdinText === null) child.stdin?.end();
+    else child.stdin?.end(String(stdinText), "utf8");
   });
 }
 
-async function runGh(args, timeoutMs = 30_000) {
-  return runFile(process.platform === "win32" ? "gh.exe" : "gh", args, timeoutMs);
+async function runGh(args, timeoutMs = 30_000, stdinText = null) {
+  return runFile(process.platform === "win32" ? "gh.exe" : "gh", args, timeoutMs, stdinText);
 }
 
 function parseObject(text, label) {
@@ -327,12 +330,15 @@ async function authorReviewedAction(action) {
 }
 
 async function publishIssue(exactPlan) {
-  const created = await runGh([
-    "api", "-X", "POST", `repos/${exactPlan.repository}/issues`,
-    "-f", `title=${exactPlan.title}`,
-    "-f", `body=${exactPlan.body}`,
-    "--jq", ".number",
-  ]);
+  const payload = JSON.stringify({ title: exactPlan.title, body: exactPlan.body });
+  if (Buffer.byteLength(payload, "utf8") > MAX_ISSUE_PUBLICATION_BYTES) {
+    throw new Error("reviewed action issue publication payload is too large");
+  }
+  const created = await runGh(
+    ["api", "-X", "POST", `repos/${exactPlan.repository}/issues`, "--input", "-", "--jq", ".number"],
+    30_000,
+    payload,
+  );
   const issueNumber = Number(created.trim());
   if (!Number.isInteger(issueNumber) || issueNumber < 1) throw new Error("reviewed action issue creation returned no issue number");
   return issueNumber;
@@ -443,7 +449,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.3.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.4.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
