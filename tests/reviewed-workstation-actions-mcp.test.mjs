@@ -18,6 +18,7 @@ test('reviewed workstation MCP exposes only fixed action selection plus receipt 
   ]) assert.match(source, new RegExp(`"${action}"`));
 
   assert.match(source, /name: "evavo_reviewed_workstation_actions"/);
+  assert.match(source, /name: "evavo_reviewed_workstation_submit"/);
   assert.match(source, /name: "evavo_reviewed_workstation_submit_and_wait"/);
   assert.match(source, /name: "evavo_reviewed_workstation_job_status"/);
   assert.doesNotMatch(source, /callerScript/);
@@ -48,9 +49,19 @@ test('publisher sends exact authored title/body over bounded stdin and never exp
   assert.match(source, /safeAutomaticReplay: false/);
 });
 
-test('heavy image jobs have a dedicated wait bound without widening generic fabric execution', () => {
-  assert.match(source, /MAX_WAIT_SECONDS = 3900/);
-  assert.match(source, /DEFAULT_WAIT_SECONDS = 3600/);
+test('long image jobs use submit plus status instead of widening the unified child call timeout', () => {
+  assert.match(source, /DEFAULT_WAIT_SECONDS = 90/);
+  assert.match(source, /MAX_WAIT_SECONDS = 110/);
+  assert.match(source, /kind: "evavo-reviewed-workstation-submission-v1"/);
+  assert.match(source, /followUpTool: "evavo_reviewed_workstation_job_status"/);
+  assert.match(source, /preferredLongRunningSequence/);
+  assert.match(source, /"evavo_reviewed_workstation_submit"/);
+  assert.match(source, /"evavo_reviewed_workstation_job_status"/);
+  const unifiedServer = fs.readFileSync(path.join(root, 'mcp-server', 'chatgpt-unified-capability-mcp.mjs'), 'utf8');
+  assert.match(unifiedServer, /return this\.request\("tools\/call", \{ name: toolName, arguments: argumentsValue \}, 120_000\)/);
+});
+
+test('generic workstation fabric execution stays tightly bounded', () => {
   const generic = fs.readFileSync(path.join(root, 'mcp-server', 'local-agent-mcp-v2.mjs'), 'utf8');
   assert.match(generic, /request\.timeoutSeconds > 900/);
   assert.match(generic, /maximum: 1200/);
