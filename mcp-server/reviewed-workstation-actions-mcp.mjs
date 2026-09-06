@@ -130,21 +130,43 @@ function parseJsonReceiptText(text) {
   return null;
 }
 
-function parseImageProof(output) {
-  if (typeof output !== "string" || !output.trim()) return null;
+function imageProofState(output) {
+  if (typeof output !== "string" || !output.trim()) {
+    return { claimed: false, valid: false, proof: null, reason: null };
+  }
+  const raw = output.trim();
+  const markerClaimed = raw.includes(IMAGE_PROOF_KIND);
   let value;
   try {
-    value = JSON.parse(output.trim());
+    value = JSON.parse(raw);
   } catch {
-    return null;
+    return {
+      claimed: markerClaimed,
+      valid: false,
+      proof: null,
+      reason: markerClaimed ? "image-proof-json-invalid" : null,
+    };
   }
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  if (
-    value.kind !== IMAGE_PROOF_KIND
-    || value.proofContract !== IMAGE_PROOF_CONTRACT
-    || value.receiptContract !== IMAGE_CHILD_RECEIPT_CONTRACT
-  ) return null;
-  return value;
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {
+      claimed: markerClaimed,
+      valid: false,
+      proof: null,
+      reason: markerClaimed ? "image-proof-object-invalid" : null,
+    };
+  }
+  const claimed = value.kind === IMAGE_PROOF_KIND || markerClaimed;
+  if (!claimed) return { claimed: false, valid: false, proof: null, reason: null };
+  if (value.kind !== IMAGE_PROOF_KIND) {
+    return { claimed: true, valid: false, proof: null, reason: "image-proof-kind-invalid" };
+  }
+  if (value.proofContract !== IMAGE_PROOF_CONTRACT) {
+    return { claimed: true, valid: false, proof: null, reason: "image-proof-contract-invalid" };
+  }
+  if (value.receiptContract !== IMAGE_CHILD_RECEIPT_CONTRACT) {
+    return { claimed: true, valid: false, proof: null, reason: "image-proof-child-receipt-contract-invalid" };
+  }
+  return { claimed: true, valid: true, proof: value, reason: null };
 }
 
 function imageProofCorrelation(receipt, proof) {
@@ -202,8 +224,9 @@ function imageProofCorrelation(receipt, proof) {
   };
 }
 
-function classifyReceipt(receipt, proofCorrelation = null) {
+function classifyReceipt(receipt, proofCorrelation = null, proofState = null) {
   if (!receipt) return "receipt-missing";
+  if (proofState?.claimed === true && proofState.valid !== true) return proofState.reason || "image-proof-identity-invalid";
   if (proofCorrelation && proofCorrelation.correlated !== true) return "image-proof-correlation-failed";
   if (receipt.executionAttempted === false) return receipt.outcome === "blocked" ? "admission-or-policy" : "pre-execution";
   if (receipt.execution?.timedOut === true) return "timeout";
@@ -215,11 +238,12 @@ function classifyReceipt(receipt, proofCorrelation = null) {
 
 function normalizeReceipt(receipt, issueNumber) {
   const execution = receipt && typeof receipt.execution === "object" && receipt.execution ? receipt.execution : {};
-  const imageProof = parseImageProof(receipt?.output);
+  const proofState = imageProofState(receipt?.output);
+  const imageProof = proofState.proof;
   const correlation = imageProofCorrelation(receipt, imageProof);
   const outerOk = receipt?.ok === true && receipt?.status === "completed";
-  const imageProofRequired = imageProof !== null;
-  const imageProofOk = !imageProofRequired || correlation?.correlated === true;
+  const imageProofRequired = proofState.claimed === true;
+  const imageProofOk = !imageProofRequired || (proofState.valid === true && correlation?.correlated === true);
   return {
     schemaVersion: 2,
     kind: "evavo-reviewed-workstation-session-result-v2",
@@ -239,7 +263,10 @@ function normalizeReceipt(receipt, issueNumber) {
     reconciliationRequired: receipt?.reconciliationRequired ?? null,
     safeAutomaticReplay: receipt?.safeAutomaticReplay ?? null,
     sideEffectMayHaveCommitted: receipt?.sideEffectMayHaveCommitted ?? null,
-    imageProofPresent: imageProofRequired,
+    imageProofClaimed: proofState.claimed,
+    imageProofValid: proofState.valid,
+    imageProofValidationFailure: proofState.reason,
+    imageProofPresent: imageProof !== null,
     imageProofCorrelation: correlation,
     imageProof: imageProof ? {
       kind: imageProof.kind,
@@ -253,7 +280,7 @@ function normalizeReceipt(receipt, issueNumber) {
       terminalReceiptPersisted: imageProof.terminalReceiptPersisted === true,
       singleFilePhysicalProof: imageProof.singleFilePhysicalProof === true,
     } : null,
-    failureClass: classifyReceipt(receipt, correlation),
+    failureClass: classifyReceipt(receipt, correlation, proofState),
     rawReceipt: receipt,
     credentialValuesReturned: false,
   };
@@ -416,7 +443,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.2.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.3.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
