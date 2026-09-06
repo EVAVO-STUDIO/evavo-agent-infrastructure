@@ -41,6 +41,19 @@ test("canonical registration launches schema 2 through the compatibility entrypo
     "mcp-server/chatgpt-unified-capability-entry.mjs",
   ]);
 
+  const planner = config.servers.find(
+    (server) => server.id === "evavo-development-capability-planner",
+  );
+  assert.ok(planner, "Development Studio capability planner must remain admitted");
+  assert.equal(planner.authority, "EVAVO-STUDIO/evavo-development-studio");
+  assert.equal(planner.required, false);
+  assert.equal(planner.directExpose, false);
+  assert.equal(planner.readOnly, true);
+  assert.deepEqual(planner.arguments, [
+    "../evavo-development-studio/scripts/local-capability-fabric-mcp.mjs",
+  ]);
+  assert.equal(config.routing.preference[1], "development-capability-planner");
+
   const child = spawn(process.execPath, [ENTRY], {
     cwd: ROOT,
     env: {
