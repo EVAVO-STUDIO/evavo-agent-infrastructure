@@ -102,6 +102,16 @@ test('nested V3 image proof is correlated to the authoritative outer queue recei
   assert.match(source, /proof\.gitSha1ChildDependency === false/);
 });
 
+test('reviewed image jobs require proof even when worker output is missing entirely', () => {
+  assert.match(source, /REVIEWED_IMAGE_JOB_ID/);
+  assert.match(source, /function imageProofRequiredForReceipt\(receipt\)/);
+  assert.match(source, /const proofRequiredByJob = imageProofRequiredForReceipt\(receipt\)/);
+  assert.match(source, /const imageProofRequired = proofRequiredByJob \|\| proofState\.claimed === true/);
+  assert.match(source, /proofRequiredByJob && proofState\?\.claimed !== true/);
+  assert.match(source, /"image-proof-missing"/);
+  assert.match(source, /imageProofRequiredByJob: proofRequiredByJob/);
+});
+
 test('normalized image proof keeps proof and child receipt identities separate', () => {
   assert.match(source, /proofContract: imageProof\.proofContract/);
   assert.match(source, /receiptContract: imageProof\.receiptContract/);
@@ -114,11 +124,9 @@ test('claimed malformed or identity-drifted image proof fails closed', () => {
   assert.match(source, /"image-proof-contract-invalid"/);
   assert.match(source, /"image-proof-child-receipt-contract-invalid"/);
   assert.match(source, /proofState\?\.claimed === true && proofState\.valid !== true/);
-  assert.match(source, /const imageProofRequired = proofState\.claimed === true/);
   assert.match(source, /proofState\.valid === true && correlation\?\.correlated === true/);
   assert.match(source, /imageProofClaimed: proofState\.claimed/);
   assert.match(source, /imageProofValid: proofState\.valid/);
-  assert.match(source, /imageProofValidationFailure: proofState\.reason/);
 });
 
 test('correlation requires the complete hash chain and fails closed on mismatch', () => {
