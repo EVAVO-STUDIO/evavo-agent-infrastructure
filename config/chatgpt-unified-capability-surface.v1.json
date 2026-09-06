@@ -13,7 +13,12 @@
       "2025-11-25",
       "2025-06-18"
     ],
-    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. Use the Development Studio local capability planner for registered-repository specialist routing before falling back to generic execution. For fixed reviewed workstation work, including governed local image smoke proofs, prefer the reviewed workstation actions MCP so callers never select scripts, arguments, manifests or output paths. For remote effectful workstation work use the EVAVO cloudflare-typed-relay when configured and healthy, with the GitHub receipt queue only as asynchronous fallback. Never use an external desktop-control product. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires explicit user intent, reviewed mode and an authoritative correlated receipt."
+    "instructions": "Use evavo_capabilities before saying an EVAVO or workstation capability is unavailable. Prefer a directly exposed typed tool when present; otherwise use evavo_capability_invoke with an admitted capability ID. Use the Development Studio local capability planner for registered-repository specialist routing before falling back to generic execution. For fixed reviewed workstation work, including governed local image smoke proofs, prefer the reviewed workstation actions MCP so callers never select scripts, arguments, manifests or output paths. For long-running reviewed image work use evavo_reviewed_workstation_submit first, retain its issueNumber/request identity, then call evavo_reviewed_workstation_job_status until an authoritative terminal receipt is available; do not resubmit merely because an interactive wait ended. The submit_and_wait tool is only a bounded convenience path. For remote effectful workstation work use the EVAVO cloudflare-typed-relay when configured and healthy, with the GitHub receipt queue as asynchronous fallback. Never use an external desktop-control product. Never invent capability IDs, commands, executable paths or evidence. Effectful work requires explicit user intent, reviewed mode and an authoritative correlated receipt.",
+    "reviewedImageSequence": [
+      "evavo_reviewed_workstation_submit",
+      "evavo_reviewed_workstation_job_status"
+    ],
+    "reviewedImageAutomaticResubmitAllowed": false
   },
   "stableTools": [
     "evavo_capabilities",
