@@ -74,7 +74,10 @@ test('reviewed image route explicitly stays out of Local Storage 4329', () => {
 test('nested V3 image proof is correlated to the authoritative outer queue receipt', () => {
   assert.match(source, /IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3"/);
   assert.match(source, /IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3"/);
+  assert.match(source, /IMAGE_CHILD_RECEIPT_CONTRACT = "evavo-sha-bound-child-receipt-v1"/);
   assert.match(source, /function parseImageProof\(output\)/);
+  assert.match(source, /value\.proofContract !== IMAGE_PROOF_CONTRACT/);
+  assert.match(source, /value\.receiptContract !== IMAGE_CHILD_RECEIPT_CONTRACT/);
   assert.match(source, /function imageProofCorrelation\(receipt, proof\)/);
   assert.match(source, /proof\.outerQueueJobId === outerJobId/);
   assert.match(source, /producerScriptSha256 === outerScriptSha256/);
@@ -82,6 +85,12 @@ test('nested V3 image proof is correlated to the authoritative outer queue recei
   assert.match(source, /proof\.singleFilePhysicalProof === true/);
   assert.match(source, /proof\.dynamicChildScriptLoaded === false/);
   assert.match(source, /proof\.gitSha1ChildDependency === false/);
+});
+
+test('normalized image proof keeps proof and child receipt identities separate', () => {
+  assert.match(source, /proofContract: imageProof\.proofContract/);
+  assert.match(source, /receiptContract: imageProof\.receiptContract/);
+  assert.doesNotMatch(source, /value\.receiptContract !== IMAGE_PROOF_CONTRACT/);
 });
 
 test('correlation requires the complete hash chain and fails closed on mismatch', () => {
