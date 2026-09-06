@@ -75,7 +75,7 @@ test('nested V3 image proof is correlated to the authoritative outer queue recei
   assert.match(source, /IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3"/);
   assert.match(source, /IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3"/);
   assert.match(source, /IMAGE_CHILD_RECEIPT_CONTRACT = "evavo-sha-bound-child-receipt-v1"/);
-  assert.match(source, /function parseImageProof\(output\)/);
+  assert.match(source, /function imageProofState\(output\)/);
   assert.match(source, /value\.proofContract !== IMAGE_PROOF_CONTRACT/);
   assert.match(source, /value\.receiptContract !== IMAGE_CHILD_RECEIPT_CONTRACT/);
   assert.match(source, /function imageProofCorrelation\(receipt, proof\)/);
@@ -93,6 +93,19 @@ test('normalized image proof keeps proof and child receipt identities separate',
   assert.doesNotMatch(source, /value\.receiptContract !== IMAGE_PROOF_CONTRACT/);
 });
 
+test('claimed malformed or identity-drifted image proof fails closed', () => {
+  assert.match(source, /const markerClaimed = raw\.includes\(IMAGE_PROOF_KIND\)/);
+  assert.match(source, /"image-proof-json-invalid"/);
+  assert.match(source, /"image-proof-contract-invalid"/);
+  assert.match(source, /"image-proof-child-receipt-contract-invalid"/);
+  assert.match(source, /proofState\?\.claimed === true && proofState\.valid !== true/);
+  assert.match(source, /const imageProofRequired = proofState\.claimed === true/);
+  assert.match(source, /proofState\.valid === true && correlation\?\.correlated === true/);
+  assert.match(source, /imageProofClaimed: proofState\.claimed/);
+  assert.match(source, /imageProofValid: proofState\.valid/);
+  assert.match(source, /imageProofValidationFailure: proofState\.reason/);
+});
+
 test('correlation requires the complete hash chain and fails closed on mismatch', () => {
   for (const field of [
     'manifestSha256',
@@ -103,7 +116,6 @@ test('correlation requires the complete hash chain and fails closed on mismatch'
     'receiptDigestSha256',
   ]) assert.match(source, new RegExp(`proof\\.${field}`));
   assert.match(source, /return "image-proof-correlation-failed"/);
-  assert.match(source, /const imageProofOk = !imageProofRequired \|\| correlation\?\.correlated === true/);
   assert.match(source, /ok: outerOk && imageProofOk/);
   assert.match(source, /authoredRequestMatchesReceiptJob/);
 });
