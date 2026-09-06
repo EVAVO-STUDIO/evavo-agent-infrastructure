@@ -14,6 +14,7 @@ const DEFAULT_POLL_SECONDS = 5;
 const IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3";
 const IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3";
 const IMAGE_CHILD_RECEIPT_CONTRACT = "evavo-sha-bound-child-receipt-v1";
+const REVIEWED_IMAGE_JOB_ID = /^reviewed-image-smoke-(?:cel-animation|90s-game-art|realistic)-[a-z0-9._-]+$/u;
 const HEX64 = /^[0-9a-f]{64}$/u;
 const ACTIONS = Object.freeze([
   "resident-status",
@@ -182,6 +183,10 @@ function imageProofState(output) {
   return { claimed: true, valid: true, proof: value, reason: null };
 }
 
+function imageProofRequiredForReceipt(receipt) {
+  return REVIEWED_IMAGE_JOB_ID.test(String(receipt?.jobId ?? ""));
+}
+
 function imageProofCorrelation(receipt, proof) {
   if (!proof) return null;
   const outerJobId = String(receipt?.jobId ?? "");
@@ -237,8 +242,9 @@ function imageProofCorrelation(receipt, proof) {
   };
 }
 
-function classifyReceipt(receipt, proofCorrelation = null, proofState = null) {
+function classifyReceipt(receipt, proofCorrelation = null, proofState = null, proofRequiredByJob = false) {
   if (!receipt) return "receipt-missing";
+  if (proofRequiredByJob && proofState?.claimed !== true) return "image-proof-missing";
   if (proofState?.claimed === true && proofState.valid !== true) return proofState.reason || "image-proof-identity-invalid";
   if (proofCorrelation && proofCorrelation.correlated !== true) return "image-proof-correlation-failed";
   if (receipt.executionAttempted === false) return receipt.outcome === "blocked" ? "admission-or-policy" : "pre-execution";
@@ -252,10 +258,11 @@ function classifyReceipt(receipt, proofCorrelation = null, proofState = null) {
 function normalizeReceipt(receipt, issueNumber) {
   const execution = receipt && typeof receipt.execution === "object" && receipt.execution ? receipt.execution : {};
   const proofState = imageProofState(receipt?.output);
+  const proofRequiredByJob = imageProofRequiredForReceipt(receipt);
   const imageProof = proofState.proof;
   const correlation = imageProofCorrelation(receipt, imageProof);
   const outerOk = receipt?.ok === true && receipt?.status === "completed";
-  const imageProofRequired = proofState.claimed === true;
+  const imageProofRequired = proofRequiredByJob || proofState.claimed === true;
   const imageProofOk = !imageProofRequired || (proofState.valid === true && correlation?.correlated === true);
   return {
     schemaVersion: 2,
@@ -276,9 +283,11 @@ function normalizeReceipt(receipt, issueNumber) {
     reconciliationRequired: receipt?.reconciliationRequired ?? null,
     safeAutomaticReplay: receipt?.safeAutomaticReplay ?? null,
     sideEffectMayHaveCommitted: receipt?.sideEffectMayHaveCommitted ?? null,
+    imageProofRequired,
+    imageProofRequiredByJob: proofRequiredByJob,
     imageProofClaimed: proofState.claimed,
     imageProofValid: proofState.valid,
-    imageProofValidationFailure: proofState.reason,
+    imageProofValidationFailure: proofRequiredByJob && proofState.claimed !== true ? "image-proof-missing" : proofState.reason,
     imageProofPresent: imageProof !== null,
     imageProofCorrelation: correlation,
     imageProof: imageProof ? {
@@ -293,7 +302,7 @@ function normalizeReceipt(receipt, issueNumber) {
       terminalReceiptPersisted: imageProof.terminalReceiptPersisted === true,
       singleFilePhysicalProof: imageProof.singleFilePhysicalProof === true,
     } : null,
-    failureClass: classifyReceipt(receipt, correlation, proofState),
+    failureClass: classifyReceipt(receipt, correlation, proofState, proofRequiredByJob),
     rawReceipt: receipt,
     credentialValuesReturned: false,
   };
@@ -489,7 +498,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.5.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.6.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
