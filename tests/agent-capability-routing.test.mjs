@@ -111,11 +111,12 @@ test('ChatGPT visual QA uses Automated Testing typed relay and remains receipt-b
   }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
+  assert.equal(decision.requestedEffect, 'execute');
   assert.equal(decision.selected.strategyId, 'browser-visual-qa-typed-relay');
   assert.equal(decision.selected.authority, 'automated-testing');
   assert.equal(decision.selected.transport, 'cloudflare-typed-relay');
   assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, true);
+  assert.equal(result.authority.execution, false);
 });
 
 test('ChatGPT visual QA can use the zero-cost queue without claiming completion', () => {
@@ -125,11 +126,12 @@ test('ChatGPT visual QA can use the zero-cost queue without claiming completion'
   }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
+  assert.equal(decision.requestedEffect, 'execute');
   assert.equal(decision.selected.authority, 'automated-testing');
   assert.equal(decision.selected.strategyId, 'browser-visual-qa-issue-queue');
   assert.equal(decision.claims.mayAttempt, true);
   assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, true);
+  assert.equal(result.authority.execution, false);
 });
 
 test('ChatGPT browser visual bootstrap is separate Local Compute execution', () => {
@@ -139,10 +141,11 @@ test('ChatGPT browser visual bootstrap is separate Local Compute execution', () 
   }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
+  assert.equal(decision.requestedEffect, 'execute');
   assert.equal(decision.selected.strategyId, 'browser-visual-bootstrap-issue-queue');
   assert.equal(decision.selected.authority, 'local-compute');
   assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, true);
+  assert.equal(result.authority.execution, false);
 });
 
 test('repository inspection still selects fresh connected GitHub evidence first', () => {
@@ -165,11 +168,12 @@ test('named repository work prefers the specialist named-task MCP before worksta
   }));
   const decision = result.decisions[0];
   assert.equal(decision.status, 'ready');
+  assert.equal(decision.requestedEffect, 'execute');
   assert.equal(decision.selected.strategyId, 'repository-named-task-specialist-mcp');
   assert.equal(decision.selected.authority, 'local-storage');
   assert.equal(decision.selected.transport, 'local-specialist-mcp');
   assert.equal(decision.claims.mayClaimCompleted, false);
-  assert.equal(result.authority.execution, true);
+  assert.equal(result.authority.execution, false);
 });
 
 test('effectful host work can use configured issue queue but cannot claim completion', () => {
