@@ -36,9 +36,13 @@ test('request truth is delegated to Local Compute reviewed action author', () =>
   assert.match(source, /envelope\.request\?\.requestId !== envelope\.jobId/);
 });
 
-test('publisher sends exact authored title and body and does not mint a replacement request ID', () => {
-  assert.match(source, /`title=\$\{exactPlan\.title\}`/);
-  assert.match(source, /`body=\$\{exactPlan\.body\}`/);
+test('publisher sends exact authored title/body over bounded stdin and never exposes queue body in argv', () => {
+  assert.match(source, /const payload = JSON\.stringify\(\{ title: exactPlan\.title, body: exactPlan\.body \}\)/);
+  assert.match(source, /MAX_ISSUE_PUBLICATION_BYTES/);
+  assert.match(source, /"--input", "-", "--jq", "\.number"/);
+  assert.match(source, /child\.stdin\?\.end\(String\(stdinText\), "utf8"\)/);
+  assert.doesNotMatch(source, /`body=\$\{exactPlan\.body\}`/);
+  assert.doesNotMatch(source, /`title=\$\{exactPlan\.title\}`/);
   assert.doesNotMatch(source, /randomUUID/);
   assert.doesNotMatch(source, /requestId = `mcp-/);
   assert.match(source, /safeAutomaticReplay: false/);
