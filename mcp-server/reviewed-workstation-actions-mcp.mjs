@@ -12,6 +12,7 @@ const MAX_WAIT_SECONDS = 3900;
 const DEFAULT_POLL_SECONDS = 5;
 const IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3";
 const IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3";
+const IMAGE_CHILD_RECEIPT_CONTRACT = "evavo-sha-bound-child-receipt-v1";
 const HEX64 = /^[0-9a-f]{64}$/u;
 const ACTIONS = Object.freeze([
   "resident-status",
@@ -138,7 +139,11 @@ function parseImageProof(output) {
     return null;
   }
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  if (value.kind !== IMAGE_PROOF_KIND || value.receiptContract !== IMAGE_PROOF_CONTRACT) return null;
+  if (
+    value.kind !== IMAGE_PROOF_KIND
+    || value.proofContract !== IMAGE_PROOF_CONTRACT
+    || value.receiptContract !== IMAGE_CHILD_RECEIPT_CONTRACT
+  ) return null;
   return value;
 }
 
@@ -238,6 +243,7 @@ function normalizeReceipt(receipt, issueNumber) {
     imageProofCorrelation: correlation,
     imageProof: imageProof ? {
       kind: imageProof.kind,
+      proofContract: imageProof.proofContract,
       receiptContract: imageProof.receiptContract,
       status: imageProof.status ?? null,
       phase: imageProof.phase ?? null,
@@ -295,7 +301,7 @@ async function authorReviewedAction(action) {
 
 async function publishIssue(exactPlan) {
   const created = await runGh([
-    "api", "-X", "POST", `repos/${exactPlan.repository}/issues",
+    "api", "-X", "POST", `repos/${exactPlan.repository}/issues`,
     "-f", `title=${exactPlan.title}`,
     "-f", `body=${exactPlan.body}`,
     "--jq", ".number",
@@ -410,7 +416,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.1.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.2.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");
