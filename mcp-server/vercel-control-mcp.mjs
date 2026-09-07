@@ -15,7 +15,12 @@ const MAX_TIMEOUT_MS = 12 * 60 * 1000;
 const TOOLS = Object.freeze([
   {
     name: "evavo_vercel_control_capabilities",
-    description: "Inspect EVAVO's full Vercel control bridge readiness without returning credential values. Reports the Development Studio control surface, token presence, Vercel CLI availability and supported effect classes.",
+    description: "Inspect EVAVO's full Vercel control bridge readiness without returning credential values. Reports the Development Studio control surface, token presence, Vercel CLI availability and supported effect classes. Use evavo_vercel_control_probe when provider-authentication proof is required.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+  },
+  {
+    name: "evavo_vercel_control_probe",
+    description: "Perform one bounded read-only Vercel provider probe through Development Studio. Proves whether the currently discovered Vercel credential can authenticate and list the team project surface. Returns only coarse readiness metadata, never the credential value or full provider response.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
   },
   {
@@ -87,8 +92,8 @@ function credentialProjection() {
 
 async function capabilities() {
   return {
-    schemaVersion: 1,
-    kind: "evavo-vercel-control-mcp-capabilities-v1",
+    schemaVersion: 2,
+    kind: "evavo-vercel-control-mcp-capabilities-v2",
     ok: safeRegularFile(CONTROL) && safeRegularFile(POLICY),
     authorityRepository: "EVAVO-STUDIO/evavo-development-studio",
     routingRepository: "EVAVO-STUDIO/evavo-agent-infrastructure",
@@ -97,6 +102,8 @@ async function capabilities() {
     nodePresent: commandAvailable("node"),
     vercelCliPresent: commandAvailable("vercel"),
     credentials: credentialProjection(),
+    providerAuthenticationProven: false,
+    providerProbeTool: "evavo_vercel_control_probe",
     operations: [
       "project.list", "project.get", "project.create", "project.update", "project.delete",
       "env.list", "env.set", "env.delete", "custom-environment.create", "custom-environment.delete",
@@ -163,7 +170,7 @@ function runControl(request, execute, strict, timeoutSeconds) {
       const text = stdout.toString("utf8").trim();
       let document;
       try { document = JSON.parse(text); } catch { return finish(new Error("Vercel control returned invalid JSON")); }
-      finish(null, { ...document, credentialValuesReturned: false, mcpBridge: "evavo-vercel-control-v1" });
+      finish(null, { ...document, credentialValuesReturned: false, mcpBridge: "evavo-vercel-control-v2" });
     });
     timer = setTimeout(() => {
       child.kill();
@@ -174,9 +181,51 @@ function runControl(request, execute, strict, timeoutSeconds) {
   });
 }
 
+function projectCountFromProvider(document) {
+  const provider = document?.provider;
+  if (!provider || typeof provider !== "object" || Array.isArray(provider)) return null;
+  if (Array.isArray(provider.projects)) return provider.projects.length;
+  if (provider.data && typeof provider.data === "object" && Array.isArray(provider.data.projects)) return provider.data.projects.length;
+  return null;
+}
+
+async function providerProbe() {
+  try {
+    const document = await runControl({ operation: "project.list", query: { limit: 1 } }, false, false, 45);
+    const authenticated = document?.status === "completed" && document?.executed === true;
+    return {
+      schemaVersion: 1,
+      kind: "evavo-vercel-provider-probe-v1",
+      ok: authenticated,
+      authenticated,
+      projectSurfaceReadable: authenticated,
+      controllerStatus: document?.status ?? null,
+      projectCountObserved: authenticated ? projectCountFromProvider(document) : null,
+      readOnlyProbe: true,
+      mutationAttempted: false,
+      credentialValuesReturned: false,
+      providerResponseReturned: false,
+    };
+  } catch (error) {
+    return {
+      schemaVersion: 1,
+      kind: "evavo-vercel-provider-probe-v1",
+      ok: false,
+      authenticated: false,
+      projectSurfaceReadable: false,
+      readOnlyProbe: true,
+      mutationAttempted: false,
+      error: error instanceof Error ? error.message.slice(0, 1_000) : "Vercel provider probe failed",
+      credentialValuesReturned: false,
+      providerResponseReturned: false,
+    };
+  }
+}
+
 async function callTool(name, raw) {
   const args = raw === undefined ? {} : asObject(raw);
   if (name === "evavo_vercel_control_capabilities") return capabilities();
+  if (name === "evavo_vercel_control_probe") return providerProbe();
   if (name === "evavo_vercel_control") {
     const request = asObject(args.request);
     const timeoutSeconds = args.timeoutSeconds === undefined ? 300 : Number(args.timeoutSeconds);
@@ -205,7 +254,7 @@ for await (const line of input) {
     else if (request.method === "initialize") write(result(request.id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "evavo-vercel-control-mcp", version: "1.0.1" },
+      serverInfo: { name: "evavo-vercel-control-mcp", version: "1.1.0" },
     }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
