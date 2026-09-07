@@ -23,6 +23,13 @@
         "EVAVO_CONTROL_POLICY_MCP_ROLE": "read-only-route-planner"
       }
     },
+    "evavo-organization-federation": {
+      "command": "node",
+      "args": ["./mcp-server/organization-federation-mcp.mjs"],
+      "env": {
+        "EVAVO_ORGANIZATION_FEDERATION_MCP_ROLE": "read-only-team-owner-readiness-handoff-planner"
+      }
+    },
     "evavo-database-provider-routing": {
       "command": "node",
       "args": ["./mcp-server/database-provider-routing-mcp.mjs"],
