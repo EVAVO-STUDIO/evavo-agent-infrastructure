@@ -1,9 +1,9 @@
 {
   "name": "@evavo/remote-mcp-relay",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Cloudflare-hosted read-only MCP status surface and authenticated outbound workstation relay for EVAVO.",
+  "description": "Cloudflare-hosted bounded MCP status surface and authenticated typed workstation relay for EVAVO, including governed Vercel control.",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
