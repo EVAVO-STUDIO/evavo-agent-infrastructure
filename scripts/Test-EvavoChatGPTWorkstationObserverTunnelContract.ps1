@@ -16,19 +16,34 @@ foreach($PowerShellPath in @($Installer,$InstallerV2,$LegacyInstaller,$Status)){
 }
 $installerSource=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
 $v2Source=Get-Content -LiteralPath $InstallerV2 -Raw -Encoding UTF8
+$legacySource=Get-Content -LiteralPath $LegacyInstaller -Raw -Encoding UTF8
 $statusSource=Get-Content -LiteralPath $Status -Raw -Encoding UTF8
 $observerSource=Get-Content -LiteralPath $Observer -Raw -Encoding UTF8
 foreach($needle in @(
  'Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1','CONTROL_PLANE_API_KEY','OPENAI_API_KEY',
  'SetEnvironmentVariable','runtimeCredentialPersistedForBackgroundTask=$true','runtimeCredentialInTaskArguments=$false',
  'runtimeCredentialValueReturned=$false','backgroundTaskAuthenticationReady=$true','repositoryIndependentObserver=$true',
- 'immutableObserverBundle=$true','developmentCheckoutRequiredAfterInstallation=$false','effectfulWorkstationToolsExposed=$false'
+ 'immutableObserverBundle=$true','developmentCheckoutRequiredAfterInstallation=$false','effectfulWorkstationToolsExposed=$false',
+ "scheduledTaskHost='wscript.exe'",'consoleFreeScheduledAction=$true','directTunnelClientScheduledHost=$false',
+ 'scheduledTaskWaitsForTunnelExit=$true','mcpCommandUsesDirectNode=$true','focusStealAllowed=$false'
 )){if(-not$installerSource.Contains($needle)){throw "ChatGPT workstation observer v3 contract missing: $needle"}}
-foreach($needle in @('tunnel-client','sample_mcp_stdio_local','workstation-observer-mcp.mjs','repositoryIndependentObserver=$true','immutableObserverBundle=$true','chatGptProductSideConnectorSetupStillRequired=$true')){
+foreach($needle in @(
+ 'tunnel-client','sample_mcp_stdio_local','workstation-observer-mcp.mjs','repositoryIndependentObserver=$true',
+ 'immutableObserverBundle=$true','chatGptProductSideConnectorSetupStillRequired=$true',
+ "scheduledTaskHost='wscript.exe'",'consoleFreeScheduledAction=$true','directTunnelClientScheduledHost=$false',
+ 'scheduledTaskWaitsForTunnelExit=$true','mcpCommandUsesDirectNode=$true','WScript.Quit exitCode',
+ '$Action = New-ScheduledTaskAction -Execute $WScriptExe'
+)){
  if(-not$v2Source.Contains($needle)){throw "ChatGPT workstation observer v2 compatibility contract missing: $needle"}
+}
+foreach($needle in @('implementationAuthority=''Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1''','delegatedToV2=$true',"scheduledTaskHost='wscript.exe'",'consoleFreeScheduledAction=$true')){
+ if(-not$legacySource.Contains($needle)){throw "ChatGPT workstation observer legacy compatibility contract missing: $needle"}
 }
 foreach($needle in @('manage-autonomous-node.ps1 -Action repair','INSTALL-EVAVO-ZERO-COST-WORKER-AUTOMATION.ps1 -StartNow','Invoke-Expression','powershell.command','shell.command')){
  if($installerSource.Contains($needle)){throw "ChatGPT workstation observer installer exposes effectful surface: $needle"}
+}
+foreach($needle in @('$Action = New-ScheduledTaskAction -Execute $TunnelExe')){
+ if($v2Source.Contains($needle)-or$legacySource.Contains($needle)){throw "ChatGPT workstation observer task regressed to direct tunnel-client host: $needle"}
 }
 foreach($needle in @('readOnlyHint: true','destructiveHint: false','mutationAuthority: false','credentialValuesReturned: false','physicalExecutionClaimed: false')){
  if(-not$observerSource.Contains($needle)){throw "Workstation observer read-only contract missing: $needle"}
@@ -39,17 +54,23 @@ foreach($needle in @('evavo_workstation_observer_status','evavo_workstation_obse
 foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','Repair-EvavoRemoteMcpRelayClient.ps1','manage-autonomous-node.ps1","-Action","repair')){
  if($observerSource.Contains($needle)){throw "Workstation observer contains forbidden mutation path: $needle"}
 }
-foreach($needle in @('schemaVersion=2','observerBundle=','repositoryIndependent=$BundleValid','developmentCheckoutRequiredAfterInstallation=$false','tunnelIdReturned=$false','runtimeKeyReturned=$false','chatGptConnectorRegistrationPerformed=$false','chatGptProductSideConnectorSetupStillRequired=$true','physicalTunnelReachabilityClaimed=')){
+foreach($needle in @(
+ 'schemaVersion=3','evavo-chatgpt-workstation-observer-tunnel-status-v3','observerBundle=','repositoryIndependent=$BundleValid',
+ 'developmentCheckoutRequiredAfterInstallation=$false','tunnelIdReturned=$false','runtimeKeyReturned=$false',
+ 'chatGptConnectorRegistrationPerformed=$false','chatGptProductSideConnectorSetupStillRequired=$true','physicalTunnelReachabilityClaimed=',
+ "host=if(`$TaskConsoleFree){'wscript.exe'}",'consoleFree=$TaskConsoleFree','directTunnelClientScheduledHost=$DirectTunnelClientScheduledHost'
+)){
  if(-not$statusSource.Contains($needle)){throw "Workstation tunnel status contract missing: $needle"}
 }
 foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','SetEnvironmentVariable(','New-ItemProperty')){
  if($statusSource.Contains($needle)){throw "Workstation tunnel status contains mutation path: $needle"}
 }
 [ordered]@{
- schemaVersion=4;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v4';ok=$true;powershellSyntaxValid=$true
- canonicalInstaller='Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1';v2CompatibilityInstallerRetained=$true;legacyInstallerRetained=$true
+ schemaVersion=5;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v5';ok=$true;powershellSyntaxValid=$true
+ canonicalInstaller='Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1';v2CompatibilityInstallerRetained=$true;legacyInstallerDelegatesToV2=$true
  backgroundTaskRuntimeCredentialPersisted=$true;runtimeCredentialInTaskArguments=$false;runtimeCredentialValueExposed=$false
  repositoryIndependentObserver=$true;immutableObserverBundle=$true;developmentCheckoutRequiredAfterInstallation=$false
+ scheduledTaskHost='wscript.exe';consoleFreeScheduledAction=$true;directTunnelClientScheduledHost=$false;scheduledTaskWaitsForTunnelExit=$true;mcpCommandUsesDirectNode=$true
  outboundTunnelOnly=$true;observerReadOnly=$true;effectfulWorkstationToolsExposed=$false;credentialValuesExposed=$false
  readOnlyStatusSurface=$true;doctorProbeIsExplicit=$true;chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
 }|ConvertTo-Json -Depth 8
