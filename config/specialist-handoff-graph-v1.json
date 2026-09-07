@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-specialist-handoff-graph-v1",
+  "canonical": true,
+  "purpose": "Define reusable cross-specialist collaboration patterns without transferring canonical effect ownership between repositories.",
+  "rules": {
+    "handoffPreservesAuthority": true,
+    "receiverOwnsReceiverEffect": true,
+    "originatorRetainsDomainIntent": true,
+    "evidenceMustCrossHandoff": true,
+    "noImplicitMutation": true,
+    "deliveryReviewDoesNotBecomeSourceOwnership": true
+  },
+  "patterns": [
+    {
+      "id": "website-product-delivery",
+      "goal": "Research, design, build, validate and ship a high-quality website or product experience.",
+      "sequence": [
+        {"specialist":"brain","role":"live context, capability discovery and evidence synthesis"},
+        {"specialist":"technology-advisory","role":"requirements, systems and delivery framing when needed"},
+        {"specialist":"ux","role":"journeys, IA, usability, accessibility and interaction requirements"},
+        {"specialist":"figma","role":"UI system, states, responsive design and handoff"},
+        {"specialist":"brandcraft","role":"brand identity and visual-system constraints when applicable"},
+        {"specialist":"art","role":"bespoke raster/illustration asset production"},
+        {"specialist":"image-enhancement","role":"preservation-first cleanup/restoration of supplied raster assets"},
+        {"specialist":"development-governance","role":"source implementation, repair and governed publication"},
+        {"specialist":"web-intelligence","role":"SEO/search/site-quality evidence and remediation guidance"},
+        {"specialist":"analytics","role":"consent-aware product/site instrumentation and behavioural measurement"},
+        {"specialist":"automated-testing","role":"browser/responsive/accessibility/performance QA"},
+        {"specialist":"delivery","role":"final cross-domain release-quality assurance"}
+      ]
+    },
+    {
+      "id": "creative-asset-production",
+      "goal": "Create, refine, master and release professional creative assets without collapsing specialist craft boundaries.",
+      "sequence": [
+        {"specialist":"brain","role":"brief/context synthesis and specialist selection"},
+        {"specialist":"idea-engine","role":"creative territories, concepts and anti-generic pressure testing"},
+        {"specialist":"brandcraft","role":"identity/brand-system authority when brand constraints apply"},
+        {"specialist":"art","role":"raster/illustration creation and art-direction execution"},
+        {"specialist":"vector","role":"vector conversion, SVG/Lottie and editable vector delivery"},
+        {"specialist":"image-enhancement","role":"restoration, cleanup, upscale and preservation-first mastering"},
+        {"specialist":"delivery","role":"final technical/visual release QA"}
+      ]
+    },
+    {
+      "id": "cel-vfx-production",
+      "goal": "Produce effects that behave dynamically but visually belong in cel animation.",
+      "sequence": [
+        {"specialist":"particle","role":"deterministic effect behaviour, timing source, simulation and flipbook candidates"},
+        {"specialist":"cel-animation","role":"drawn/cel pose, timing, visual-standard, inbetween and sequence authority"},
+        {"specialist":"atmosphere","role":"long-form environmental audiovisual composition when required"},
+        {"specialist":"video","role":"editorial/compositor/mastering when the final target is video"},
+        {"specialist":"delivery","role":"final parity/quality validation"}
+      ]
+    },
+    {
+      "id": "game-production",
+      "goal": "Design, author, implement, test and deliver a game while preserving reusable engine/runtime ownership.",
+      "sequence": [
+        {"specialist":"brain","role":"current project/capability context"},
+        {"specialist":"game-design","role":"systems, content, levels, balance and playtest design"},
+        {"specialist":"environment","role":"terrain, water, sky, atmosphere and environment gameplay semantics"},
+        {"specialist":"map","role":"cartography/terrain/map rendering and geographic/fantasy map systems when applicable"},
+        {"specialist":"art","role":"game art asset production"},
+        {"specialist":"sprite","role":"sprite cleanup, animation QA, atlas and runtime packaging"},
+        {"specialist":"texture","role":"materials/textures/wear/damage/wetness systems"},
+        {"specialist":"audio","role":"music, voice, SFX and game-audio mastering"},
+        {"specialist":"engine-systems","role":"reusable Godot engine systems"},
+        {"specialist":"game-runtime","role":"boot, saves, progression, platform, accessibility and runtime shell"},
+        {"specialist":"game-services","role":"multiplayer/community/online services when needed"},
+        {"specialist":"development-governance","role":"source integration and governed publication"},
+        {"specialist":"godot-qa","role":"Godot/game runtime validation"},
+        {"specialist":"delivery","role":"final cross-domain release QA"}
+      ]
+    },
+    {
+      "id": "document-publication",
+      "goal": "Research, write, compose and deliver professional evidence-backed documents and publications.",
+      "sequence": [
+        {"specialist":"document","role":"source corpus, OCR/HTR, evidence, Office/PDF/CAD/BIM analysis"},
+        {"specialist":"brain","role":"evidence synthesis and current contextual reasoning"},
+        {"specialist":"writing","role":"drafting/editing and voice/copy authority"},
+        {"specialist":"docs-suite","role":"editable document/workspace composition"},
+        {"specialist":"presentation","role":"presentation/executive collateral/motion publication composition"},
+        {"specialist":"brandcraft","role":"brand constraints and identity assets"},
+        {"specialist":"delivery","role":"release and cross-domain quality assurance"}
+      ],
+      "knownBoundary":"Professional tagged PDF/PDF-UA and full press/prepress output remain separate maturity concerns and must not be claimed from ordinary PDF export."
+    },
+    {
+      "id": "business-advisory-delivery",
+      "goal": "Turn business questions into evidence-backed recommendations and bounded implementation work.",
+      "sequence": [
+        {"specialist":"brain","role":"context, evidence and capability discovery"},
+        {"specialist":"business-advisory","role":"Australian commercial, contract, privacy, tax, procurement and negotiation intelligence"},
+        {"specialist":"technology-advisory","role":"technology discovery, requirements, options, roadmap and transformation planning"},
+        {"specialist":"estimating","role":"cost, estimate, uncertainty and bid/variation analysis when required"},
+        {"specialist":"mathematics","role":"quantitative modelling, finance, statistics and optimization"},
+        {"specialist":"marketing","role":"marketing strategy/growth/measurement when required"},
+        {"specialist":"relationship","role":"reviewed relationship/outreach/inbox lifecycle when required"},
+        {"specialist":"operations-core","role":"client/project/commercial operational records and workflow"},
+        {"specialist":"development-governance","role":"technical implementation when recommendation becomes source work"}
+      ]
+    },
+    {
+      "id": "data-insight",
+      "goal": "Work with structured data without falsely assigning enterprise BI authority to a single existing specialist.",
+      "sequence": [
+        {"specialist":"file-optimizer","role":"deterministic structured-data conversion/canonicalization, Parquet/DuckDB/SQLite mechanics"},
+        {"specialist":"analytics","role":"site/product analytics and instrumentation quality"},
+        {"specialist":"mathematics","role":"quantitative/statistical/optimization analysis"},
+        {"specialist":"technology-advisory","role":"data governance, architecture and transformation framing"},
+        {"specialist":"brain","role":"cross-source synthesis and coverage-gap reasoning"}
+      ],
+      "knownBoundary":"No current participant should claim end-to-end enterprise warehouse/semantic-layer/BI authority unless a current canonical contract explicitly adds it."
+    },
+    {
+      "id": "device-control",
+      "goal": "Discover, understand and safely control physical/network devices through the correct authority chain.",
+      "sequence": [
+        {"specialist":"network","role":"LAN/network visibility, discovery and reachability"},
+        {"specialist":"workstation-manager","role":"hardware/device truth, profiles, safety, operation catalog and physical acceptance"},
+        {"specialist":"universal-manipulator","role":"typed device asset, enrollment, connector, capability grant and command brokerage after source restoration/acceptance"},
+        {"specialist":"local-ai-agent-gateway","role":"bounded commissioned hardware/HID/radio gateway operations"},
+        {"specialist":"computer-agent","role":"GUI interaction fallback where device control requires visible UI"},
+        {"specialist":"out-of-band-control","role":"KVM/power/media recovery only"}
+      ],
+      "blockedUntil":{"universal-manipulator":"source restored, reviewed, configured, transport-online and physically accepted"}
+    }
+  ]
+}
