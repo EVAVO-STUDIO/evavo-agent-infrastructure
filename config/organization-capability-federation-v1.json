@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-organization-capability-federation-v1",
+  "canonical": true,
+  "purpose": "Make the EVAVO repository estate behave as one federated expert organisation without collapsing specialist ownership or allowing discovery to self-authorize effects.",
+  "roles": {
+    "brain": {
+      "repository": "EVAVO-STUDIO/the-brain",
+      "responsibilities": [
+        "continuously discover repository and capability changes",
+        "reason over current capability, lifecycle and evidence state",
+        "select and explain specialist candidates",
+        "detect fragmented, stale or missing coverage",
+        "never grant execution authority from discovery alone"
+      ]
+    },
+    "authorityRouter": {
+      "repository": "EVAVO-STUDIO/evavo-agent-infrastructure",
+      "responsibilities": [
+        "own canonical authority and route contracts",
+        "validate authority/effect compatibility",
+        "select the safest eligible verified route",
+        "preserve truth-state and transport boundaries",
+        "fail closed when an authority or route is unresolved"
+      ]
+    },
+    "engineeringPlanner": {
+      "repository": "EVAVO-STUDIO/evavo-development-studio",
+      "responsibilities": [
+        "compile the cross-repository organisation capability graph",
+        "project reviewed specialist metadata into local planning",
+        "detect drift between manifests, authorities, routes and local fabric",
+        "plan bounded engineering work without stealing specialist authority",
+        "retain publication authority only for governed repository source changes"
+      ]
+    },
+    "executionFabric": {
+      "repositories": [
+        "EVAVO-STUDIO/evavo-local-compute",
+        "EVAVO-STUDIO/evavo-workstation-manager",
+        "EVAVO-STUDIO/evavo-computer-agent",
+        "EVAVO-STUDIO/evavo-local-storage"
+      ],
+      "responsibilities": [
+        "execute only admitted typed work",
+        "report runtime readiness and receipts",
+        "preserve physical and byte authority boundaries",
+        "never infer authority from repository visibility"
+      ]
+    },
+    "specialists": {
+      "contract": "evavo_repository_capabilities_v1",
+      "responsibilities": [
+        "remain independently usable and testable",
+        "publish current machine-readable capability manifests where applicable",
+        "declare requirements, effects and handoffs precisely",
+        "produce evidence and receipts appropriate to their domain",
+        "avoid duplicating another canonical specialist when a handoff is sufficient"
+      ]
+    }
+  },
+  "truthPrecedence": [
+    "current runtime and physical evidence",
+    "current Agent Infrastructure authority and route contracts",
+    "current exact-revision repository capability manifests",
+    "current Development Studio local capability fabric",
+    "Brain historical knowledge and portfolio seeds"
+  ],
+  "readinessStates": [
+    "unknown",
+    "source_ready",
+    "configured",
+    "transport_online",
+    "accepted",
+    "completed",
+    "physically_verified"
+  ],
+  "selectionPolicy": {
+    "principle": "best-fit canonical specialist, then safest eligible route",
+    "prefer": [
+      "canonical authority over generic executor",
+      "specialist-native MCP or typed API over generic workstation execution",
+      "read-only planning before effectful work",
+      "verified exact-revision evidence over remembered capability",
+      "local zero-cost route when physically accepted and appropriate",
+      "handoff between specialists over capability reinvention"
+    ],
+    "reject": [
+      "manifest visibility as execution authority",
+      "repository name as proof of capability",
+      "stale portfolio counts as current inventory truth",
+      "generic shell when a typed reviewed route exists",
+      "unresolved authority as an executable specialist",
+      "automatic fallback to another specialist that changes ownership semantics"
+    ]
+  },
+  "handoffRules": {
+    "researchToExecution": "Brain may recommend; Agent Infrastructure must resolve authority and route before any effect.",
+    "specialistToSpecialist": "The originating specialist retains domain intent while the receiving specialist owns its own effect and returns evidence.",
+    "qaToRepair": "QA specialists report findings; Development Studio owns source repair unless another canonical source owner is explicitly declared.",
+    "creativeToDelivery": "Creative specialists produce domain artifacts; Delivery Studio verifies final cross-domain quality and release readiness without becoming the source-authoring owner.",
+    "device": "Network Studio discovers; Workstation Manager owns workstation/device truth and safety; Universal Manipulator owns typed device enrollment/capability/control only after restored and accepted; gateway/OOB/Computer Agent execute only their bounded physical roles.",
+    "storage": "Specialists may create artifacts, but Storage/Local Storage retain canonical byte lifecycle responsibilities.",
+    "model": "Model Lab owns model/dataset/evaluation admission; specialists consume admitted models without becoming model-governance authorities."
+  },
+  "continuousDiscovery": {
+    "triggers": [
+      "provider repository inventory changes",
+      "local repository inventory changes",
+      "capability manifest changes",
+      "authority or route contract changes",
+      "specialist version or entrypoint changes",
+      "runtime readiness changes",
+      "failed or blocked route",
+      "new repository or lifecycle-role transition"
+    ],
+    "requiredResponse": [
+      "refresh live evidence",
+      "recompile organisation capability graph",
+      "classify drift without auto-authorizing it",
+      "surface unresolved ownership or routing conflicts",
+      "prefer repair/projection over creation of duplicate capability"
+    ]
+  },
+  "invariants": {
+    "discoveryIsNotAuthorization": true,
+    "capabilityManifestIsNotAuthorization": true,
+    "authorityRegistryIsCanonicalForEffects": true,
+    "routeEligibilityRequiresCurrentTruthState": true,
+    "specialistsRemainIndependentlyUsable": true,
+    "crossSpecialistHandoffsPreserveOwnership": true,
+    "unresolvedAuthoritiesFailClosed": true,
+    "noArbitraryShellFallbackWhenTypedRouteExists": true,
+    "noGitHubActionsRequired": true,
+    "noVercelExecutionAuthority": true,
+    "newRepositoryIsLastResort": true
+  }
+}
