@@ -31,7 +31,8 @@ function requireString(value, field, errors) {
   if (typeof value !== 'string' || value.trim() === '') errors.push(`${field}:required-string`);
 }
 
-function validateRepository(value, field, errors) {
+function validateRepository(value, field, errors, { allowNull = false } = {}) {
+  if (value == null && allowNull) return;
   requireString(value, field, errors);
   if (typeof value === 'string' && !/^EVAVO-STUDIO\/[A-Za-z0-9._-]+$/.test(value)) errors.push(`${field}:invalid-repository`);
 }
@@ -47,6 +48,7 @@ const repoDir = path.resolve(scriptDir, '..');
 const configDir = path.join(repoDir, 'config');
 const handoff = readJson(path.resolve(args.input));
 const authorities = readJson(path.join(configDir, 'agent-capability-authorities-v1.json'));
+const domainOwners = readJson(path.join(configDir, 'specialist-domain-owners-v1.json'))?.owners ?? {};
 const routingRoot = readJson(path.join(configDir, 'agent-capability-routing-v1.json'));
 const routes = [];
 for (const fragment of routingRoot?.fragments?.routes ?? []) {
@@ -83,20 +85,32 @@ for (const [index, input] of (handoff?.inputs ?? []).entries()) {
   validateSha(input?.sha256, `inputs[${index}].sha256`, 64, errors);
 }
 
-const authorityId = handoff?.authority?.authorityId;
-const authority = authorityId ? authorities[authorityId] : null;
-if (!authority) errors.push('authority:unknown-authority-id');
+const domainOwnerId = handoff?.domainOwner?.ownerId;
+const domainOwner = domainOwnerId ? domainOwners[domainOwnerId] : null;
+if (!domainOwner) errors.push('domainOwner:unknown-owner-id');
 else {
+  if (domainOwner.repository !== handoff?.domainOwner?.repository) errors.push('domainOwner:repository-mismatch');
+  if (domainOwner.repository !== handoff?.to?.repository) errors.push('domainOwner:receiving-repository-mismatch');
+  if (domainOwner.status === 'source-unresolved') errors.push('domainOwner:source-unresolved');
+}
+if (handoff?.domainOwner?.validated !== true) errors.push('domainOwner:validated-must-be-true');
+
+const authorityId = handoff?.authority?.authorityId ?? null;
+const authority = authorityId ? authorities[authorityId] : null;
+if (authorityId && !authority) errors.push('authority:unknown-authority-id');
+if (!authorityId && handoff?.authority?.validated === true) errors.push('authority:cannot-be-validated-without-authority-id');
+
+if (authority) {
   if (authority.repository !== handoff?.authority?.authorityRepository) errors.push('authority:repository-mismatch');
   if (!Array.isArray(authority.effects) || !authority.effects.includes(handoff?.requestedEffect)) errors.push('authority:requested-effect-not-owned');
-  if (authority.repository !== handoff?.to?.repository) warnings.push('authority:receiving-specialist-is-not-authority-repository');
   if (/unresolved|not eligible|restore|planned canonical/i.test(authority.description ?? '')) errors.push('authority:unresolved-or-ineligible');
 }
 
-if (handoff?.authority?.validated !== true) errors.push('authority:validated-must-be-true');
+validateRepository(handoff?.authority?.authorityRepository, 'authority.authorityRepository', errors, { allowNull: true });
 if (handoff?.authority?.minimumState != null && !STATES.includes(handoff.authority.minimumState)) errors.push('authority:invalid-minimum-state');
 
 if (handoff?.authority?.routeId) {
+  if (!authorityId) errors.push('authority:route-requires-authority-id');
   const route = routes.find((entry) => entry?.id === handoff.authority.routeId);
   if (!route) errors.push('authority:unknown-route-id');
   else {
@@ -112,16 +126,23 @@ if (handoff?.authority?.routeId) {
   warnings.push('authority:no-route-bound-for-effectful-handoff');
 }
 
+if (!authorityId) warnings.push('authority:not-yet-bound;handoff-is-planning-only');
+if (handoff?.authority?.validated !== true) warnings.push('authority:not-currently-validated');
+
 const valid = errors.length === 0;
+const effectReady = valid && Boolean(authorityId) && handoff?.authority?.validated === true && Boolean(handoff?.authority?.routeId);
 const result = {
   schemaVersion: 1,
   kind: 'evavo-specialist-handoff-validation-v1',
   handoffId: handoff?.handoffId ?? null,
   valid,
+  domainOwnerValidated: valid && Boolean(domainOwner),
+  effectRouteBound: effectReady,
   errors,
   warnings,
   executionAuthorized: false,
   policy: {
+    domainOwnershipIsSeparateFromMachineAuthority: true,
     handoffPreservesAuthority: true,
     independentAdmissionStillRequired: true,
     validationDoesNotExecute: true
@@ -131,6 +152,8 @@ const result = {
 if (args.json) process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
 else {
   console.log(`Specialist handoff ${valid ? 'VALID' : 'INVALID'}: ${result.handoffId ?? 'unknown'}`);
+  console.log(`Domain owner validated: ${result.domainOwnerValidated}`);
+  console.log(`Effect route bound: ${result.effectRouteBound}`);
   for (const error of errors) console.log(`ERROR ${error}`);
   for (const warning of warnings) console.log(`WARN ${warning}`);
   console.log('Execution authority: false');
