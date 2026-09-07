@@ -57,7 +57,9 @@ Legacy queued records created before the journal contract are migrated conservat
 - Gateway read actions require an empty argument object and route through a fixed Local Storage bridge into a clean exact `origin/main` gateway checkout.
 - Storage actions require an empty argument object and route through the governed local operator.
 - Vercel control is admitted only as the fixed `vercel.control` transport action. Both Cloudflare and Windows independently restrict its internal operation names and fields.
-- `api.call`, caller-selected REST methods/paths/bodies, and `deployment.deploy` with caller-selected local paths are not admitted through the internet-facing Vercel route.
+- `api.call`, caller-selected REST methods/paths/bodies and caller-selected local deployment paths are not admitted through the internet-facing Vercel route.
+- Remote `deployment.deploy` accepts only an `EVAVO-STUDIO/<repository>` identity. The Windows authority derives the local checkout itself and requires the expected GitHub origin, branch `main`, no tracked drift, and `HEAD == origin/main` before invoking Development Studio.
+- Remote `project.create` may link only an `EVAVO-STUDIO/<repository>` GitHub descriptor when Git linkage is supplied.
 - Vercel environment values use environment references only. The `VERCEL_TOKEN` / `VERCEL_API_TOKEN` credential is resolved on the workstation by Development Studio and never crosses the relay or Cloudflare.
 - The workstation token is stored by the Windows client using current-user DPAPI; it is not placed in Task Scheduler arguments, environment variables, or the registry.
 - REST Executor v5 and Local Agent remain loopback-only.
@@ -180,12 +182,14 @@ dns.list
 Reviewed write operations:
 
 ```text
+project.create
 project.update
 project.delete
 env.set
 env.delete
 custom-environment.create
 custom-environment.delete
+deployment.deploy
 deployment.redeploy
 deployment.promote
 deployment.rollback
@@ -201,9 +205,15 @@ dns.update
 dns.delete
 ```
 
-Every write requires a non-empty `reason`. Destructive operations additionally require `allowDestructive=true`. `env.set` accepts `valueFromEnv` and never accepts an inline secret value. Development Studio executes with `--strict`, so project-scoped mutation is limited to the governed Vercel project registry. The controller performs supported preflight/idempotency checks and provider read-back verification after writes.
+Every write requires a non-empty `reason`. Destructive operations additionally require `allowDestructive=true`. `env.set` accepts `valueFromEnv` and never accepts an inline secret value. The controller performs supported preflight/idempotency checks and provider read-back verification after writes.
 
-The internet route intentionally excludes `api.call` and `deployment.deploy`. This prevents a remote caller from selecting arbitrary Vercel API methods/paths or selecting a local deployment working directory. Those broader capabilities remain available only through the separately governed local Development Studio control surface.
+`project.create` can create a new Vercel project. When Git linkage is supplied, the descriptor is restricted to `{ "type": "github", "repo": "EVAVO-STUDIO/<repository>" }`.
+
+`deployment.deploy` does **not** accept `cwd` or another local path from the remote caller. It accepts the EVAVO repository identity, and the Windows dispatcher resolves that identity inside the configured Git root. Before deployment it verifies the repository origin, requires branch `main`, requires no tracked drift, and requires the local HEAD to equal `origin/main`. Only then does it pass the internally derived working directory to Development Studio.
+
+A project that was just created on Vercel, or another deliberately provider-managed project not yet present in the source registry, may be targeted only when the typed request explicitly includes `allowUnregisteredProject=true`. The value must be exactly `true`, and it applies only to the reviewed project-scoped Vercel operation. It does not enable caller paths, raw REST methods, raw API bodies or shell access.
+
+The internet route intentionally excludes `api.call`. The broader future-API escape hatch remains available only through the separately governed local Development Studio / local Vercel MCP surface, where it requires an independent read-only verification request.
 
 All `vercel.control` requests are conservatively treated as effectful by the delivery journal, even when the selected internal operation is a read. That means an uncertain WebSocket send or deadline never triggers automatic replay. The default transport is asynchronous: poll `/api/request` until a correlated terminal receipt exists. The Vercel relay receipt removes credential-source and local-path details and explicitly states that credential values were not returned.
 
