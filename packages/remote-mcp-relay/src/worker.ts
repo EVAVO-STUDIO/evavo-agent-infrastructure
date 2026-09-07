@@ -89,12 +89,53 @@ const STORAGE_ACTIONS = new Set([
 const GATEWAY_READ_ACTIONS = new Set([
   "gateway.fabric_status",
 ]);
+const VERCEL_ACTIONS = new Set(["vercel.control"]);
+const VERCEL_REMOTE_FIELDS: Record<string, ReadonlySet<string>> = {
+  "project.list": new Set(["operation", "query"]),
+  "project.get": new Set(["operation", "project"]),
+  "project.update": new Set(["operation", "project", "settings", "reason"]),
+  "project.delete": new Set(["operation", "project", "reason", "allowDestructive"]),
+  "env.list": new Set(["operation", "project", "query"]),
+  "env.set": new Set(["operation", "project", "key", "valueFromEnv", "type", "target", "gitBranch", "comment", "customEnvironmentIds", "reason"]),
+  "env.delete": new Set(["operation", "project", "ids", "reason", "allowDestructive"]),
+  "custom-environment.create": new Set(["operation", "project", "slug", "description", "reason"]),
+  "custom-environment.delete": new Set(["operation", "project", "environment", "deleteUnassignedEnvironmentVariables", "reason", "allowDestructive"]),
+  "deployment.list": new Set(["operation", "project", "query"]),
+  "deployment.get": new Set(["operation", "deployment"]),
+  "deployment.redeploy": new Set(["operation", "deployment", "reason"]),
+  "deployment.promote": new Set(["operation", "project", "deployment", "reason"]),
+  "deployment.rollback": new Set(["operation", "project", "deployment", "description", "reason"]),
+  "deployment.cancel": new Set(["operation", "deployment", "reason"]),
+  "deployment.delete": new Set(["operation", "deployment", "reason", "allowDestructive"]),
+  "alias.assign": new Set(["operation", "deployment", "alias", "redirect", "reason"]),
+  "domain.list": new Set(["operation", "project", "query"]),
+  "domain.get": new Set(["operation", "project", "domain"]),
+  "domain.add": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason"]),
+  "domain.update": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason"]),
+  "domain.verify": new Set(["operation", "project", "domain", "reason"]),
+  "domain.remove": new Set(["operation", "project", "domain", "removeRedirects", "reason", "allowDestructive"]),
+  "domain.config": new Set(["operation", "project", "domain"]),
+  "domain.dns-plan": new Set(["operation", "project", "domain"]),
+  "dns.list": new Set(["operation", "domain", "query"]),
+  "dns.create": new Set(["operation", "domain", "record", "reason"]),
+  "dns.update": new Set(["operation", "domain", "recordId", "record", "reason"]),
+  "dns.delete": new Set(["operation", "domain", "recordId", "reason", "allowDestructive"]),
+};
+const VERCEL_WRITE_OPERATIONS = new Set([
+  "project.update", "project.delete", "env.set", "env.delete", "custom-environment.create", "custom-environment.delete",
+  "deployment.redeploy", "deployment.promote", "deployment.rollback", "deployment.cancel", "deployment.delete", "alias.assign",
+  "domain.add", "domain.update", "domain.verify", "domain.remove", "dns.create", "dns.update", "dns.delete",
+]);
+const VERCEL_DESTRUCTIVE_OPERATIONS = new Set([
+  "project.delete", "env.delete", "custom-environment.delete", "deployment.delete", "domain.remove", "dns.delete",
+]);
 const EFFECTFUL_ACTIONS = new Set([
   "workstation.repair",
   "workstation.bootstrap",
   "storage.inventory.refresh",
   "storage.google_pressure.activate",
   "storage.estate.activate",
+  ...VERCEL_ACTIONS,
 ]);
 const ACTIONS = new Set([
   "workstation.status",
@@ -103,6 +144,7 @@ const ACTIONS = new Set([
   "rest.health",
   ...GATEWAY_READ_ACTIONS,
   ...STORAGE_ACTIONS,
+  ...VERCEL_ACTIONS,
 ]);
 
 function json(value: unknown, init: ResponseInit = {}): Response {
@@ -132,6 +174,30 @@ function isTerminalStatus(status: DispatchStatus): boolean {
   return status === "completed" || status === "failed" || status === "ambiguous";
 }
 
+function validateVercelArguments(args: Record<string, unknown>): string | null {
+  const operation = typeof args.operation === "string" ? args.operation : "";
+  const allowed = VERCEL_REMOTE_FIELDS[operation];
+  if (!allowed) return "vercel-operation-not-admitted";
+  for (const key of Object.keys(args)) {
+    if (!allowed.has(key)) return `vercel-argument-not-admitted:${key}`;
+  }
+  if (VERCEL_WRITE_OPERATIONS.has(operation)) {
+    if (typeof args.reason !== "string" || args.reason.trim().length < 1 || args.reason.length > 500) {
+      return "vercel-mutation-reason-required";
+    }
+  }
+  if (VERCEL_DESTRUCTIVE_OPERATIONS.has(operation) && args.allowDestructive !== true) {
+    return "vercel-allow-destructive-required";
+  }
+  if (operation === "env.set") {
+    if (Object.prototype.hasOwnProperty.call(args, "value")) return "vercel-env-literal-value-forbidden";
+    if (typeof args.valueFromEnv !== "string" || !/^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(args.valueFromEnv)) {
+      return "vercel-env-reference-invalid";
+    }
+  }
+  return null;
+}
+
 function stub(env: Env): DurableObjectStub<WorkstationRelay> {
   return env.WORKSTATION_RELAY.get(env.WORKSTATION_RELAY.idFromName(OBJECT_NAME));
 }
@@ -159,6 +225,7 @@ function publicStatus(raw: Record<string, unknown>): Record<string, unknown> {
     automaticReplayOfUncertainEffect: false,
     dispatchExposedThroughProMcp: false,
     typedReadDispatchExposedThroughProMcp: true,
+    vercelTypedControlAvailableThroughAuthenticatedDispatch: Array.isArray(raw.capabilities) && raw.capabilities.includes("vercel.control"),
     rawShellExposed: false,
   };
 }
@@ -263,7 +330,7 @@ function publicGatewayFabricStatus(raw: Record<string, unknown>): Record<string,
 }
 
 function makeMcpServer(env: Env): McpServer {
-  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.3.1" });
+  const server = new McpServer({ name: "EVAVO Workstation Relay", version: "0.4.0" });
   server.registerTool(
     "workstation_status",
     {
@@ -292,6 +359,7 @@ function makeMcpServer(env: Env): McpServer {
             workerFabricProfile: status.workerFabricProfile,
             dispatchRequiresSeparateAuthenticatedApi: true,
             typedReadDispatchAvailableThroughMcp: true,
+            vercelTypedControlAvailableThroughAuthenticatedDispatch: status.vercelTypedControlAvailableThroughAuthenticatedDispatch,
             rawShellExposed: false,
           }),
         }],
@@ -551,12 +619,17 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (GATEWAY_READ_ACTIONS.has(action) && Object.keys(args).length !== 0) {
       return json({ ok: false, error: "gateway-read-actions-require-empty-arguments" }, { status: 400 });
     }
+    if (VERCEL_ACTIONS.has(action)) {
+      const validationError = validateVercelArguments(args);
+      if (validationError) return json({ ok: false, error: validationError }, { status: 400 });
+    }
     if (new TextEncoder().encode(JSON.stringify(args)).byteLength > MAX_DISPATCH_BYTES) {
       return json({ ok: false, error: "arguments-too-large" }, { status: 413 });
     }
 
     const requestedAt = new Date();
-    const desired = Number(body.timeoutMs ?? (STORAGE_ACTIONS.has(action) ? MAX_DEADLINE_MS : 30_000));
+    const longRunning = STORAGE_ACTIONS.has(action) || VERCEL_ACTIONS.has(action);
+    const desired = Number(body.timeoutMs ?? (longRunning ? MAX_DEADLINE_MS : 30_000));
     const deadlineMs = Math.min(MAX_DEADLINE_MS, Math.max(1_000, Number.isFinite(desired) ? desired : 30_000));
     const id = crypto.randomUUID();
     const deadline = new Date(requestedAt.getTime() + deadlineMs).toISOString();
@@ -621,7 +694,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     };
     await this.remember(record);
 
-    const wait = typeof body.wait === "boolean" ? body.wait : !STORAGE_ACTIONS.has(action);
+    const wait = typeof body.wait === "boolean" ? body.wait : !(STORAGE_ACTIONS.has(action) || VERCEL_ACTIONS.has(action));
     const waitMs = Math.min(MAX_SYNC_WAIT_MS, deadlineMs);
     let resultPromise: Promise<ResultMessage> | null = null;
     if (wait) {
@@ -877,6 +950,7 @@ export default {
         journalReady: status.journalReady,
         deliveryJournalVersion: DELIVERY_JOURNAL_VERSION,
         automaticReplayOfUncertainEffect: false,
+        vercelTypedControlAvailable: status.vercelTypedControlAvailableThroughAuthenticatedDispatch,
       });
     }
     if (url.pathname === "/mcp") {
