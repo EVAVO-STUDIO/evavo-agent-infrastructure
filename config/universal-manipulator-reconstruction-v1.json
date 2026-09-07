@@ -4,7 +4,7 @@
   "canonicalRepository": "EVAVO-STUDIO/universal-manipulator",
   "defaultBranch": "main",
   "status": "source-unresolved-reconstruction-approved",
-  "purpose": "Recover or reconstruct the canonical Universal Manipulator device broker from surviving Agent Infrastructure and Workstation Manager authority contracts without reassigning its ownership to adjacent systems.",
+  "purpose": "Recover or reconstruct the canonical Universal Manipulator device broker from surviving Agent Infrastructure and Workstation Manager authority contracts without reassigning its ownership to adjacent systems or treating reconstructed source as accepted runtime.",
   "sourceRecovery": {
     "requiredBeforeReconstruction": true,
     "searchOrder": [
@@ -14,6 +14,11 @@
       "BeeStation EVAVO repository mirrors",
       "Git bundle inventory",
       "migration payloads and prior working copies"
+    ],
+    "historicalEvidence": [
+      "Workstation Manager records identify a prior local C:/GitRepos/universal-manipulator checkout.",
+      "The connected GitHub account returned no resolvable canonical repository during the current audit.",
+      "Workstation Manager retains connector, operation, qualification, claim, dispatch, readback and physical-acceptance contracts that constrain reconstruction."
     ],
     "preserveHistoryIfRecovered": true,
     "forbiddenRecoveryActions": [
@@ -31,21 +36,20 @@
       "device enrollment",
       "connector manifests",
       "per-device capability grants",
-      "typed device operations",
-      "connector/provider dispatch for enrolled assets",
-      "command reservation and execution claims",
-      "readback and postcondition reconciliation",
-      "unknown-outcome reconciliation",
-      "sandboxed generated-driver admission",
-      "driver promotion after physical acceptance"
+      "typed device operations and provider-normalized command intents",
+      "connector/provider adapters for enrolled assets",
+      "device-specific readback normalization",
+      "unknown-outcome reconciliation requests and evidence correlation",
+      "sandboxed generated-driver lifecycle",
+      "driver promotion after reviewed physical acceptance"
     ],
     "doesNotOwn": {
-      "EVAVO-STUDIO/network-studio": "LAN discovery, network diagnosis and provisional connector planning",
-      "EVAVO-STUDIO/evavo-workstation-manager": "hardware/device truth, qualification, interlocks, driver/profile evidence and physical acceptance",
+      "EVAVO-STUDIO/network-studio": "LAN discovery, network diagnosis and the provisional Home Assistant provider implementation",
+      "EVAVO-STUDIO/evavo-workstation-manager": "hardware/device truth, qualification, authority state, interlocks, command reservation, atomic execution claim, provider-dispatch consumption, rollback/finalization gates and physical acceptance",
       "EVAVO-STUDIO/evavo-local-ai-agent-gateway": "commissioned S3/Comet/C5 edge HID and telemetry control",
       "EVAVO-STUDIO/evavo-computer-agent": "GUI/browser/native interaction fallback",
       "EVAVO-STUDIO/evavo-out-of-band-control": "accepted KVM and recovery escalation",
-      "EVAVO-STUDIO/evavo-agent-infrastructure": "chat-facing routing and authority/truth-state enforcement"
+      "EVAVO-STUDIO/evavo-agent-infrastructure": "chat-facing routing, transport selection and authority/truth-state enforcement"
     }
   },
   "truthStates": [
@@ -59,24 +63,14 @@
   "minimumRepositorySurface": {
     "capabilityManifest": ".evavo/capabilities.json",
     "requiredContractVersion": "evavo_repository_capabilities_v1",
-    "requiredDirectories": [
-      "src",
-      "config",
-      "schemas",
-      "tests",
-      "fixtures",
-      "scripts",
-      "docs"
-    ],
-    "requiredInterfaces": [
-      "cli",
-      "mcp",
-      "library"
-    ],
+    "requiredDirectories": ["src", "config", "schemas", "tests", "fixtures", "scripts", "docs"],
+    "requiredInterfaces": ["cli", "mcp", "library"],
     "arbitraryShell": false,
     "arbitraryUrl": false,
+    "genericHttpPassthrough": false,
     "freeTextHid": false,
-    "unrestrictedLanMutation": false
+    "unrestrictedLanMutation": false,
+    "rawCredentialsInManifests": false
   },
   "minimumCapabilityFamilies": [
     "device.asset.inspect",
@@ -86,9 +80,7 @@
     "device.capability.inspect",
     "device.capability.grant",
     "device.operation.plan",
-    "device.operation.reserve",
-    "device.operation.claim",
-    "device.operation.execute",
+    "device.operation.execute-intent",
     "device.operation.readback",
     "device.operation.reconcile",
     "device.driver.candidate-rank",
@@ -96,6 +88,31 @@
     "device.driver.probe",
     "device.driver.promote"
   ],
+  "workstationTransactionDependency": {
+    "required": true,
+    "authority": "EVAVO-STUDIO/evavo-workstation-manager",
+    "operationsRemainWorkstationOwned": [
+      "device-command-authorize",
+      "device-command-admit",
+      "device-command-claim",
+      "device-command-finalize",
+      "device-command-ledger-reconcile",
+      "device-control-interlock-match",
+      "device-control-pause",
+      "device-control-resume"
+    ],
+    "rules": {
+      "reservationRequiredBeforeExecution": true,
+      "executionClaimRequiredImmediatelyBeforeProviderExecution": true,
+      "claimRevalidatesCurrentAuthorityAndInterlock": true,
+      "claimTransitionsReservationToStartedAtomically": true,
+      "claimMayExecuteProvider": false,
+      "providerDispatchConsumptionRequiredImmediatelyBeforeProviderContact": true,
+      "providerDispatchSingleUse": true,
+      "providerDispatchReplayRejected": true,
+      "unknownOutcomeBlocksAutomaticRetry": true
+    }
+  },
   "initialConnectorFamilies": [
     {
       "id": "home-assistant-local",
@@ -105,17 +122,17 @@
     {
       "id": "matter-local-fabric",
       "state": "planned",
-      "requirements": ["fabric identity", "cluster allowlist", "endpoint binding", "readback", "commissioning separation"]
+      "requirements": ["fabric identity", "commissioning evidence", "attestation evidence", "cluster allowlist", "endpoint binding", "readback"]
     },
     {
       "id": "tuya-smart-life",
       "state": "planned",
-      "requirements": ["device identity binding", "typed datapoint schema", "capability allowlist", "readback"]
+      "requirements": ["device identity binding", "typed datapoint schema", "capability allowlist", "readback", "exact supported-function interrogation before admission"]
     },
     {
       "id": "redfish-management",
       "state": "planned",
-      "requirements": ["target enrollment", "operation allowlist", "idempotency", "postcondition verification"]
+      "requirements": ["target enrollment", "operation allowlist", "idempotency", "postcondition verification", "separate high-impact recovery/power admission"]
     },
     {
       "id": "mqtt-typed-adapter",
@@ -133,21 +150,49 @@
       "requirements": ["exact hardware identity", "port binding", "framed protocol schema", "operation allowlist", "bounded timeouts"]
     }
   ],
+  "provisionalHomeAssistantEvidence": {
+    "connector": "EVAVO-STUDIO/evavo-workstation-manager:config/connectors/network-studio-smart-device-provisional.manifest.json",
+    "sourceProvider": "EVAVO-STUDIO/network-studio",
+    "status": "transitional-default-disabled",
+    "transport": "home-assistant-local-http",
+    "physicalAcceptanceRequired": true,
+    "initialEffectfulScope": "reversible smart-home actions only",
+    "excluded": ["scene activation", "high-impact device classes", "generic service passthrough"],
+    "requiredFactsBeforeControl": [
+      "asset-enrolled",
+      "exact-operation-grant",
+      "connector-source-revision-match",
+      "physical-acceptance-current",
+      "fresh-pre-observation",
+      "exclusive-device-lease",
+      "workstation-command-reserved",
+      "workstation-atomic-execution-claim",
+      "workstation-execution-claim-evidence-bound",
+      "workstation-provider-dispatch-unconsumed",
+      "no-unresolved-physical-attempt"
+    ]
+  },
   "adaptiveDriverLifecycle": [
-    "observe",
-    "identify",
-    "rank-candidate-profile-or-driver",
-    "sandbox",
-    "bounded-probes",
-    "enroll-exact-asset",
-    "grant-exact-capabilities",
-    "reserve-command",
-    "claim-execution",
-    "execute-through-admitted-provider",
-    "readback",
-    "reconcile-unknown-outcomes",
-    "physical-acceptance",
-    "promote-driver"
+    "observe bounded device evidence",
+    "identify and correlate without granting trust",
+    "rank existing profile and connector candidates",
+    "sandbox a generated driver only when no reviewed connector fits",
+    "run bounded read-only probes",
+    "validate connector manifest and source identity",
+    "enroll exact physical asset",
+    "grant exact per-device capabilities",
+    "create typed operation intent",
+    "obtain fresh pre-operation observation",
+    "verify current physical acceptance where required",
+    "request Workstation Manager command reservation",
+    "request Workstation Manager atomic execution claim immediately before provider contact",
+    "consume Workstation Manager single-use provider dispatch",
+    "perform exactly one typed provider operation",
+    "read back device or physical state",
+    "finalize correlated receipt and ledger through Workstation Manager",
+    "rollback only through an exact receipt-bound restore operation when eligible",
+    "block automatic retry and reconcile read-only when physical outcome is unknown",
+    "promote generated driver only after reviewed source and physical acceptance"
   ],
   "generatedDriverPolicy": {
     "startsSandboxed": true,
@@ -155,21 +200,61 @@
     "mayGrantCapabilities": false,
     "mayBypassInterlocks": false,
     "requiresBoundedProbePack": true,
+    "requiresTypedConnectorManifest": true,
     "requiresNamedReviewBeforePromotion": true,
-    "requiresPhysicalAcceptanceBeforeProductionPromotion": true
+    "requiresPhysicalAcceptanceBeforeProductionPromotion": true,
+    "requiresReadback": true,
+    "requiresUnknownOutcomeCircuit": true
   },
   "operationContract": {
     "typedOperationsOnly": true,
     "assetEnrollmentRequired": true,
     "capabilityGrantRequired": true,
-    "reservationRequired": true,
-    "executionClaimRequired": true,
-    "idempotencyKeyRequired": true,
+    "workstationReservationRequired": true,
+    "workstationExecutionClaimRequired": true,
+    "idempotencyPolicyRequired": true,
     "timeoutsRequired": true,
     "unknownOutcomeStateRequired": true,
     "readbackRequiredWhenObservable": true,
     "postconditionRequired": true,
-    "interlocksFailClosed": true
+    "interlocksFailClosed": true,
+    "providerDispatchReplayAllowed": false,
+    "automaticRetryAfterUnknownOutcome": false
+  },
+  "initialTypedActions": [
+    "turn_on",
+    "turn_off",
+    "set_brightness",
+    "set_temperature",
+    "set_mode",
+    "set_speed",
+    "open",
+    "close",
+    "stop",
+    "set_position"
+  ],
+  "initiallyExcludedOperations": [
+    "arbitrary provider service calls",
+    "arbitrary shell",
+    "free-text HID macros",
+    "scene activation without a reviewed typed scene contract",
+    "firmware mutation",
+    "factory reset",
+    "credential mutation",
+    "high-impact power/recovery without separate high-impact admission",
+    "implicit nearby-device control"
+  ],
+  "physicalAcceptanceContract": {
+    "authority": "EVAVO-STUDIO/evavo-workstation-manager",
+    "cryptographicallySealed": true,
+    "scopedToExactDeviceAndAction": true,
+    "sourceRevisionBound": true,
+    "expiring": true,
+    "revocable": true,
+    "acceptanceAloneGrantsMutation": false,
+    "acceptanceAloneGrantsAutomaticExecution": false,
+    "acceptanceAloneGrantsEnrollment": false,
+    "acceptanceAloneGrantsOperationGrant": false
   },
   "acceptance": {
     "requiredEvidence": [
@@ -178,7 +263,8 @@
       "connector schema validation",
       "operation and capability-grant validation",
       "idempotency and duplicate-command behavior",
-      "reservation and execution-claim behavior",
+      "Workstation Manager reservation and atomic execution-claim behavior",
+      "single-use provider dispatch and replay rejection",
       "timeout and unknown-outcome reconciliation",
       "readback and postcondition verification",
       "interlock and deny-path behavior",
@@ -198,5 +284,11 @@
     "agentInfrastructureAuthorityAlreadyReserved": true,
     "agentInfrastructureRouteEligibilityBeforeAcceptance": false,
     "workstationManagerPhysicalAcceptanceRequired": true
+  },
+  "zeroCostDefault": {
+    "githubActionsRequired": false,
+    "paidHostedDeviceCloudRequired": false,
+    "localFirst": true,
+    "providerAdaptersOptional": true
   }
 }
