@@ -56,6 +56,9 @@ Legacy queued records created before the journal contract are migrated conservat
 - Dispatch accepts only a fixed typed action allowlist. The Windows client enforces an independent local allowlist.
 - Gateway read actions require an empty argument object and route through a fixed Local Storage bridge into a clean exact `origin/main` gateway checkout.
 - Storage actions require an empty argument object and route through the governed local operator.
+- Vercel control is admitted only as the fixed `vercel.control` transport action. Both Cloudflare and Windows independently restrict its internal operation names and fields.
+- `api.call`, caller-selected REST methods/paths/bodies, and `deployment.deploy` with caller-selected local paths are not admitted through the internet-facing Vercel route.
+- Vercel environment values use environment references only. The `VERCEL_TOKEN` / `VERCEL_API_TOKEN` credential is resolved on the workstation by Development Studio and never crosses the relay or Cloudflare.
 - The workstation token is stored by the Windows client using current-user DPAPI; it is not placed in Task Scheduler arguments, environment variables, or the registry.
 - REST Executor v5 and Local Agent remain loopback-only.
 - The Cloudflare relay does not receive local credential values, private keys, token files, arbitrary filesystem contents, or raw gateway diagnostic output.
@@ -82,6 +85,8 @@ DISPATCH_TOKEN=<different random high-entropy dispatch token>
 
 Never commit these values or reuse one token for both roles.
 
+Vercel credentials are deliberately **not** Worker secrets. `VERCEL_TOKEN` or `VERCEL_API_TOKEN` remains on the EVAVO workstation and is consumed by `EVAVO-STUDIO/evavo-development-studio` only after the typed relay request passes both remote and local validation.
+
 ## Deploy
 
 From this package after dependencies are installed and Wrangler is authenticated:
@@ -92,7 +97,7 @@ pnpm test
 pnpm deploy
 ```
 
-Set both secrets before relying on the endpoint:
+Set both relay secrets before relying on the endpoint:
 
 ```powershell
 npx wrangler secret put WORKSTATION_TOKEN
@@ -126,6 +131,7 @@ storage.status
 storage.inventory.refresh
 storage.google_pressure.activate
 storage.estate.activate
+vercel.control
 ```
 
 `gateway.fabric_status` is read-only despite using the typed workstation transport. It requires `{}` arguments, invokes only `scripts/Get-EvavoGatewayFabricStatus.ps1` in Local Storage, requires the canonical `C:\GitRepos\evavo-local-ai-agent-gateway` checkout to be clean exact `origin/main`, runs only `scripts\commissioning-readiness.ps1 -Json`, and returns a second-stage redacted summary. The MCP surface additionally re-whitelists that summary before returning it.
@@ -152,6 +158,55 @@ The storage actions require `{}` arguments and are intentionally coarse fixed op
 
 Long-running storage dispatch defaults to asynchronous pollable behavior. A `202` response means the request has reached a documented transport state such as `sent` or `ambiguous`; it is never execution-success evidence. Inspect the correlated request record until terminal receipt or reconciliation evidence exists.
 
+## Vercel control
+
+`vercel.control` is a transport action, not a raw Vercel API proxy. Its `arguments.operation` must be one of the reviewed operations below, and Cloudflare plus the Windows resident independently reject unknown fields before Development Studio validates the operation again.
+
+Read operations:
+
+```text
+project.list
+project.get
+env.list
+deployment.list
+deployment.get
+domain.list
+domain.get
+domain.config
+domain.dns-plan
+dns.list
+```
+
+Reviewed write operations:
+
+```text
+project.update
+project.delete
+env.set
+env.delete
+custom-environment.create
+custom-environment.delete
+deployment.redeploy
+deployment.promote
+deployment.rollback
+deployment.cancel
+deployment.delete
+alias.assign
+domain.add
+domain.update
+domain.verify
+domain.remove
+dns.create
+dns.update
+dns.delete
+```
+
+Every write requires a non-empty `reason`. Destructive operations additionally require `allowDestructive=true`. `env.set` accepts `valueFromEnv` and never accepts an inline secret value. Development Studio executes with `--strict`, so project-scoped mutation is limited to the governed Vercel project registry. The controller performs supported preflight/idempotency checks and provider read-back verification after writes.
+
+The internet route intentionally excludes `api.call` and `deployment.deploy`. This prevents a remote caller from selecting arbitrary Vercel API methods/paths or selecting a local deployment working directory. Those broader capabilities remain available only through the separately governed local Development Studio control surface.
+
+All `vercel.control` requests are conservatively treated as effectful by the delivery journal, even when the selected internal operation is a read. That means an uncertain WebSocket send or deadline never triggers automatic replay. The default transport is asynchronous: poll `/api/request` until a correlated terminal receipt exists. The Vercel relay receipt removes credential-source and local-path details and explicitly states that credential values were not returned.
+
 ## Windows client persistence
 
 The installed client is same-user, Limited, and outbound-only. It runs at logon and has periodic recovery. A configured relay is also repaired by the zero-cost logon guardian. Failure of the relay does not block core local recovery.
@@ -162,8 +217,8 @@ The client requires the user-context credential boundary; do not convert it to S
 
 The design is intended to fit Cloudflare Workers Free usage for a personal workstation: one Durable Object, a hibernating WebSocket, very small bounded state, and low request volume. It fails closed if a free-plan limit is reached; paid overage is not a required recovery assumption.
 
-GitHub Actions and Vercel are not required for relay runtime or workstation storage recovery.
+GitHub Actions and Vercel are not required for relay runtime or workstation storage recovery. Vercel is contacted only when an explicitly authenticated `vercel.control` request reaches the machine-side Development Studio authority.
 
 ## Truth boundary
 
-Source presence or a successful Cloudflare deployment does not prove the workstation is connected. `workstation_status.online=true` requires a currently attached WebSocket. A typed dispatch is execution-success evidence only after an accepted, correlated terminal result has been durably journaled. `gateway_fabric_status.ready=true` is evidence that the gateway readiness evaluator reported ready at that captured time; it is not proof that a physical HID action was executed. Local scheduled storage governance remains authoritative even when the relay is offline.
+Source presence or a successful Cloudflare deployment does not prove the workstation is connected. `workstation_status.online=true` requires a currently attached WebSocket. A typed dispatch is execution-success evidence only after an accepted, correlated terminal result has been durably journaled. `gateway_fabric_status.ready=true` is evidence that the gateway readiness evaluator reported ready at that captured time; it is not proof that a physical HID action was executed. `vercel.control` transport acceptance is not evidence that a provider mutation completed; mutation success requires the correlated Development Studio receipt plus its supported read-back verification. Local scheduled storage governance remains authoritative even when the relay is offline.
