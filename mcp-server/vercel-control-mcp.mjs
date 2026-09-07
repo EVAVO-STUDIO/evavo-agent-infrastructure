@@ -125,6 +125,7 @@ function runControl(request, execute, strict, timeoutSeconds) {
   const timeoutMs = Math.min(MAX_TIMEOUT_MS, Math.max(1_000, Number(timeoutSeconds ?? 300) * 1000));
 
   return new Promise((resolvePromise, rejectPromise) => {
+    let timer = null;
     const child = spawn(process.execPath, args, {
       cwd: DEVELOPMENT_STUDIO,
       env: { ...process.env, EVAVO_VERCEL_MCP: "1" },
@@ -137,7 +138,7 @@ function runControl(request, execute, strict, timeoutSeconds) {
     const finish = (error, value) => {
       if (settled) return;
       settled = true;
-      clearTimeout(timer);
+      if (timer) clearTimeout(timer);
       if (error) rejectPromise(error); else resolvePromise(value);
     };
     const append = (current, chunk) => {
@@ -164,11 +165,12 @@ function runControl(request, execute, strict, timeoutSeconds) {
       try { document = JSON.parse(text); } catch { return finish(new Error("Vercel control returned invalid JSON")); }
       finish(null, { ...document, credentialValuesReturned: false, mcpBridge: "evavo-vercel-control-v1" });
     });
-    child.stdin.end(`${payload}\n`, "utf8");
-    const timer = setTimeout(() => {
+    timer = setTimeout(() => {
       child.kill();
       finish(new Error("Vercel control timed out; execution outcome may be unknown and was not retried"));
     }, timeoutMs);
+    child.stdin.on("error", (error) => finish(new Error(`Vercel control stdin failed: ${error.message}`)));
+    child.stdin.end(`${payload}\n`, "utf8");
   });
 }
 
@@ -203,7 +205,7 @@ for await (const line of input) {
     else if (request.method === "initialize") write(result(request.id, {
       protocolVersion: "2024-11-05",
       capabilities: { tools: { listChanged: false } },
-      serverInfo: { name: "evavo-vercel-control-mcp", version: "1.0.0" },
+      serverInfo: { name: "evavo-vercel-control-mcp", version: "1.0.1" },
     }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
