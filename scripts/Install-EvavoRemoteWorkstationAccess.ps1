@@ -13,7 +13,6 @@ if($env:OS-ne'Windows_NT'){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_REQUIRED'}
 if(-not$env:LOCALAPPDATA){throw'EVAVO_REMOTE_ACCESS_INSTALL_LOCALAPPDATA_REQUIRED'}
 
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
-$PowerShell=(Get-Command powershell.exe -CommandType Application -ErrorAction Stop).Source
 $TunnelV3=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1'
 $ExecutionTunnelInstaller=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWindowsExecutionTunnel.ps1'
 $RelayDeploy=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelayV2.ps1'
@@ -33,8 +32,8 @@ if(-not$LocalStorage){throw'EVAVO_REMOTE_ACCESS_INSTALL_LOCAL_STORAGE_UNAVAILABL
 
 function Invoke-JsonPowerShell {
   param([string]$Script,[hashtable]$Named=@{})
-  $Raw=(& $Script @Named | Out-String).Trim()
-  if(-not$Raw){throw "EVAVO_REMOTE_ACCESS_INSTALL_EMPTY_RECEIPT:$Script"}
+  $Raw=(& $Script @Named 2>&1 | Out-String).Trim()
+  if($LASTEXITCODE-ne0-or-not$Raw){throw "EVAVO_REMOTE_ACCESS_INSTALL_EMPTY_OR_FAILED_RECEIPT:$Script"}
   try{return($Raw|ConvertFrom-Json -ErrorAction Stop)}catch{throw "EVAVO_REMOTE_ACCESS_INSTALL_INVALID_RECEIPT:$Script"}
 }
 
@@ -64,7 +63,20 @@ if($CanUseExistingTunnel-or$CanCreateTunnel){
   $TunnelArgs=@{StartNow=$StartNow;Json=$true}
   if($CanCreateTunnel-and-not$CanUseExistingTunnel){$TunnelArgs.CreateTunnelIfMissing=$true;if($Workspace){$TunnelArgs.WorkspaceId=$Workspace};if($Organization){$TunnelArgs.OrganizationId=$Organization}}
   $Tunnel=Invoke-JsonPowerShell -Script $TunnelV3 -Named $TunnelArgs
-  if([string]$Tunnel.kind-ne'evavo-chatgpt-workstation-observer-tunnel-installation-v3'-or$Tunnel.ok-ne$true-or$Tunnel.backgroundTaskAuthenticationReady-ne$true-or$Tunnel.repositoryIndependentObserver-ne$true-or$Tunnel.effectfulWorkstationToolsExposed-ne$false){throw'EVAVO_REMOTE_ACCESS_INSTALL_TUNNEL_NOT_ACCEPTED'}
+  if(
+    [string]$Tunnel.kind-ne'evavo-chatgpt-workstation-observer-tunnel-installation-v3'-or
+    $Tunnel.ok-ne$true-or
+    $Tunnel.backgroundTaskAuthenticationReady-ne$true-or
+    $Tunnel.repositoryIndependentObserver-ne$true-or
+    $Tunnel.effectfulWorkstationToolsExposed-ne$false-or
+    $Tunnel.scheduledTaskExact-ne$true-or
+    [string]$Tunnel.scheduledTaskHost-ne'wscript.exe'-or
+    $Tunnel.consoleFreeScheduledAction-ne$true-or
+    $Tunnel.directTunnelClientScheduledHost-ne$false-or
+    $Tunnel.scheduledTaskWaitsForTunnelExit-ne$true-or
+    $Tunnel.mcpCommandUsesDirectNode-ne$true-or
+    $Tunnel.focusStealAllowed-ne$false
+  ){throw'EVAVO_REMOTE_ACCESS_INSTALL_TUNNEL_NOT_ACCEPTED'}
 }else{$TunnelSkip=if(-not$TunnelClient){'tunnel-client-unavailable'}elseif(-not$RuntimeKey){'runtime-key-unavailable'}else{'tunnel-id-or-admin-scope-unavailable'}}
 
 if($EnableWindowsExecution){
@@ -73,7 +85,22 @@ if($EnableWindowsExecution){
     $ExecutionArgs=@{StartNow=$StartNow;Json=$true}
     if($CanCreateTunnel-and-not$CanUseExistingExecutionTunnel){$ExecutionArgs.CreateTunnelIfMissing=$true;if($Workspace){$ExecutionArgs.WorkspaceId=$Workspace};if($Organization){$ExecutionArgs.OrganizationId=$Organization}}
     $ExecutionTunnel=Invoke-JsonPowerShell -Script $ExecutionTunnelInstaller -Named $ExecutionArgs
-    if([string]$ExecutionTunnel.kind-ne'evavo-chatgpt-windows-execution-tunnel-installation-v2'-or$ExecutionTunnel.ok-ne$true-or$ExecutionTunnel.scheduledTaskExact-ne$true-or$ExecutionTunnel.compatibilityShim-ne$true-or$ExecutionTunnel.effectfulWorkstationToolsExposed-ne$false-or$ExecutionTunnel.rawShellExecutionRemoved-ne$true-or$ExecutionTunnel.arbitraryCommandTextAccepted-ne$false-or$ExecutionTunnel.inlineCodeAccepted-ne$false){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_COMPATIBILITY_NOT_ACCEPTED'}
+    if(
+      [string]$ExecutionTunnel.kind-ne'evavo-chatgpt-windows-execution-tunnel-installation-v2'-or
+      $ExecutionTunnel.ok-ne$true-or
+      $ExecutionTunnel.scheduledTaskExact-ne$true-or
+      [string]$ExecutionTunnel.scheduledTaskHost-ne'wscript.exe'-or
+      $ExecutionTunnel.consoleFreeScheduledAction-ne$true-or
+      $ExecutionTunnel.directTunnelClientScheduledHost-ne$false-or
+      $ExecutionTunnel.scheduledTaskWaitsForTunnelExit-ne$true-or
+      $ExecutionTunnel.mcpCommandUsesDirectNode-ne$true-or
+      $ExecutionTunnel.legacyPowerShellMcpLauncherAuthoritative-ne$false-or
+      $ExecutionTunnel.compatibilityShim-ne$true-or
+      $ExecutionTunnel.effectfulWorkstationToolsExposed-ne$false-or
+      $ExecutionTunnel.rawShellExecutionRemoved-ne$true-or
+      $ExecutionTunnel.arbitraryCommandTextAccepted-ne$false-or
+      $ExecutionTunnel.inlineCodeAccepted-ne$false
+    ){throw'EVAVO_REMOTE_ACCESS_INSTALL_WINDOWS_EXECUTION_COMPATIBILITY_NOT_ACCEPTED'}
   }else{$ExecutionTunnelSkip='compatibility-tunnel-unavailable-use-typed-relay-or-github-issue-queue'}
 }else{$ExecutionTunnelSkip='not-requested'}
 
@@ -83,7 +110,7 @@ if($ProvisionCloudflareRelay){
 }else{$CloudflareSkip='not-requested'}
 
 $Receipt=[ordered]@{
-  schemaVersion=5
+  schemaVersion=6
   kind='evavo-remote-workstation-access-installation'
   ok=$true
   startedAt=$Started.ToString('o')
@@ -93,10 +120,12 @@ $Receipt=[ordered]@{
   openAiSecureMcpObserverTunnel=$Tunnel
   openAiSecureMcpObserverTunnelSkippedReason=$TunnelSkip
   openAiObserverTunnelTaskStarted=if($Tunnel){[bool]$Tunnel.started}else{$false}
+  openAiObserverTunnelConsoleFree=if($Tunnel){[bool]$Tunnel.consoleFreeScheduledAction}else{$null}
   openAiSecureMcpWindowsExecutionCompatibilityTunnel=$ExecutionTunnel
   openAiSecureMcpWindowsExecutionCompatibilityTunnelSkippedReason=$ExecutionTunnelSkip
   windowsExecutionCompatibilityExplicitlyRequested=[bool]$EnableWindowsExecution
   windowsExecutionCompatibilityEstablished=[bool]($ExecutionTunnel-and$ExecutionTunnel.ok)
+  windowsExecutionCompatibilityConsoleFree=if($ExecutionTunnel){[bool]$ExecutionTunnel.consoleFreeScheduledAction}else{$null}
   windowsExecutionEstablished=$false
   effectfulWorkstationToolsExposed=$false
   rawShellExecutionRemoved=$true
@@ -115,10 +144,11 @@ $Receipt=[ordered]@{
   cloudflareAccountIdReturned=$false
   observerArbitraryShellExposed=$false
   compatibilityTunnelArbitraryShellExposed=$false
+  focusStealAllowed=$false
   githubActionsRequired=$false
   vercelRequired=$false
   developmentCheckoutRequiredAfterEstablishment=$false
   physicalRemoteReachabilityClaimed=[bool]($Cloudflare-and$Cloudflare.physicalWorkstationConnectionProven)
 }
 $RuntimeKey=$null;$Admin=$null
-$Receipt|ConvertTo-Json -Depth 20
+if($Json){$Receipt|ConvertTo-Json -Depth 20 -Compress}else{$Receipt|ConvertTo-Json -Depth 20}
