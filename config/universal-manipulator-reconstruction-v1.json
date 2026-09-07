@@ -1,0 +1,202 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-universal-manipulator-reconstruction-contract",
+  "canonicalRepository": "EVAVO-STUDIO/universal-manipulator",
+  "defaultBranch": "main",
+  "status": "source-unresolved-reconstruction-approved",
+  "purpose": "Recover or reconstruct the canonical Universal Manipulator device broker from surviving Agent Infrastructure and Workstation Manager authority contracts without reassigning its ownership to adjacent systems.",
+  "sourceRecovery": {
+    "requiredBeforeReconstruction": true,
+    "searchOrder": [
+      "local-git:C:/GitRepos/universal-manipulator",
+      "EVAVO Local Storage repository archives",
+      "EVAVO Storage repository bundles and immutable archives",
+      "BeeStation EVAVO repository mirrors",
+      "Git bundle inventory",
+      "migration payloads and prior working copies"
+    ],
+    "preserveHistoryIfRecovered": true,
+    "forbiddenRecoveryActions": [
+      "git-reset-hard",
+      "git-clean-force",
+      "force-push",
+      "history-rewrite",
+      "discard-dirty-worktree-without-evidence"
+    ],
+    "reconstructOnlyWhenRecoveryEvidenceExhausted": true
+  },
+  "authorityBoundary": {
+    "owns": [
+      "device asset identity",
+      "device enrollment",
+      "connector manifests",
+      "per-device capability grants",
+      "typed device operations",
+      "connector/provider dispatch for enrolled assets",
+      "command reservation and execution claims",
+      "readback and postcondition reconciliation",
+      "unknown-outcome reconciliation",
+      "sandboxed generated-driver admission",
+      "driver promotion after physical acceptance"
+    ],
+    "doesNotOwn": {
+      "EVAVO-STUDIO/network-studio": "LAN discovery, network diagnosis and provisional connector planning",
+      "EVAVO-STUDIO/evavo-workstation-manager": "hardware/device truth, qualification, interlocks, driver/profile evidence and physical acceptance",
+      "EVAVO-STUDIO/evavo-local-ai-agent-gateway": "commissioned S3/Comet/C5 edge HID and telemetry control",
+      "EVAVO-STUDIO/evavo-computer-agent": "GUI/browser/native interaction fallback",
+      "EVAVO-STUDIO/evavo-out-of-band-control": "accepted KVM and recovery escalation",
+      "EVAVO-STUDIO/evavo-agent-infrastructure": "chat-facing routing and authority/truth-state enforcement"
+    }
+  },
+  "truthStates": [
+    "source_ready",
+    "configured",
+    "transport_online",
+    "accepted",
+    "completed",
+    "physically_verified"
+  ],
+  "minimumRepositorySurface": {
+    "capabilityManifest": ".evavo/capabilities.json",
+    "requiredContractVersion": "evavo_repository_capabilities_v1",
+    "requiredDirectories": [
+      "src",
+      "config",
+      "schemas",
+      "tests",
+      "fixtures",
+      "scripts",
+      "docs"
+    ],
+    "requiredInterfaces": [
+      "cli",
+      "mcp",
+      "library"
+    ],
+    "arbitraryShell": false,
+    "arbitraryUrl": false,
+    "freeTextHid": false,
+    "unrestrictedLanMutation": false
+  },
+  "minimumCapabilityFamilies": [
+    "device.asset.inspect",
+    "device.asset.enroll",
+    "device.connector.inspect",
+    "device.connector.qualify",
+    "device.capability.inspect",
+    "device.capability.grant",
+    "device.operation.plan",
+    "device.operation.reserve",
+    "device.operation.claim",
+    "device.operation.execute",
+    "device.operation.readback",
+    "device.operation.reconcile",
+    "device.driver.candidate-rank",
+    "device.driver.sandbox",
+    "device.driver.probe",
+    "device.driver.promote"
+  ],
+  "initialConnectorFamilies": [
+    {
+      "id": "home-assistant-local",
+      "state": "planned",
+      "requirements": ["typed service allowlist", "entity binding", "readback", "no arbitrary service invocation"]
+    },
+    {
+      "id": "matter-local-fabric",
+      "state": "planned",
+      "requirements": ["fabric identity", "cluster allowlist", "endpoint binding", "readback", "commissioning separation"]
+    },
+    {
+      "id": "tuya-smart-life",
+      "state": "planned",
+      "requirements": ["device identity binding", "typed datapoint schema", "capability allowlist", "readback"]
+    },
+    {
+      "id": "redfish-management",
+      "state": "planned",
+      "requirements": ["target enrollment", "operation allowlist", "idempotency", "postcondition verification"]
+    },
+    {
+      "id": "mqtt-typed-adapter",
+      "state": "future-reviewed",
+      "requirements": ["broker allowlist", "topic schema", "typed payload contract", "publish capability grant", "readback or acknowledged result"]
+    },
+    {
+      "id": "ble-gatt-typed-adapter",
+      "state": "future-reviewed",
+      "requirements": ["device enrollment", "service/characteristic allowlist", "typed encode/decode", "bounded scan policy", "readback"]
+    },
+    {
+      "id": "serial-usb-typed-adapter",
+      "state": "future-reviewed",
+      "requirements": ["exact hardware identity", "port binding", "framed protocol schema", "operation allowlist", "bounded timeouts"]
+    }
+  ],
+  "adaptiveDriverLifecycle": [
+    "observe",
+    "identify",
+    "rank-candidate-profile-or-driver",
+    "sandbox",
+    "bounded-probes",
+    "enroll-exact-asset",
+    "grant-exact-capabilities",
+    "reserve-command",
+    "claim-execution",
+    "execute-through-admitted-provider",
+    "readback",
+    "reconcile-unknown-outcomes",
+    "physical-acceptance",
+    "promote-driver"
+  ],
+  "generatedDriverPolicy": {
+    "startsSandboxed": true,
+    "maySelfPromote": false,
+    "mayGrantCapabilities": false,
+    "mayBypassInterlocks": false,
+    "requiresBoundedProbePack": true,
+    "requiresNamedReviewBeforePromotion": true,
+    "requiresPhysicalAcceptanceBeforeProductionPromotion": true
+  },
+  "operationContract": {
+    "typedOperationsOnly": true,
+    "assetEnrollmentRequired": true,
+    "capabilityGrantRequired": true,
+    "reservationRequired": true,
+    "executionClaimRequired": true,
+    "idempotencyKeyRequired": true,
+    "timeoutsRequired": true,
+    "unknownOutcomeStateRequired": true,
+    "readbackRequiredWhenObservable": true,
+    "postconditionRequired": true,
+    "interlocksFailClosed": true
+  },
+  "acceptance": {
+    "requiredEvidence": [
+      "exact repository identity and revision",
+      "canonical capability manifest validity",
+      "connector schema validation",
+      "operation and capability-grant validation",
+      "idempotency and duplicate-command behavior",
+      "reservation and execution-claim behavior",
+      "timeout and unknown-outcome reconciliation",
+      "readback and postcondition verification",
+      "interlock and deny-path behavior",
+      "generated-driver sandbox and promotion gates",
+      "simulator acceptance",
+      "at least one real enrolled-device physical acceptance"
+    ],
+    "sourcePresenceIsAcceptance": false,
+    "connectorPresenceIsAcceptance": false,
+    "simulatorSuccessIsPhysicalAcceptance": false,
+    "deviceDiscoveryGrantsControl": false,
+    "agentInfrastructureEligibilityRequiresAcceptedSourceAndRuntime": true
+  },
+  "integration": {
+    "brainDiscoveryAfterSourceReady": true,
+    "developmentStudioFabricProjectionAfterAcceptance": true,
+    "agentInfrastructureAuthorityAlreadyReserved": true,
+    "agentInfrastructureRouteEligibilityBeforeAcceptance": false,
+    "workstationManagerPhysicalAcceptanceRequired": true
+  }
+}
