@@ -1,5 +1,12 @@
 {
   "mcpServers": {
+    "evavo-vercel-control": {
+      "command": "node",
+      "args": ["./mcp-server/vercel-control-mcp.mjs"],
+      "env": {
+        "EVAVO_DEVELOPMENT_STUDIO_REPO": "C:\\GitRepos\\evavo-development-studio"
+      }
+    },
     "evavo-local-agent-executor": {
       "command": "node",
       "args": ["./mcp-server/local-agent-mcp.mjs"],
