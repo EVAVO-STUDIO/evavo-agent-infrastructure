@@ -4,18 +4,22 @@
   "repository": "EVAVO-STUDIO/universal-manipulator",
   "authorityId": "universal-manipulator",
   "status": "source-unresolved-reconstruction-required",
+  "detailedSpecification": "config/universal-manipulator-reconstruction-v1.json",
   "automaticActivationAuthorized": false,
   "automaticPublicationAuthorized": false,
   "automaticEnrollmentAuthorized": false,
   "automaticGrantAuthorized": false,
   "automaticHighImpactControlAuthorized": false,
-  "purpose": "Restore the intended canonical EVAVO device asset, enrollment, connector-manifest, capability-grant and exact typed-command broker without moving hardware truth, network discovery, KVM, firmware or workstation safety authority into this repository.",
+  "purpose": "Restore the intended canonical EVAVO device asset, enrollment, connector-manifest, capability-grant and exact typed-command broker without moving workstation transaction gates, hardware truth, network discovery, KVM, firmware or workstation safety authority into this repository.",
   "survivingEvidence": {
     "authorityRegistry": "EVAVO-STUDIO/evavo-agent-infrastructure:config/agent-capability-authorities-v1.json",
     "connectorCatalog": "EVAVO-STUDIO/evavo-workstation-manager:config/device-connector-catalog-v1.json",
     "adaptiveProfiles": "EVAVO-STUDIO/evavo-workstation-manager:config/adaptive-device-profiles-v1.json",
     "authorityPolicy": "EVAVO-STUDIO/evavo-workstation-manager:config/device-control-authority-policy-v1.json",
-    "operationCatalog": "EVAVO-STUDIO/evavo-workstation-manager:config/device-control-operation-catalog-v1.json"
+    "executionClaimPolicy": "EVAVO-STUDIO/evavo-workstation-manager:config/device-control-execution-claim-policy-v1.json",
+    "operationCatalog": "EVAVO-STUDIO/evavo-workstation-manager:config/device-control-operation-catalog-v1.json",
+    "provisionalHomeAssistantConnector": "EVAVO-STUDIO/evavo-workstation-manager:config/connectors/network-studio-smart-device-provisional.manifest.json",
+    "physicalAcceptance": "EVAVO-STUDIO/evavo-workstation-manager:agent-smart-home-physical-acceptance.ps1"
   },
   "recoveryTruth": {
     "historicalLocalCheckout": "C:\\GitRepos\\universal-manipulator",
@@ -36,67 +40,51 @@
     "reviewed-device-enrollment",
     "checked-in-connector-manifest-registry",
     "exact-capability-grants",
-    "typed-device-command-broker",
+    "typed-device-command-intent-broker",
     "connector-source-revision-binding",
     "manifest-fingerprint-binding",
     "device-readback-normalization",
-    "provider-dispatch-receipt-correlation",
-    "unknown-outcome-reconciliation",
+    "provider-result-correlation",
+    "unknown-outcome-reconciliation-request",
     "sandboxed-generated-driver-promotion-evidence"
+  ],
+  "workstationOwnedTransactionGates": [
+    "device-command-authorize",
+    "device-command-admit",
+    "device-command-reserve",
+    "device-command-claim",
+    "device-command-finalize",
+    "device-command-ledger-reconcile",
+    "device-control-interlock",
+    "single-use-provider-dispatch-consumption",
+    "physical-acceptance"
   ],
   "plannedConnectorFamilies": [
     {
       "connectorId": "home-assistant-local",
       "mode": "local-aggregation",
-      "constraints": [
-        "fixed-service-allowlists-only",
-        "no-generic-service-call-passthrough",
-        "readback-required-for-effectful-operations"
-      ]
+      "constraints": ["fixed-service-allowlists-only", "no-generic-service-call-passthrough", "readback-required-for-effectful-operations"]
     },
     {
       "connectorId": "matter-local-fabric",
       "mode": "commissioned-local-fabric",
-      "constraints": [
-        "commissioning-required",
-        "attestation-required",
-        "allowlisted-clusters-and-attributes-only"
-      ]
+      "constraints": ["commissioning-required", "attestation-required", "allowlisted-clusters-and-attributes-only"]
     },
     {
       "connectorId": "tuya-smart-life",
       "mode": "provider-adapter",
-      "constraints": [
-        "interrogate-exact-supported-functions",
-        "do-not-infer-provider-from-device-brand-or-class",
-        "physical-acceptance-required"
-      ]
+      "constraints": ["interrogate-exact-supported-functions", "do-not-infer-provider-from-device-brand-or-class", "physical-acceptance-required"]
     },
     {
       "connectorId": "redfish-management",
       "mode": "enterprise-device-management",
-      "constraints": [
-        "schema-bound-operations-only",
-        "hardware-and-privilege-specific",
-        "recovery-and-power-actions-require-high-impact-gate"
-      ]
+      "constraints": ["schema-bound-operations-only", "hardware-and-privilege-specific", "recovery-and-power-actions-require-high-impact-gate"]
     },
     {
       "connectorId": "profiled-local-protocols",
       "mode": "typed-local-adapters",
-      "candidateProtocols": [
-        "mdns-http",
-        "http-json",
-        "https-json",
-        "mqtt",
-        "ble-gatt-profiled",
-        "serial-profiled"
-      ],
-      "constraints": [
-        "protocol-observation-before-selection",
-        "generated-drivers-start-sandboxed",
-        "exact-device-readback-before-promotion"
-      ]
+      "candidateProtocols": ["mdns-http", "http-json", "https-json", "mqtt", "ble-gatt-profiled", "serial-profiled"],
+      "constraints": ["protocol-observation-before-selection", "generated-drivers-start-sandboxed", "exact-device-readback-before-promotion"]
     }
   ],
   "requiredCommandLifecycle": [
@@ -105,12 +93,14 @@
     "review-enrollment",
     "bind-exact-device-and-connector-revision",
     "grant-exact-operation",
-    "reserve-command-intent",
+    "create-typed-command-intent",
+    "request-workstation-command-reservation",
     "verify-sealed-interlock",
-    "claim-execution-immediately-before-provider-contact",
-    "consume-provider-dispatch-once",
+    "request-workstation-execution-claim-immediately-before-provider-contact",
+    "consume-workstation-provider-dispatch-once",
+    "execute-exactly-one-admitted-provider-operation",
     "read-back-postcondition",
-    "finalize-receipt",
+    "request-workstation-finalization",
     "block-automatic-retry-on-unknown-outcome"
   ],
   "mandatorySafetyInvariants": {
@@ -123,19 +113,23 @@
     "exactOperationGrantRequired": true,
     "grantWideningRequiresNewReview": true,
     "machineLocalTrustSealRequired": true,
-    "commandIntentReservationRequiredBeforeExecution": true,
-    "nonceReuseAllowed": false,
-    "idempotencyKeyReuseAllowed": false,
+    "workstationCommandReservationRequiredBeforeExecution": true,
+    "workstationExecutionClaimRequiredImmediatelyBeforeProviderContact": true,
+    "workstationClaimMayExecuteProvider": false,
+    "singleUseProviderDispatchRequired": true,
+    "providerDispatchReplayAllowed": false,
     "sealedInterlockRequiredBeforeMutation": true,
     "unknownOutcomeBlocksRetry": true,
     "automaticResumeAuthorized": false,
     "preferLocalProtocols": true,
     "preferReadbackVerification": true,
-    "forbidEmbeddedCredentials": true
+    "forbidEmbeddedCredentials": true,
+    "physicalAcceptanceAloneGrantsMutation": false,
+    "physicalAcceptanceAloneGrantsAutomaticExecution": false
   },
   "mustNotOwn": [
     {
-      "capability": "workstation-hardware-and-driver-truth",
+      "capability": "workstation-hardware-driver-truth-command-reservation-execution-claim-interlocks-provider-dispatch-and-physical-acceptance",
       "authority": "EVAVO-STUDIO/evavo-workstation-manager"
     },
     {
@@ -170,7 +164,7 @@
     "connector-manifests-checked-in",
     "bounded-command-contracts-validated",
     "no-arbitrary-shell-or-generic-provider-passthrough",
-    "authority-state-and-interlock-contract-tests-green",
+    "workstation-authority-state-and-interlock-contract-tests-green",
     "unknown-outcome-test-green",
     "at-least-one-read-only-physical-observation-accepted",
     "at-least-one-low-impact-effectful-operation-physically-verified",
