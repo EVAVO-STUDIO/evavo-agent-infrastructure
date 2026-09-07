@@ -10,6 +10,7 @@
     "objective",
     "from",
     "to",
+    "domainOwner",
     "requestedCapability",
     "requestedEffect",
     "authority",
@@ -45,6 +46,16 @@
         "sourceRevision": {"type": ["string", "null"], "pattern": "^(?:[0-9a-f]{40})?$"}
       }
     },
+    "domainOwner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ownerId", "repository", "validated"],
+      "properties": {
+        "ownerId": {"type": "string", "minLength": 1},
+        "repository": {"type": "string", "pattern": "^EVAVO-STUDIO/[A-Za-z0-9._-]+$"},
+        "validated": {"type": "boolean"}
+      }
+    },
     "requestedCapability": {"type": "string", "minLength": 1, "maxLength": 240},
     "requestedEffect": {"enum": ["read", "write", "execute", "control", "publish"]},
     "authority": {
@@ -52,8 +63,8 @@
       "additionalProperties": false,
       "required": ["authorityId", "authorityRepository", "validated"],
       "properties": {
-        "authorityId": {"type": "string", "minLength": 1},
-        "authorityRepository": {"type": "string", "pattern": "^EVAVO-STUDIO/[A-Za-z0-9._-]+$"},
+        "authorityId": {"type": ["string", "null"]},
+        "authorityRepository": {"type": ["string", "null"], "pattern": "^(?:EVAVO-STUDIO/[A-Za-z0-9._-]+)?$"},
         "validated": {"type": "boolean"},
         "routeId": {"type": ["string", "null"]},
         "strategyId": {"type": ["string", "null"]},
