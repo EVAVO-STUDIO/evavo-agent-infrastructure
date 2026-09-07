@@ -28,6 +28,8 @@ $TunnelClient = Get-Command tunnel-client.exe,tunnel-client -CommandType Applica
 if (-not $TunnelClient) { throw 'EVAVO_WORKSTATION_OBSERVER_V2_TUNNEL_CLIENT_REQUIRED' }
 $TunnelExe = [IO.Path]::GetFullPath([string]$TunnelClient.Source)
 $NodeExe = [IO.Path]::GetFullPath([string]$Node.Source)
+$WScriptExe = Join-Path $env:SystemRoot 'System32\wscript.exe'
+if (-not (Test-Path -LiteralPath $WScriptExe -PathType Leaf)) { throw 'EVAVO_WORKSTATION_OBSERVER_V2_WSCRIPT_REQUIRED' }
 $NodeCheck = (& $NodeExe --check $SourceObserver 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw "EVAVO_WORKSTATION_OBSERVER_V2_SOURCE_NODE_CHECK_FAILED $NodeCheck" }
 
@@ -35,6 +37,7 @@ $ObserverSha = (Get-FileHash -LiteralPath $SourceObserver -Algorithm SHA256).Has
 $Base = Join-Path $env:LOCALAPPDATA 'EVAVO\WorkerControlPlane\chatgpt-workstation-observer'
 $Bundle = Join-Path (Join-Path $Base 'bundles') $ObserverSha
 $InstalledObserver = Join-Path $Bundle 'workstation-observer-mcp.mjs'
+$TaskLauncher = Join-Path $Bundle 'run-workstation-observer-tunnel-hidden.vbs'
 $ManifestPath = Join-Path $Bundle 'manifest.json'
 New-Item -ItemType Directory -Path $Bundle -Force | Out-Null
 Copy-Item -LiteralPath $SourceObserver -Destination $InstalledObserver -Force
@@ -42,18 +45,6 @@ $InstalledSha = (Get-FileHash -LiteralPath $InstalledObserver -Algorithm SHA256)
 if ($InstalledSha -ne $ObserverSha) { throw 'EVAVO_WORKSTATION_OBSERVER_V2_BUNDLE_HASH_MISMATCH' }
 $InstalledCheck = (& $NodeExe --check $InstalledObserver 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw "EVAVO_WORKSTATION_OBSERVER_V2_BUNDLE_NODE_CHECK_FAILED $InstalledCheck" }
-
-[IO.File]::WriteAllText($ManifestPath,([ordered]@{
-    schemaVersion=1
-    kind='evavo-chatgpt-workstation-observer-bundle-v2'
-    installedAt=[DateTimeOffset]::UtcNow.ToString('o')
-    observerSha256=$InstalledSha
-    nodeExecutable=$NodeExe
-    repositoryIndependent=$true
-    developmentCheckoutRequiredAfterInstallation=$false
-    readOnly=$true
-    mutationAuthority=$false
-} | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
 
 if (-not $TunnelId) {
     $TunnelId = [Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','User')
@@ -92,7 +83,7 @@ if (-not [Environment]::GetEnvironmentVariable('CONTROL_PLANE_API_KEY','User') -
     [Environment]::SetEnvironmentVariable('CONTROL_PLANE_API_KEY',$env:CONTROL_PLANE_API_KEY,'User')
 }
 
-$McpCommand = "`"$NodeExe`" `"$InstalledObserver`""
+$McpCommand = ('"{0}" "{1}"' -f $NodeExe,$InstalledObserver)
 $InitRaw = (& $TunnelExe init --sample sample_mcp_stdio_local --profile $Profile --tunnel-id $TunnelId --mcp-command $McpCommand 2>&1 | Out-String).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'EVAVO_WORKSTATION_OBSERVER_V2_INIT_FAILED' }
 $DoctorRaw = (& $TunnelExe doctor --profile $Profile --explain 2>&1 | Out-String).Trim()
@@ -103,16 +94,58 @@ if ([string]$Identity.User.Value -eq 'S-1-5-18') { throw 'EVAVO_WORKSTATION_OBSE
 $UserId = [string]$Identity.Name
 $TaskName = 'EVAVO ChatGPT Workstation Observer Tunnel'
 $Arguments = "run --profile $Profile"
+$TunnelPayload = ('"{0}" {1}' -f $TunnelExe,$Arguments)
+$EscapedTunnelPayload = $TunnelPayload.Replace('"','""')
+$TaskLauncherBody = @(
+    'Option Explicit',
+    'Dim shell, exitCode',
+    'Set shell = CreateObject("WScript.Shell")',
+    ('exitCode = shell.Run("{0}", 0, True)' -f $EscapedTunnelPayload),
+    'WScript.Quit exitCode'
+) -join "`r`n"
+$TaskLauncherBody += "`r`n"
+[IO.File]::WriteAllText($TaskLauncher,$TaskLauncherBody,[Text.UTF8Encoding]::new($false))
+$TaskLauncherItem = Get-Item -LiteralPath $TaskLauncher -Force -ErrorAction Stop
+if ($TaskLauncherItem.PSIsContainer -or (($TaskLauncherItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'EVAVO_WORKSTATION_OBSERVER_V2_TASK_LAUNCHER_UNSAFE' }
+$TaskLauncherHash = (Get-FileHash -LiteralPath $TaskLauncher -Algorithm SHA256).Hash.ToLowerInvariant()
+$TaskHostArguments = ('//B //NoLogo "{0}"' -f $TaskLauncher)
+
+[IO.File]::WriteAllText($ManifestPath,([ordered]@{
+    schemaVersion=2
+    kind='evavo-chatgpt-workstation-observer-bundle-v2'
+    installedAt=[DateTimeOffset]::UtcNow.ToString('o')
+    observerSha256=$InstalledSha
+    nodeExecutable=$NodeExe
+    taskLauncherSha256=$TaskLauncherHash
+    scheduledTaskHost='wscript.exe'
+    scheduledTaskWaitsForTunnelExit=$true
+    directTunnelClientScheduledHost=$false
+    mcpCommandUsesDirectNode=$true
+    repositoryIndependent=$true
+    developmentCheckoutRequiredAfterInstallation=$false
+    readOnly=$true
+    mutationAuthority=$false
+} | ConvertTo-Json -Depth 8),[Text.UTF8Encoding]::new($false))
+
 $Principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
 $Logon = New-ScheduledTaskTrigger -AtLogOn -User $UserId
 $Periodic = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
 $Settings = New-ScheduledTaskSettingsSet -Hidden -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval ([TimeSpan]::FromMinutes(1)) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-$Action = New-ScheduledTaskAction -Execute $TunnelExe -Argument $Arguments -WorkingDirectory $Bundle
-Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger @($Logon,$Periodic) -Principal $Principal -Settings $Settings -Description 'Outbound-only OpenAI Secure MCP Tunnel runtime for the repository-independent read-only EVAVO workstation observer MCP.' -Force | Out-Null
+$Action = New-ScheduledTaskAction -Execute $WScriptExe -Argument $TaskHostArguments -WorkingDirectory $Bundle
+Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger @($Logon,$Periodic) -Principal $Principal -Settings $Settings -Description 'Outbound-only OpenAI Secure MCP Tunnel runtime for the repository-independent read-only EVAVO workstation observer MCP. Scheduled through a windowless waiting host.' -Force | Out-Null
 Enable-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
 $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
 $Actions = @($Task.Actions)
-$Exact = [bool]([string]$Task.State -ne 'Disabled' -and [string]$Task.Principal.UserId -eq $UserId -and [string]$Task.Principal.RunLevel -eq 'Limited' -and $Actions.Count -eq 1 -and [IO.Path]::GetFullPath([string]$Actions[0].Execute) -eq $TunnelExe -and [string]$Actions[0].Arguments -eq $Arguments -and [IO.Path]::GetFullPath([string]$Actions[0].WorkingDirectory) -eq [IO.Path]::GetFullPath($Bundle))
+$Exact = [bool](
+    [string]$Task.State -ne 'Disabled' -and
+    [string]$Task.Principal.UserId -eq $UserId -and
+    [string]$Task.Principal.RunLevel -eq 'Limited' -and
+    $Actions.Count -eq 1 -and
+    [IO.Path]::GetFullPath([string]$Actions[0].Execute) -eq [IO.Path]::GetFullPath($WScriptExe) -and
+    [string]$Actions[0].Arguments -eq $TaskHostArguments -and
+    [IO.Path]::GetFullPath([string]$Actions[0].WorkingDirectory) -eq [IO.Path]::GetFullPath($Bundle) -and
+    (Get-FileHash -LiteralPath $TaskLauncher -Algorithm SHA256).Hash.ToLowerInvariant() -eq $TaskLauncherHash
+)
 if (-not $Exact) { Disable-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null; throw 'EVAVO_WORKSTATION_OBSERVER_V2_TASK_INVALID' }
 $Started = $false
 if ($StartNow) { Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop; $Started = $true }
@@ -125,6 +158,11 @@ if ($StartNow) { Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop; $Sta
     tunnelIdReturned=$false
     profile=$Profile
     scheduledTaskExact=$true
+    scheduledTaskHost='wscript.exe'
+    consoleFreeScheduledAction=$true
+    directTunnelClientScheduledHost=$false
+    scheduledTaskWaitsForTunnelExit=$true
+    mcpCommandUsesDirectNode=$true
     limitedInteractiveUser=$true
     startAtLogon=$true
     periodicRecoveryMinutes=15
