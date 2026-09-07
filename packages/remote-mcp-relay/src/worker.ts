@@ -92,38 +92,40 @@ const GATEWAY_READ_ACTIONS = new Set([
 const VERCEL_ACTIONS = new Set(["vercel.control"]);
 const VERCEL_REMOTE_FIELDS: Record<string, ReadonlySet<string>> = {
   "project.list": new Set(["operation", "query"]),
-  "project.get": new Set(["operation", "project"]),
-  "project.update": new Set(["operation", "project", "settings", "reason"]),
-  "project.delete": new Set(["operation", "project", "reason", "allowDestructive"]),
-  "env.list": new Set(["operation", "project", "query"]),
-  "env.set": new Set(["operation", "project", "key", "valueFromEnv", "type", "target", "gitBranch", "comment", "customEnvironmentIds", "reason"]),
-  "env.delete": new Set(["operation", "project", "ids", "reason", "allowDestructive"]),
-  "custom-environment.create": new Set(["operation", "project", "slug", "description", "reason"]),
-  "custom-environment.delete": new Set(["operation", "project", "environment", "deleteUnassignedEnvironmentVariables", "reason", "allowDestructive"]),
-  "deployment.list": new Set(["operation", "project", "query"]),
+  "project.get": new Set(["operation", "project", "allowUnregisteredProject"]),
+  "project.create": new Set(["operation", "project", "settings", "gitRepository", "reason"]),
+  "project.update": new Set(["operation", "project", "settings", "reason", "allowUnregisteredProject"]),
+  "project.delete": new Set(["operation", "project", "reason", "allowDestructive", "allowUnregisteredProject"]),
+  "env.list": new Set(["operation", "project", "query", "allowUnregisteredProject"]),
+  "env.set": new Set(["operation", "project", "key", "valueFromEnv", "type", "target", "gitBranch", "comment", "customEnvironmentIds", "reason", "allowUnregisteredProject"]),
+  "env.delete": new Set(["operation", "project", "ids", "reason", "allowDestructive", "allowUnregisteredProject"]),
+  "custom-environment.create": new Set(["operation", "project", "slug", "description", "reason", "allowUnregisteredProject"]),
+  "custom-environment.delete": new Set(["operation", "project", "environment", "deleteUnassignedEnvironmentVariables", "reason", "allowDestructive", "allowUnregisteredProject"]),
+  "deployment.list": new Set(["operation", "project", "query", "allowUnregisteredProject"]),
   "deployment.get": new Set(["operation", "deployment"]),
+  "deployment.deploy": new Set(["operation", "project", "repository", "production", "target", "reason", "allowUnregisteredProject"]),
   "deployment.redeploy": new Set(["operation", "deployment", "reason"]),
-  "deployment.promote": new Set(["operation", "project", "deployment", "reason"]),
-  "deployment.rollback": new Set(["operation", "project", "deployment", "description", "reason"]),
+  "deployment.promote": new Set(["operation", "project", "deployment", "reason", "allowUnregisteredProject"]),
+  "deployment.rollback": new Set(["operation", "project", "deployment", "description", "reason", "allowUnregisteredProject"]),
   "deployment.cancel": new Set(["operation", "deployment", "reason"]),
   "deployment.delete": new Set(["operation", "deployment", "reason", "allowDestructive"]),
   "alias.assign": new Set(["operation", "deployment", "alias", "redirect", "reason"]),
-  "domain.list": new Set(["operation", "project", "query"]),
-  "domain.get": new Set(["operation", "project", "domain"]),
-  "domain.add": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason"]),
-  "domain.update": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason"]),
-  "domain.verify": new Set(["operation", "project", "domain", "reason"]),
-  "domain.remove": new Set(["operation", "project", "domain", "removeRedirects", "reason", "allowDestructive"]),
-  "domain.config": new Set(["operation", "project", "domain"]),
-  "domain.dns-plan": new Set(["operation", "project", "domain"]),
+  "domain.list": new Set(["operation", "project", "query", "allowUnregisteredProject"]),
+  "domain.get": new Set(["operation", "project", "domain", "allowUnregisteredProject"]),
+  "domain.add": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason", "allowUnregisteredProject"]),
+  "domain.update": new Set(["operation", "project", "domain", "gitBranch", "redirect", "redirectStatusCode", "reason", "allowUnregisteredProject"]),
+  "domain.verify": new Set(["operation", "project", "domain", "reason", "allowUnregisteredProject"]),
+  "domain.remove": new Set(["operation", "project", "domain", "removeRedirects", "reason", "allowDestructive", "allowUnregisteredProject"]),
+  "domain.config": new Set(["operation", "project", "domain", "allowUnregisteredProject"]),
+  "domain.dns-plan": new Set(["operation", "project", "domain", "allowUnregisteredProject"]),
   "dns.list": new Set(["operation", "domain", "query"]),
   "dns.create": new Set(["operation", "domain", "record", "reason"]),
   "dns.update": new Set(["operation", "domain", "recordId", "record", "reason"]),
   "dns.delete": new Set(["operation", "domain", "recordId", "reason", "allowDestructive"]),
 };
 const VERCEL_WRITE_OPERATIONS = new Set([
-  "project.update", "project.delete", "env.set", "env.delete", "custom-environment.create", "custom-environment.delete",
-  "deployment.redeploy", "deployment.promote", "deployment.rollback", "deployment.cancel", "deployment.delete", "alias.assign",
+  "project.create", "project.update", "project.delete", "env.set", "env.delete", "custom-environment.create", "custom-environment.delete",
+  "deployment.deploy", "deployment.redeploy", "deployment.promote", "deployment.rollback", "deployment.cancel", "deployment.delete", "alias.assign",
   "domain.add", "domain.update", "domain.verify", "domain.remove", "dns.create", "dns.update", "dns.delete",
 ]);
 const VERCEL_DESTRUCTIVE_OPERATIONS = new Set([
@@ -189,11 +191,27 @@ function validateVercelArguments(args: Record<string, unknown>): string | null {
   if (VERCEL_DESTRUCTIVE_OPERATIONS.has(operation) && args.allowDestructive !== true) {
     return "vercel-allow-destructive-required";
   }
+  if (Object.prototype.hasOwnProperty.call(args, "allowUnregisteredProject") && args.allowUnregisteredProject !== true) {
+    return "vercel-allow-unregistered-project-invalid";
+  }
   if (operation === "env.set") {
     if (Object.prototype.hasOwnProperty.call(args, "value")) return "vercel-env-literal-value-forbidden";
     if (typeof args.valueFromEnv !== "string" || !/^[A-Za-z_][A-Za-z0-9_]{0,255}$/.test(args.valueFromEnv)) {
       return "vercel-env-reference-invalid";
     }
+  }
+  if (operation === "project.create" && args.gitRepository !== undefined) {
+    const repo = args.gitRepository;
+    if (!repo || typeof repo !== "object" || Array.isArray(repo)) return "vercel-git-repository-invalid";
+    const descriptor = repo as Record<string, unknown>;
+    for (const key of Object.keys(descriptor)) if (!new Set(["type", "repo"]).has(key)) return `vercel-git-repository-field-not-admitted:${key}`;
+    if (descriptor.type !== "github") return "vercel-git-provider-not-admitted";
+    if (typeof descriptor.repo !== "string" || !/^EVAVO-STUDIO\/[A-Za-z0-9._-]{1,100}$/.test(descriptor.repo)) return "vercel-git-repository-not-evavo";
+  }
+  if (operation === "deployment.deploy") {
+    if (typeof args.repository !== "string" || !/^EVAVO-STUDIO\/[A-Za-z0-9._-]{1,100}$/.test(args.repository)) return "vercel-deployment-repository-not-evavo";
+    if (args.production !== undefined && typeof args.production !== "boolean") return "vercel-deployment-production-flag-invalid";
+    if (args.target !== undefined && (typeof args.target !== "string" || args.target.length < 1 || args.target.length > 80)) return "vercel-deployment-target-invalid";
   }
   return null;
 }
