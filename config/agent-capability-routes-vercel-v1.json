@@ -1,0 +1,54 @@
+[
+  {
+    "id": "vercel-inspect",
+    "capability": "vercel.inspect",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Inspect EVAVO Vercel teams, projects, deployments, environment-variable metadata, project domains and DNS configuration without mutation. Prefer the EVAVO Vercel control MCP because it shares the same typed contract used for writes; the provider-native Vercel connector remains a useful independent read/deployment evidence path.",
+    "strategies": [
+      { "id": "vercel-inspect-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "vercel-inspect-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "vercel-configure",
+    "capability": "vercel.configure",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Apply explicit Vercel project settings, custom environments and environment-variable changes through Development Studio using environment-reference-only secret handling and provider read-back. Never place secret values in agent requests or receipts.",
+    "strategies": [
+      { "id": "vercel-configure-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "vercel-configure-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "vercel-deploy",
+    "capability": "vercel.deploy",
+    "requestedEffect": "publish",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Create, redeploy, promote, rollback, cancel and inspect Vercel deployments through the governed Vercel control plane. ChatGPT remote deployment must use typed Git/provider deployment inputs rather than caller-selected Windows paths; Claude/Codex may also use the local MCP path.",
+    "strategies": [
+      { "id": "vercel-deploy-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "vercel-deploy-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "vercel-domain-dns",
+    "capability": "vercel.domain-dns",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Attach, verify, redirect and remove Vercel project domains; inspect Vercel's exact domain-specific DNS recommendations; and mutate Vercel-authoritative DNS records. External registrars such as Porkbun remain a separate authority: return exact registrar rows and verify them, but never pretend Vercel changed an external registrar unless that registrar adapter also executed successfully.",
+    "strategies": [
+      { "id": "vercel-domain-dns-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "vercel-domain-dns-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  }
+]
