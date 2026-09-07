@@ -23,7 +23,16 @@ $required=@(
     'observerReadOnly=$true',
     'effectfulAndroidToolsExposed=$false',
     'chatGptProductSideConnectorSetupStillRequired=$true',
-    'proWriteActionsClaimed=$false'
+    'proWriteActionsClaimed=$false',
+    "scheduledTaskHost='wscript.exe'",
+    'consoleFreeScheduledAction=$true',
+    'directTunnelClientScheduledHost=$false',
+    'scheduledTaskWaitsForTunnelExit=$true',
+    'mcpCommandUsesDirectNode=$true',
+    'tunnelIdReturned=$false',
+    'focusStealAllowed=$false',
+    'WScript.Quit exitCode',
+    '$Action=New-ScheduledTaskAction -Execute $WScript'
 )
 foreach($needle in $required){if(-not$installerSource.Contains($needle)){throw "ChatGPT observer tunnel contract missing: $needle"}}
 $forbidden=@(
@@ -33,9 +42,11 @@ $forbidden=@(
     'evavo_android_app_uninstall',
     'evavo_android_game_input',
     'UNINSTALL_USER_ANDROID_APP',
-    'CLEAR_USER_ANDROID_APP_DATA'
+    'CLEAR_USER_ANDROID_APP_DATA',
+    '$Action=New-ScheduledTaskAction -Execute $TunnelExe',
+    'tunnelId=$TunnelId'
 )
-foreach($needle in $forbidden){if($installerSource.Contains($needle)){throw "ChatGPT observer tunnel installer exposes effectful surface: $needle"}}
+foreach($needle in $forbidden){if($installerSource.Contains($needle)){throw "ChatGPT observer tunnel installer exposes effectful or unsafe surface: $needle"}}
 
 foreach($needle in @('readOnlyHint: true','destructiveHint: false','mutationAuthority:false','rawAdbSerialReturned:false')){
     if(-not$observerSource.Contains($needle)){throw "Android observer read-only contract missing: $needle"}
@@ -45,8 +56,8 @@ foreach($needle in @('app-lifecycle-cli.mjs","uninstall','app-lifecycle-cli.mjs"
 }
 
 [ordered]@{
-    schemaVersion=1
-    kind='evavo-chatgpt-android-observer-tunnel-contract-v1'
+    schemaVersion=2
+    kind='evavo-chatgpt-android-observer-tunnel-contract-v2'
     ok=$true
     powershellSyntaxValid=$true
     outboundTunnelOnly=$true
@@ -54,6 +65,13 @@ foreach($needle in @('app-lifecycle-cli.mjs","uninstall','app-lifecycle-cli.mjs"
     effectfulAndroidToolsExposed=$false
     rawAdbSerialExposed=$false
     credentialsEmbeddedInRepository=$false
+    tunnelIdReturned=$false
+    scheduledTaskHost='wscript.exe'
+    consoleFreeScheduledAction=$true
+    directTunnelClientScheduledHost=$false
+    scheduledTaskWaitsForTunnelExit=$true
+    mcpCommandUsesDirectNode=$true
+    focusStealAllowed=$false
     chatGptProductSideSetupAcknowledged=$true
     proWriteActionsClaimed=$false
 }|ConvertTo-Json -Depth 8
