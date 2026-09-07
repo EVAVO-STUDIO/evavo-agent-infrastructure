@@ -28,7 +28,15 @@ foreach($Required in @(
     'outboundOnly=$true',
     'chatGptProductSideConnectorSetupStillRequired=$true',
     'runtimeCredentialValueReturned=$false',
-    'tunnelIdValueReturned=$false'
+    'tunnelIdValueReturned=$false',
+    "scheduledTaskHost='wscript.exe'",
+    'consoleFreeScheduledAction=$true',
+    'directTunnelClientScheduledHost=$false',
+    'scheduledTaskWaitsForTunnelExit=$true',
+    'mcpCommandUsesDirectNode=$true',
+    'legacyPowerShellMcpLauncherAuthoritative=$false',
+    'WScript.Quit exitCode',
+    '$Action=New-ScheduledTaskAction -Execute $WScriptExe'
 )){if(-not$Text.Contains($Required)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_MISSING:$Required"}}
 foreach($Forbidden in @(
     'effectfulWorkstationToolsExposed=$true',
@@ -39,11 +47,12 @@ foreach($Forbidden in @(
     'acceptedRestExecutorAttestationRequired=$true',
     'localPublicListenerRequired=$true',
     'runtimeCredentialValueReturned=$true',
-    'adminKeyReturned=$true'
+    'adminKeyReturned=$true',
+    '$Action=New-ScheduledTaskAction -Execute $TunnelExe'
 )){if($Text.Contains($Forbidden)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_FORBIDDEN:$Forbidden"}}
 [ordered]@{
-    schemaVersion=2
-    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v2'
+    schemaVersion=3
+    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v3'
     ok=$true
     separateFromObserverTunnel=$true
     compatibilityShim=$true
@@ -58,6 +67,12 @@ foreach($Forbidden in @(
     localPublicListenerRequired=$false
     immutableBundle=$true
     scheduledTaskPersistence=$true
+    scheduledTaskHost='wscript.exe'
+    consoleFreeScheduledAction=$true
+    directTunnelClientScheduledHost=$false
+    scheduledTaskWaitsForTunnelExit=$true
+    mcpCommandUsesDirectNode=$true
+    legacyPowerShellMcpLauncherAuthoritative=$false
     chatGptProductSideConnectorSetupStillRequired=$true
     credentialsReturned=$false
     tunnelInstalled=$false
