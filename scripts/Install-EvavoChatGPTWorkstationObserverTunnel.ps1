@@ -13,106 +13,65 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
-if ($env:OS -ne 'Windows_NT') { throw 'EVAVO ChatGPT workstation observer tunnel installer targets Windows.' }
-if (-not $env:USERPROFILE) { throw 'USERPROFILE is required.' }
+if ($env:OS -ne 'Windows_NT') { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_WINDOWS_REQUIRED' }
 
-$Root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')).TrimEnd('\')
-$Observer = Join-Path $Root 'mcp-server\workstation-observer-mcp.mjs'
-if (-not (Test-Path -LiteralPath $Observer -PathType Leaf)) { throw 'EVAVO workstation observer MCP is unavailable.' }
-$ObserverItem = Get-Item -LiteralPath $Observer -Force -ErrorAction Stop
-if (($ObserverItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'Workstation observer MCP may not be a reparse point.' }
-$Node = Get-Command node.exe,node -CommandType Application -ErrorAction Stop | Select-Object -First 1
-$NodeCheck = (& $Node.Source --check $Observer 2>&1 | Out-String).Trim()
-if ($LASTEXITCODE -ne 0) { throw "Workstation observer MCP failed Node syntax check. $NodeCheck" }
+$V2 = Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1'
+if (-not (Test-Path -LiteralPath $V2 -PathType Leaf)) { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_MISSING' }
+$Item = Get-Item -LiteralPath $V2 -Force -ErrorAction Stop
+if ($Item.PSIsContainer -or (($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)) { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_UNSAFE' }
+$Tokens=$null;$Errors=$null
+[Management.Automation.Language.Parser]::ParseFile($V2,[ref]$Tokens,[ref]$Errors) | Out-Null
+if (@($Errors).Count -gt 0) { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_PARSE_FAILED' }
 
-$TunnelClient = Get-Command tunnel-client.exe,tunnel-client -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
-if (-not $TunnelClient) { throw 'OpenAI tunnel-client is required. Install the supported Secure MCP Tunnel client first.' }
-$TunnelExe = [string]$TunnelClient.Source
-
-if (-not $TunnelId) {
-    $TunnelId = [Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','User')
-    if ([string]::IsNullOrWhiteSpace($TunnelId)) { $TunnelId = [string]$env:EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID }
+$Parameters = @{
+    Profile = $Profile
+    TunnelName = $TunnelName
+    CreateTunnelIfMissing = [bool]$CreateTunnelIfMissing
+    StartNow = [bool]$StartNow
+    Json = $true
 }
-if (-not $WorkspaceId) { $WorkspaceId = [string]$env:OPENAI_WORKSPACE_ID }
-if (-not $OrganizationId) { $OrganizationId = [string]$env:OPENAI_ORGANIZATION_ID }
-$RuntimeKey = [Environment]::GetEnvironmentVariable('CONTROL_PLANE_API_KEY','User')
-if ([string]::IsNullOrWhiteSpace($RuntimeKey)) { $RuntimeKey = $env:CONTROL_PLANE_API_KEY }
-if ([string]::IsNullOrWhiteSpace($RuntimeKey)) { $RuntimeKey = [Environment]::GetEnvironmentVariable('OPENAI_API_KEY','User') }
-if ([string]::IsNullOrWhiteSpace($RuntimeKey)) { $RuntimeKey = $env:OPENAI_API_KEY }
-if ([string]::IsNullOrWhiteSpace($RuntimeKey)) { throw 'A tunnel runtime key is required via CONTROL_PLANE_API_KEY (preferred) or OPENAI_API_KEY fallback.' }
+if (-not [string]::IsNullOrWhiteSpace($TunnelId)) { $Parameters.TunnelId = $TunnelId }
+if (-not [string]::IsNullOrWhiteSpace($WorkspaceId)) { $Parameters.WorkspaceId = $WorkspaceId }
+if (-not [string]::IsNullOrWhiteSpace($OrganizationId)) { $Parameters.OrganizationId = $OrganizationId }
 
-$Created = $false
-if ([string]::IsNullOrWhiteSpace($TunnelId)) {
-    if (-not $CreateTunnelIfMissing) { throw 'EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID is required unless -CreateTunnelIfMissing is used.' }
-    $Admin = [Environment]::GetEnvironmentVariable('OPENAI_ADMIN_KEY','User')
-    if ([string]::IsNullOrWhiteSpace($Admin)) { $Admin = $env:OPENAI_ADMIN_KEY }
-    if ([string]::IsNullOrWhiteSpace($Admin)) { throw 'OPENAI_ADMIN_KEY is required to create a tunnel automatically.' }
-    if ([string]::IsNullOrWhiteSpace($WorkspaceId) -and [string]::IsNullOrWhiteSpace($OrganizationId)) { throw 'WorkspaceId or OrganizationId is required to create a tunnel.' }
-    $Args = @('admin','tunnels','create','--name',$TunnelName,'--description','Read-only EVAVO Windows workstation recovery, REST-health and relay observer.','--json')
-    if ($WorkspaceId) { $Args += @('--workspace-id',$WorkspaceId) }
-    if ($OrganizationId) { $Args += @('--organization-id',$OrganizationId) }
-    $Raw = & $TunnelExe @Args 2>&1 | Out-String
-    if ($LASTEXITCODE -ne 0) { throw 'OpenAI workstation observer tunnel creation failed.' }
-    try { $Doc = $Raw.Trim() | ConvertFrom-Json -ErrorAction Stop } catch { throw 'Tunnel creation returned invalid JSON.' }
-    $Candidate = ''
-    if ($Doc.PSObject.Properties.Name -contains 'tunnel_id') { $Candidate = [string]$Doc.tunnel_id }
-    elseif ($Doc.PSObject.Properties.Name -contains 'id') { $Candidate = [string]$Doc.id }
-    if ($Candidate -notmatch '^tunnel_[0-9a-f]{32}$') { throw 'Tunnel creation did not return a valid tunnel id.' }
-    $TunnelId = $Candidate
-    $Created = $true
-    [Environment]::SetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID',$TunnelId,'User')
-    [Environment]::SetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID',$TunnelId,'Process')
-}
-if ($TunnelId -notmatch '^tunnel_[0-9a-f]{32}$') { throw 'TunnelId must match tunnel_<32 lowercase hex>.' }
-
-if (-not [Environment]::GetEnvironmentVariable('CONTROL_PLANE_API_KEY','User') -and $env:CONTROL_PLANE_API_KEY) {
-    [Environment]::SetEnvironmentVariable('CONTROL_PLANE_API_KEY',$env:CONTROL_PLANE_API_KEY,'User')
-}
-
-$McpCommand = "node `"$Observer`""
-$InitRaw = & $TunnelExe init --sample sample_mcp_stdio_local --profile $Profile --tunnel-id $TunnelId --mcp-command $McpCommand 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0) { throw 'tunnel-client failed to initialise the EVAVO workstation observer profile.' }
-$DoctorRaw = & $TunnelExe doctor --profile $Profile --explain 2>&1 | Out-String
-if ($LASTEXITCODE -ne 0) { throw 'tunnel-client doctor rejected the EVAVO workstation observer profile.' }
-
-$Identity = [Security.Principal.WindowsIdentity]::GetCurrent()
-if ([string]$Identity.User.Value -eq 'S-1-5-18') { throw 'Workstation observer tunnel must run in the intended interactive user context, not LocalSystem.' }
-$UserId = [string]$Identity.Name
-$Principal = New-ScheduledTaskPrincipal -UserId $UserId -LogonType Interactive -RunLevel Limited
-$Logon = New-ScheduledTaskTrigger -AtLogOn -User $UserId
-$Periodic = New-ScheduledTaskTrigger -Once -At ((Get-Date).AddMinutes(2)) -RepetitionInterval (New-TimeSpan -Minutes 15) -RepetitionDuration ([TimeSpan]::MaxValue)
-$Settings = New-ScheduledTaskSettingsSet -Hidden -StartWhenAvailable -ExecutionTimeLimit ([TimeSpan]::Zero) -MultipleInstances IgnoreNew -RestartCount 3 -RestartInterval ([TimeSpan]::FromMinutes(1)) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
-$TaskName = 'EVAVO ChatGPT Workstation Observer Tunnel'
-$Arguments = "run --profile $Profile"
-$Action = New-ScheduledTaskAction -Execute $TunnelExe -Argument $Arguments -WorkingDirectory $Root
-Register-ScheduledTask -TaskName $TaskName -Action $Action -Trigger @($Logon,$Periodic) -Principal $Principal -Settings $Settings -Description 'Outbound-only OpenAI Secure MCP Tunnel runtime for the read-only EVAVO workstation observer MCP.' -Force | Out-Null
-Enable-ScheduledTask -TaskName $TaskName -ErrorAction Stop | Out-Null
-$Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-$Actions = @($Task.Actions)
-$Exact = [bool](
-    [string]$Task.State -ne 'Disabled' -and
-    [string]$Task.Principal.UserId -eq $UserId -and
-    [string]$Task.Principal.RunLevel -eq 'Limited' -and
-    $Actions.Count -eq 1 -and
-    [IO.Path]::GetFullPath([string]$Actions[0].Execute) -eq [IO.Path]::GetFullPath($TunnelExe) -and
-    [string]$Actions[0].Arguments -eq $Arguments
-)
-if (-not $Exact) { Disable-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue | Out-Null; throw 'Workstation observer tunnel scheduled task failed exact verification.' }
-$Started = $false
-if ($StartNow) { Start-ScheduledTask -TaskName $TaskName -ErrorAction Stop; $Started = $true }
+$Raw = (& $V2 @Parameters 2>&1 | Out-String).Trim()
+if (-not $Raw) { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_RECEIPT_MISSING' }
+try { $V2Receipt = $Raw | ConvertFrom-Json -ErrorAction Stop }
+catch { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_RECEIPT_INVALID' }
+if (
+    [int]$V2Receipt.schemaVersion -ne 2 -or
+    [string]$V2Receipt.kind -ne 'evavo-chatgpt-workstation-observer-tunnel-installation-v2' -or
+    $V2Receipt.ok -ne $true -or
+    $V2Receipt.scheduledTaskExact -ne $true -or
+    [string]$V2Receipt.scheduledTaskHost -ne 'wscript.exe' -or
+    $V2Receipt.consoleFreeScheduledAction -ne $true -or
+    $V2Receipt.directTunnelClientScheduledHost -ne $false -or
+    $V2Receipt.scheduledTaskWaitsForTunnelExit -ne $true -or
+    $V2Receipt.mcpCommandUsesDirectNode -ne $true -or
+    $V2Receipt.observerReadOnly -ne $true -or
+    $V2Receipt.observerMutationAuthority -ne $false
+) { throw 'EVAVO_WORKSTATION_OBSERVER_COMPAT_V2_NOT_PROVEN' }
 
 $Receipt = [ordered]@{
     schemaVersion=1
     kind='evavo-chatgpt-workstation-observer-tunnel-installation-v1'
     ok=$true
-    tunnelId=$TunnelId
-    tunnelCreated=$Created
-    profile=$Profile
+    compatibilityEntrypoint=$true
+    implementationAuthority='Install-EvavoChatGPTWorkstationObserverTunnelV2.ps1'
+    delegatedToV2=$true
+    tunnelCreated=[bool]$V2Receipt.tunnelCreated
+    tunnelIdReturned=$false
+    profile=[string]$V2Receipt.profile
     scheduledTaskExact=$true
+    scheduledTaskHost='wscript.exe'
+    consoleFreeScheduledAction=$true
+    directTunnelClientScheduledHost=$false
+    scheduledTaskWaitsForTunnelExit=$true
+    mcpCommandUsesDirectNode=$true
     limitedInteractiveUser=$true
     startAtLogon=$true
     periodicRecoveryMinutes=15
-    started=$Started
+    started=[bool]$V2Receipt.started
     outboundOnly=$true
     localMcpPublicListenerRequired=$false
     observerReadOnly=$true
@@ -125,5 +84,6 @@ $Receipt = [ordered]@{
     chatGptConnectorRegistrationPerformed=$false
     chatGptProductSideConnectorSetupStillRequired=$true
     proWriteActionsClaimed=$false
+    v2=$V2Receipt
 }
-if ($Json) { $Receipt | ConvertTo-Json -Depth 10 } else { $Receipt | ConvertTo-Json -Depth 10 }
+if ($Json) { $Receipt | ConvertTo-Json -Depth 12 -Compress } else { $Receipt | ConvertTo-Json -Depth 12 }
