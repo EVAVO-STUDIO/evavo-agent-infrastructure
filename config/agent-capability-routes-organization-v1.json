@@ -1,0 +1,44 @@
+[
+  {
+    "id": "organization-specialist-team-plan",
+    "capability": "organization.specialist-team-plan",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Plan the smallest coherent EVAVO specialist team from canonical domain ownership and reviewed handoff patterns. Planning is read-only and grants no specialist or execution authority.",
+    "strategies": [
+      {"id":"organization-team-plan-local-mcp","authority":"agent-infrastructure","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-team-plan-workstation-bridge","authority":"agent-infrastructure","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-team-plan-secure-tunnel","authority":"agent-infrastructure","transport":"openai-secure-mcp-tunnel","clients":["chatgpt-pro"],"minimumState":"transport_online"}
+    ]
+  },
+  {
+    "id": "organization-capability-route-readiness",
+    "capability": "organization.capability-route-readiness",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Diagnose whether a canonical capability route is currently eligible from current evidence and return exact readiness blockers/probes when it is not. This never executes the requested capability.",
+    "strategies": [
+      {"id":"organization-route-readiness-local-mcp","authority":"agent-infrastructure","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-route-readiness-workstation-bridge","authority":"agent-infrastructure","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-route-readiness-secure-tunnel","authority":"agent-infrastructure","transport":"openai-secure-mcp-tunnel","clients":["chatgpt-pro"],"minimumState":"transport_online"}
+    ]
+  },
+  {
+    "id": "organization-specialist-handoff-validate",
+    "capability": "organization.specialist-handoff-validate",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Validate a typed specialist handoff against canonical domain ownership and machine authority/route boundaries without executing the handoff.",
+    "strategies": [
+      {"id":"organization-handoff-validate-local-mcp","authority":"agent-infrastructure","transport":"local-specialist-mcp","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-handoff-validate-workstation-bridge","authority":"agent-infrastructure","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"organization-handoff-validate-secure-tunnel","authority":"agent-infrastructure","transport":"openai-secure-mcp-tunnel","clients":["chatgpt-pro"],"minimumState":"transport_online"}
+    ]
+  }
+]
