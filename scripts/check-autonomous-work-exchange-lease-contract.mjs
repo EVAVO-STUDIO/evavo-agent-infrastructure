@@ -62,6 +62,9 @@ for (const field of ["workerCommitPerformed", "publicationPerformed", "deploymen
 
 if (modelRunner.schemaVersion !== 1 || modelRunner.kind !== "evavo-codex-documentation-truth-runner-policy-v1") errors.push("documentation-truth model runner policy identity is invalid");
 if (modelRunner.maximumChangedFiles !== 1 || modelRunner.maximumChangedLines !== 600 || modelRunner.networkAccessExpected !== false) errors.push("documentation-truth model runner resource/network boundary is invalid");
+if (!Number.isInteger(modelRunner.maximumProcessSeconds) || modelRunner.maximumProcessSeconds < 1 || modelRunner.maximumProcessSeconds > 3600) errors.push("documentation-truth model runner maximumProcessSeconds is invalid");
+if (!Number.isInteger(modelRunner.minimumProcessBudgetSeconds) || modelRunner.minimumProcessBudgetSeconds < 1 || modelRunner.minimumProcessBudgetSeconds > modelRunner.maximumProcessSeconds) errors.push("documentation-truth model runner minimumProcessBudgetSeconds is invalid");
+if (!Number.isInteger(modelRunner.leaseCompletionSafetyMarginSeconds) || modelRunner.leaseCompletionSafetyMarginSeconds < 1 || modelRunner.leaseCompletionSafetyMarginSeconds > 60) errors.push("documentation-truth model runner leaseCompletionSafetyMarginSeconds is invalid");
 falseFields(modelRunner, "documentation-truth model runner", ["paidFallbackAllowed", "deterministicValidationAuthority", "commitAuthority", "pushAuthority", "publicationAuthority", "deploymentAuthority"]);
 
 if (activation.schemaVersion !== 1 || activation.kind !== "evavo-documentation-truth-activation-state-v1" || activation.decision !== "SOURCE_READY_PHYSICAL_ADMISSION_REQUIRED") errors.push("documentation-truth activation-state identity/decision is invalid");
@@ -75,10 +78,10 @@ falseFields(registry, "documentation-truth registry", ["physicalCodexExecutionRe
 
 const sourceChecks = [
   ["scripts/compile-autonomous-work-exchange-lease-plan.mjs", ["expectedSnapshotSha256", "expectedGeneration", "routeAdmissionSha256", "oneWriterPerRepository", "documentation-truth", "maximumItemsLeased", "modelTurnPerformed: false", "publicationPerformed: false", "paidFallbackUsed: false"]],
-  ["scripts/run-autonomous-work-exchange-lease.mjs", ["autonomousLeaseActionPhysicallyRegistered", "policy.localStorageEffect", "LEASE_ACQUIRED", "modelTurnPerformed: false", "publicationPerformed: false", "deploymentPerformed: false"]],
+  ["scripts/run-autonomous-work-exchange-lease.mjs", ["autonomousLeaseActionPhysicallyRegistered", "policy.localStorageEffect", "LEASE_ACQUIRED", "RECONCILE_LEASE_STATE", "canonicalPostStateVerified", "modelTurnPerformed: false", "publicationPerformed: false", "deploymentPerformed: false"]],
   ["scripts/compile-codex-documentation-truth-dispatch.mjs", ["evavo-codex-documentation-truth-dispatch-plan-v1", "workItemSha256: workSource.sha256", "physicalDocumentationTruthAcceptanceRequired", "canonical capability manifest paths", "candidate worktree receipt", "modelTurnPerformed: false", "deterministicValidationPerformed: false", "publicationPerformed: false"]],
   ["scripts/verify-codex-documentation-truth-physical-acceptance.mjs", ["evavo-codex-documentation-truth-physical-acceptance-verification-v1", "acceptanceFingerprintSha256", "fresh-codex-capability-probe", "documentation-truth", "modelTurnPerformed: false", "publicationPerformed: false"]],
-  ["scripts/run-codex-documentation-truth-dispatch.mjs", ["runnerPolicy.executionEnableEnvironmentVariable", "runnerPolicy.acceptanceReceiptEnvironmentVariable", "workItemSha256: plan.workItemSha256", "candidate must be clean", "Only SUCCESS may leave", "apiKeyEnvironmentSanitized", "deterministicValidationPerformed: false", "publicationPerformed: false"]]
+  ["scripts/run-codex-documentation-truth-dispatch.mjs", ["runnerPolicy.executionEnableEnvironmentVariable", "runnerPolicy.acceptanceReceiptEnvironmentVariable", "workItemSha256: plan.workItemSha256", "candidate must be clean", "Only SUCCESS may leave", "executionDeadline = Math.min(routeExpiresAt, leaseExpiresAt)", "availableProcessBudgetMs", "minimumProcessBudgetSeconds", "leaseValidAtFinish", "routeAdmissionValidAtFinish", "resultAcceptedAfterLeaseExpiry: false", "apiKeyEnvironmentSanitized", "deterministicValidationPerformed: false", "publicationPerformed: false"]]
 ];
 for (const [relative, requiredTokens] of sourceChecks) {
   const source = tokens(relative, requiredTokens);
@@ -95,7 +98,8 @@ const syntaxFiles = [
   "scripts/test-autonomous-work-exchange-lease-runner.mjs",
   "scripts/test-codex-documentation-truth-dispatch.mjs",
   "scripts/test-codex-documentation-truth-physical-acceptance.mjs",
-  "scripts/test-codex-documentation-truth-runner.mjs"
+  "scripts/test-codex-documentation-truth-runner.mjs",
+  "scripts/test-codex-documentation-truth-lease-lifetime.mjs"
 ];
 for (const file of syntaxFiles) {
   const result = spawnSync(process.execPath, ["--check", file], { cwd: ROOT, encoding: "utf8", shell: false, timeout: 60_000 });
@@ -106,7 +110,8 @@ const testFiles = [
   "scripts/test-autonomous-work-exchange-lease-runner.mjs",
   "scripts/test-codex-documentation-truth-dispatch.mjs",
   "scripts/test-codex-documentation-truth-physical-acceptance.mjs",
-  "scripts/test-codex-documentation-truth-runner.mjs"
+  "scripts/test-codex-documentation-truth-runner.mjs",
+  "scripts/test-codex-documentation-truth-lease-lifetime.mjs"
 ];
 for (const file of testFiles) {
   const result = spawnSync(process.execPath, [file], { cwd: ROOT, encoding: "utf8", shell: false, timeout: 300_000, maxBuffer: 16 * 1024 * 1024 });
@@ -120,7 +125,8 @@ if (errors.length) {
 }
 console.log("Autonomous Work Exchange and documentation-truth contract passed.");
 console.log("- exact READY item, state bytes, generation and short-lived route admission are bound");
-console.log("- Local Storage remains the only canonical lease effect owner");
+console.log("- Local Storage remains the only canonical lease effect owner and post-effect uncertainty requires reconciliation");
+console.log("- documentation-truth model execution is bounded by remaining lease/route lifetime and rejects post-expiry results");
 console.log("- documentation-truth compiler, physical-acceptance verifier and runner are source-ready");
 console.log("- no checked-in receipt, live route admission, scheduling or normal model execution is inferred");
 console.log("- model runs require exact acceptance bytes and remain manifest-only, candidate-only and non-publishing");
