@@ -55,22 +55,30 @@ foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','Repair-Evav
  if($observerSource.Contains($needle)){throw "Workstation observer contains forbidden mutation path: $needle"}
 }
 foreach($needle in @(
- 'schemaVersion=3','evavo-chatgpt-workstation-observer-tunnel-status-v3','observerBundle=','repositoryIndependent=$BundleValid',
+ 'schemaVersion=4','evavo-chatgpt-workstation-observer-tunnel-status-v4','observerBundle=','repositoryIndependent=$BundleValid',
  'developmentCheckoutRequiredAfterInstallation=$false','tunnelIdReturned=$false','runtimeKeyReturned=$false',
  'chatGptConnectorRegistrationPerformed=$false','chatGptProductSideConnectorSetupStillRequired=$true','physicalTunnelReachabilityClaimed=',
- "host=if(`$TaskConsoleFree){'wscript.exe'}",'consoleFree=$TaskConsoleFree','directTunnelClientScheduledHost=$DirectTunnelClientScheduledHost'
+ "host=if(`$TaskConsoleFree){'wscript.exe'}",'consoleFree=$TaskConsoleFree','directTunnelClientScheduledHost=$DirectTunnelClientScheduledHost',
+ '$InstalledReady = [bool]($Tunnel -and $TunnelIdConfigured -and $TaskExact -and $BundleValid)',
+ '$RuntimeReady = [bool]($InstalledReady -and (-not $ProbeDoctor -or ($DoctorAttempted -and $DoctorPassed)))',
+ 'ok=$RuntimeReady','doctorRequested=[bool]$ProbeDoctor','runtimeReadinessProbed=[bool]$ProbeDoctor','runtimeReady=$RuntimeReady',
+ "readinessBasis=if(`$ProbeDoctor){'installed-state-and-tunnel-doctor'}else{'installed-state-only'}"
 )){
  if(-not$statusSource.Contains($needle)){throw "Workstation tunnel status contract missing: $needle"}
 }
-foreach($needle in @('Register-ScheduledTask','Start-ScheduledTask','SetEnvironmentVariable(','New-ItemProperty')){
- if($statusSource.Contains($needle)){throw "Workstation tunnel status contains mutation path: $needle"}
+foreach($needle in @(
+ 'Register-ScheduledTask','Start-ScheduledTask','SetEnvironmentVariable(','New-ItemProperty',
+ 'ok=[bool]($Tunnel -and $TunnelIdConfigured -and $TaskExact -and $BundleValid)'
+)){
+ if($statusSource.Contains($needle)){throw "Workstation tunnel status contains mutation or stale-success path: $needle"}
 }
 [ordered]@{
- schemaVersion=5;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v5';ok=$true;powershellSyntaxValid=$true
+ schemaVersion=6;kind='evavo-chatgpt-workstation-observer-tunnel-contract-v6';ok=$true;powershellSyntaxValid=$true
  canonicalInstaller='Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1';v2CompatibilityInstallerRetained=$true;legacyInstallerDelegatesToV2=$true
  backgroundTaskRuntimeCredentialPersisted=$true;runtimeCredentialInTaskArguments=$false;runtimeCredentialValueExposed=$false
  repositoryIndependentObserver=$true;immutableObserverBundle=$true;developmentCheckoutRequiredAfterInstallation=$false
  scheduledTaskHost='wscript.exe';consoleFreeScheduledAction=$true;directTunnelClientScheduledHost=$false;scheduledTaskWaitsForTunnelExit=$true;mcpCommandUsesDirectNode=$true
  outboundTunnelOnly=$true;observerReadOnly=$true;effectfulWorkstationToolsExposed=$false;credentialValuesExposed=$false
- readOnlyStatusSurface=$true;doctorProbeIsExplicit=$true;chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
+ readOnlyStatusSurface=$true;doctorProbeIsExplicit=$true;runtimeProbeAuthoritative=$true;failedDoctorCannotReportOk=$true
+ chatGptProductSideSetupAcknowledged=$true;proWriteActionsClaimed=$false
 }|ConvertTo-Json -Depth 8
