@@ -56,16 +56,18 @@ try {
   assert.equal(result.structuredTurnCompleted, false);
 
   result = classify({exitCode:2, modelTurnCompleted:false, stderr:"unexpected runtime transport error"});
-  assert.equal(result.capacityState, "DEGRADED");
+  assert.equal(result.capacityState, "OFFLINE");
   assert.equal(result.workDecision, "REVIEW_RUNTIME_FAILURE");
   assert.equal(result.structuredTurnCompleted, false);
+  assert.equal(result.failedWorkerTurnTreatedAsDispatchableDegradedCapacity, false);
 
   result = classify({exitCode:2, modelTurnCompleted:true, stdout:"protocol claimed completion"});
-  assert.equal(result.capacityState, "DEGRADED");
+  assert.equal(result.capacityState, "OFFLINE");
   assert.equal(result.workDecision, "REVIEW_RUNTIME_FAILURE");
   assert.equal(result.sourceModelTurnCompletedClaim, true);
   assert.equal(result.structuredTurnCompleted, false);
   assert.equal(result.completionEvidenceConsistent, false);
+  assert.equal(result.failedWorkerTurnTreatedAsDispatchableDegradedCapacity, false);
 
   result = classify({modelTurnCompleted:true, stdout:"completion without process exit evidence"});
   assert.equal(result.capacityState, "OFFLINE");
@@ -82,9 +84,10 @@ try {
     capacityState: "AVAILABLE",
     paidFallbackUsed: false,
   });
-  assert.equal(observation.state, "DEGRADED");
-  assert.equal(observation.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+  assert.equal(observation.state, "OFFLINE");
+  assert.equal(observation.reason, "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED");
   assert.equal(observation.contradictoryAvailableClaimRejected, true);
+  assert.equal(observation.failedWorkerDispatchableClaimRejected, true);
 
   observation = observe({
     kind: "evavo-codex-worker-result-classification-v1",
@@ -107,13 +110,35 @@ try {
     completionEvidenceConsistent: false,
     paidFallbackUsed: false,
   });
+  assert.equal(observation.state, "OFFLINE");
+  assert.equal(observation.failedWorkerDispatchableClaimRejected, true);
+
+  observation = observe({
+    kind: "evavo-codex-worker-result-classification-v1",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "DEGRADED",
+    sourceExitCode: 2,
+    structuredTurnCompleted: false,
+    paidFallbackUsed: false,
+  });
+  assert.equal(observation.state, "OFFLINE");
+  assert.equal(observation.failedWorkerDispatchableClaimRejected, true);
+  assert.equal(observation.failedWorkerTurnTreatedAsDispatchableDegradedCapacity, false);
+
+  observation = observe({
+    kind: "independent-capacity-observation",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "DEGRADED",
+    paidFallbackUsed: false,
+  });
   assert.equal(observation.state, "DEGRADED");
-  assert.equal(observation.contradictoryAvailableClaimRejected, true);
+  assert.equal(observation.reason, "EXPLICIT_CAPACITY_CLASSIFICATION");
 
   console.log("Codex worker result classifier tests passed.");
   console.log("- verified successful completion is authoritative over incidental error-like text");
   console.log("- nonzero or missing exit evidence cannot be promoted by modelTurnCompleted=true");
-  console.log("- capacity/auth/rate-limit text classification applies only to non-completed runs");
+  console.log("- failed worker turns remain OFFLINE and cannot become dispatchable DEGRADED capacity");
+  console.log("- DEGRADED remains available to independent capacity telemetry rather than failed worker receipts");
   console.log("- mandatory classifier governance also rejects contradictory Spark capacity observations");
 } finally {
   fs.rmSync(dir, {recursive:true, force:true});
