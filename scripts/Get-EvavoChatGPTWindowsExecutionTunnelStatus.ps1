@@ -91,10 +91,15 @@ if($ProbeTunnelDoctor-and$Tunnel-and$TunnelIdConfigured){
     $DoctorPassed=[bool]($Code-eq0)
 }
 
+$InstalledReady=[bool]($Tunnel-and$TunnelIdConfigured-and$BundleIntegrity-and$TaskExact)
+# A requested runtime probe is authoritative. Installed/configured state alone must
+# never keep the top-level status green after the tunnel doctor has failed.
+$RuntimeReady=[bool]($InstalledReady-and(-not$ProbeTunnelDoctor-or$DoctorPassed))
+
 [ordered]@{
-    schemaVersion=2
-    kind='evavo-chatgpt-windows-execution-tunnel-status-v2'
-    ok=[bool]($Tunnel-and$TunnelIdConfigured-and$BundleIntegrity-and$TaskExact)
+    schemaVersion=3
+    kind='evavo-chatgpt-windows-execution-tunnel-status-v3'
+    ok=$RuntimeReady
     checkedAt=[DateTimeOffset]::UtcNow.ToString('o')
     profile=$Profile
     bundlePresent=[bool]$Manifest
@@ -123,8 +128,11 @@ if($ProbeTunnelDoctor-and$Tunnel-and$TunnelIdConfigured){
     tunnelDoctorProbed=[bool]$ProbeTunnelDoctor
     tunnelDoctorPassed=$DoctorPassed
     tunnelDoctor=$Doctor
-    executionReadyByInstalledState=[bool]($BundleIntegrity-and$TaskExact)
+    executionReadyByInstalledState=$InstalledReady
     executionReadyByTunnelDoctor=if($ProbeTunnelDoctor){$DoctorPassed}else{$null}
+    runtimeReadinessProbed=[bool]$ProbeTunnelDoctor
+    runtimeReady=$RuntimeReady
+    readinessBasis=if($ProbeTunnelDoctor){'installed-state-and-tunnel-doctor'}else{'installed-state-only'}
     focusStealAllowed=$false
     credentialsReturned=$false
     tunnelIdReturned=$false
