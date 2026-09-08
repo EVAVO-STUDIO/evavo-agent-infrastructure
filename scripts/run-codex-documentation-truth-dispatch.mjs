@@ -46,6 +46,10 @@ function parseTime(value, label) {
   if (!Number.isFinite(milliseconds)) throw new Error(`${label} is invalid.`);
   return milliseconds;
 }
+function boundedInteger(value, label, minimum, maximum) {
+  if (!Number.isInteger(value) || value < minimum || value > maximum) throw new Error(`${label} must be an integer between ${minimum} and ${maximum}.`);
+  return value;
+}
 function sameArray(left, right) {
   return Array.isArray(left) && Array.isArray(right) && left.length === right.length && left.every((value, index) => value === right[index]);
 }
@@ -136,6 +140,9 @@ let beforeHead = null;
 let beforeStatus = null;
 let observedChangedPaths = [];
 let observedChangedLines = 0;
+let processBudgetSeconds = null;
+let leaseValidAtFinish = null;
+let routeAdmissionValidAtFinish = null;
 try {
   const inputs = process.argv.slice(2);
   if (inputs.length !== 2) throw new Error("Usage: node scripts/run-codex-documentation-truth-dispatch.mjs <dispatch-plan.json> <fresh-capability.json>");
@@ -143,6 +150,9 @@ try {
   const runnerPolicy = owned("config/codex-documentation-truth-runner-v1.json", "documentation-truth runner policy").document;
   const dispatchPolicy = owned("config/codex-documentation-truth-dispatch-v1.json", "documentation-truth dispatch policy").document;
   const adapter = owned("config/codex-worker-adapter-v1.json", "Codex worker adapter").document;
+  const maximumProcessSeconds = boundedInteger(runnerPolicy.maximumProcessSeconds, "runner maximumProcessSeconds", 1, 3600);
+  const minimumProcessBudgetSeconds = boundedInteger(runnerPolicy.minimumProcessBudgetSeconds, "runner minimumProcessBudgetSeconds", 1, maximumProcessSeconds);
+  const leaseCompletionSafetyMarginSeconds = boundedInteger(runnerPolicy.leaseCompletionSafetyMarginSeconds, "runner leaseCompletionSafetyMarginSeconds", 1, 60);
   planSource = readJsonBytes(planInput, "documentation-truth dispatch plan");
   capabilitySource = readJsonBytes(capabilityInput, "fresh Codex capability receipt");
   const plan = planSource.document;
@@ -225,15 +235,25 @@ try {
   childEnvironment.EVAVO_AUTONOMOUS_WORKER = "1";
   childEnvironment.EVAVO_AUTONOMOUS_WORKER_CLASS = "documentation-truth";
 
-  const startedAt = new Date().toISOString();
-  if (Date.parse(startedAt) >= routeExpiresAt || Date.parse(startedAt) >= leaseExpiresAt) throw new Error("route admission or lease expired immediately before process spawn.");
+  const startedAtMilliseconds = Date.now();
+  const startedAt = new Date(startedAtMilliseconds).toISOString();
+  if (startedAtMilliseconds >= routeExpiresAt || startedAtMilliseconds >= leaseExpiresAt) throw new Error("route admission or lease expired immediately before process spawn.");
+  const executionDeadline = Math.min(routeExpiresAt, leaseExpiresAt);
+  const availableProcessBudgetMs = executionDeadline - startedAtMilliseconds - leaseCompletionSafetyMarginSeconds * 1000;
+  const processBudgetMs = Math.min(maximumProcessSeconds * 1000, availableProcessBudgetMs);
+  if (processBudgetMs < minimumProcessBudgetSeconds * 1000) throw new Error("insufficient remaining lease/route lifetime for the minimum documentation-truth process budget.");
+  processBudgetSeconds = Math.floor(processBudgetMs / 1000);
   modelTurnStarted = true;
-  const result = spawnSync(plan.executable, plan.argv, { cwd: candidatePath, env: childEnvironment, encoding: "utf8", input: plan.stdinPrompt, shell: false, windowsHide: true, timeout: runnerPolicy.maximumProcessSeconds * 1000, maxBuffer: 8 * 1024 * 1024 });
-  const finishedAt = new Date().toISOString();
+  const result = spawnSync(plan.executable, plan.argv, { cwd: candidatePath, env: childEnvironment, encoding: "utf8", input: plan.stdinPrompt, shell: false, windowsHide: true, timeout: Math.floor(processBudgetMs), maxBuffer: 8 * 1024 * 1024 });
+  const finishedAtMilliseconds = Date.now();
+  const finishedAt = new Date(finishedAtMilliseconds).toISOString();
+  leaseValidAtFinish = finishedAtMilliseconds < leaseExpiresAt;
+  routeAdmissionValidAtFinish = finishedAtMilliseconds < routeExpiresAt;
   const afterHead = git(["rev-parse", "HEAD^{commit}"]).toLowerCase();
   const staged = git(["diff", "--cached", "--name-only"]);
   const changedPaths = [...new Set([...nulList(git(["diff", "HEAD", "--name-only", "-z"])), ...nulList(git(["ls-files", "--others", "--exclude-standard", "-z"]))])].sort();
   observedChangedPaths = changedPaths;
+  if (!leaseValidAtFinish || !routeAdmissionValidAtFinish) throw new Error("documentation-truth model turn finished after its lease or route admission expired; result rejected.");
   const stdout = typeof result.stdout === "string" ? result.stdout : "";
   const stderr = typeof result.stderr === "string" ? result.stderr : "";
   const events = [];
@@ -285,11 +305,18 @@ try {
     workItemSha256: plan.workItemSha256,
     leasePlanSha256: plan.leasePlanSha256,
     leaseExpiresAt: plan.leaseExpiresAt,
+    routeAdmissionExpiresAt: plan.routeAdmissionExpiresAt,
+    processTimeoutSeconds: processBudgetSeconds,
+    leaseCompletionSafetyMarginSeconds,
+    leaseValidAtStart: true,
+    routeAdmissionValidAtStart: true,
+    leaseValidAtFinish: true,
+    routeAdmissionValidAtFinish: true,
+    resultAcceptedAfterLeaseExpiry: false,
     dispatchPlanSha256: plan.dispatchPlanSha256,
     dispatchPlanBytesSha256: planSource.sha256,
     routePlanSha256: plan.routePlanSha256,
     routeAdmissionSha256: plan.routeAdmissionSha256,
-    routeAdmissionExpiresAt: plan.routeAdmissionExpiresAt,
     supervisedAcceptanceSha256: plan.supervisedAcceptanceSha256,
     capabilityReceiptSha256: plan.capabilityReceiptSha256,
     acceptanceVerificationSha256: plan.acceptanceVerificationSha256,
@@ -336,8 +363,8 @@ try {
   process.exitCode = 0;
 } catch (error) {
   process.stderr.write(`${JSON.stringify({
-    schemaVersion: 1,
-    kind: "evavo-codex-documentation-truth-run-v1",
+    schemaVersion: 2,
+    kind: "evavo-codex-documentation-truth-run-v2",
     ok: false,
     started: modelTurnStarted,
     acceptanceVerified,
@@ -347,6 +374,10 @@ try {
     candidatePathResolved: Boolean(candidatePath),
     candidateHeadBefore: beforeHead,
     candidateCleanBefore: beforeStatus === "",
+    processTimeoutSeconds: processBudgetSeconds,
+    leaseValidAtFinish,
+    routeAdmissionValidAtFinish,
+    resultAcceptedAfterLeaseExpiry: false,
     errors: [safeError(error?.message ?? error)],
     modelTurnPerformed: modelTurnStarted,
     candidateWorktreeMutationPerformed: observedChangedPaths.length > 0,
