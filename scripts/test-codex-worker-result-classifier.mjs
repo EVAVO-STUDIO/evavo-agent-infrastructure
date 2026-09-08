@@ -6,6 +6,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
+import { classifyCodexSparkCapacityObservation } from "./codex-spark-capacity-observation-core.mjs";
+
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), "evavo-codex-result-"));
 const classify = (document) => {
   const source = path.join(dir, "result.json");
@@ -14,6 +16,10 @@ const classify = (document) => {
   assert.equal(result.status, 0, result.stderr);
   return JSON.parse(result.stdout);
 };
+const observe = (source) => classifyCodexSparkCapacityObservation({
+  source,
+  sourceSha256: "a".repeat(64),
+});
 
 try {
   let result = classify({exitCode:0, modelTurnCompleted:true, stdout:"done", routeId:"codex-spark-pro"});
@@ -67,10 +73,48 @@ try {
   assert.equal(result.structuredTurnCompleted, false);
   assert.equal(result.completionEvidenceConsistent, false);
 
+  let observation = observe({
+    kind: "evavo-codex-worker-run-v1",
+    finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
+    modelTurnCompleted: true,
+    structuredTurnCompleted: true,
+    capacityState: "AVAILABLE",
+    paidFallbackUsed: false,
+  });
+  assert.equal(observation.state, "DEGRADED");
+  assert.equal(observation.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+  assert.equal(observation.contradictoryAvailableClaimRejected, true);
+
+  observation = observe({
+    kind: "evavo-codex-worker-result-classification-v1",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "EXHAUSTED",
+    sourceExitCode: 0,
+    structuredTurnCompleted: true,
+    paidFallbackUsed: false,
+  });
+  assert.equal(observation.state, "AVAILABLE");
+  assert.equal(observation.reason, "VERIFIED_STRUCTURED_TURN_COMPLETED");
+  assert.equal(observation.completionEvidenceVerified, true);
+
+  observation = observe({
+    kind: "evavo-codex-worker-result-classification-v2",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "AVAILABLE",
+    sourceExitCode: 2,
+    structuredTurnCompleted: true,
+    completionEvidenceConsistent: false,
+    paidFallbackUsed: false,
+  });
+  assert.equal(observation.state, "DEGRADED");
+  assert.equal(observation.contradictoryAvailableClaimRejected, true);
+
   console.log("Codex worker result classifier tests passed.");
   console.log("- verified successful completion is authoritative over incidental error-like text");
   console.log("- nonzero or missing exit evidence cannot be promoted by modelTurnCompleted=true");
   console.log("- capacity/auth/rate-limit text classification applies only to non-completed runs");
+  console.log("- mandatory classifier governance also rejects contradictory Spark capacity observations");
 } finally {
   fs.rmSync(dir, {recursive:true, force:true});
 }
