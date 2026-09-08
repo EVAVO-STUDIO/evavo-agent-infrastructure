@@ -126,5 +126,21 @@
     "probe": "Verify the exact queue schema, author admission, expiry policy, worker revision and replay journal; completion still requires a correlated issue receipt.",
     "description": "Zero-cost asynchronous fallback for SHA-bound structured requests. Queue acceptance is not evidence that the workstation ran.",
     "executorRepository": "EVAVO-STUDIO/evavo-local-compute"
+  },
+  "connected-render": {
+    "failureDomain": "render-provider-api",
+    "sharedDependencies": ["render-service", "chatgpt-render-connector", "provider-oauth"],
+    "clients": ["chatgpt-pro"],
+    "effects": ["read", "write", "execute", "publish"],
+    "minimumState": "transport_online",
+    "freshnessSeconds": 300,
+    "receiptRequired": false,
+    "physicalReceiptCapable": false,
+    "structuredOnly": true,
+    "arbitraryShell": false,
+    "routineCost": "zero-cost",
+    "probe": "Read the exact Render workspace, chatbot-backend service and latest deploy and retain their provider identities.",
+    "description": "Provider-native Render connector available to ChatGPT. Its current hosted action set supports service/deploy/log/metric reads, environment-variable mutation, deploy triggering and resource creation. It does not currently expose generic service PATCH, Git Deployment Credentials, GitHub OAuth administration or arbitrary REST calls; those capabilities must route to a governed fallback rather than being assumed.",
+    "executorRepository": null
   }
 }

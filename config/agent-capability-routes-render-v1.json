@@ -1,0 +1,88 @@
+[
+  {
+    "id": "render-inspect",
+    "capability": "render.inspect",
+    "requestedEffect": "read",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 1,
+    "description": "Inspect the exact Render workspace, services, deploys, logs and metrics. ChatGPT prefers the connected Render provider transport; local routes remain independent diagnostic fallbacks.",
+    "strategies": [
+      { "id": "render-inspect-provider", "authority": "development-governance", "transport": "connected-render", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "render-inspect-local-specialist", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-inspect-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-inspect-github-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
+  },
+  {
+    "id": "render-environment",
+    "capability": "render.environment",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Create or update Render environment variables through provider-native actions when exposed. Secret values must never appear in durable agent requests or receipts; generation and existence checks remain value-blind.",
+    "strategies": [
+      { "id": "render-environment-provider", "authority": "development-governance", "transport": "connected-render", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "render-environment-local-specialist", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-environment-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+    ]
+  },
+  {
+    "id": "render-configure",
+    "capability": "render.configure",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Reconcile an existing Render service's branch, source repo, build/start commands, health path, runtime, plan and previews. The current ChatGPT Render connector does not expose generic service PATCH, so this capability routes through fixed Local Compute/CLI/API operations until the provider action is actually exposed.",
+    "strategies": [
+      { "id": "render-configure-local-specialist", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-configure-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-configure-github-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
+  },
+  {
+    "id": "render-source-rebind",
+    "capability": "render.source-rebind",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Rebind an existing service to its exact reviewed private Git repository using Render CLI/API service update and verify provider read-back before deployment. Rebinding may repair stale service-to-credential association when a valid account credential still exists, but it must never be represented as equivalent to granting GitHub OAuth repository access.",
+    "strategies": [
+      { "id": "render-source-rebind-local-specialist", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-source-rebind-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-source-rebind-github-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
+  },
+  {
+    "id": "render-deploy",
+    "capability": "render.deploy",
+    "requestedEffect": "publish",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Trigger and verify Render deployments. Use the provider-native connector for ordinary redeploys it exposes; use the fixed local lane when an exact reviewed commit, source rebind or broader configuration reconciliation is part of the release.",
+    "strategies": [
+      { "id": "render-deploy-provider", "authority": "development-governance", "transport": "connected-render", "clients": ["chatgpt-pro"], "minimumState": "transport_online" },
+      { "id": "render-deploy-local-specialist", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-deploy-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-deploy-github-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
+  },
+  {
+    "id": "render-git-deployment-credential",
+    "capability": "render.git-deployment-credential",
+    "requestedEffect": "execute",
+    "completionState": "physically_verified",
+    "physicalState": "physically_verified",
+    "minimumIndependentIngressDomains": 2,
+    "description": "Repair Render's account-level Git Deployment Credential / GitHub App repository authorization. Render's public API and current CLI do not expose this credential grant, so completion requires a governed browser journey against exact Render/GitHub origins and a fresh postcondition showing private-repo clone admission. Never scrape, project or return OAuth tokens.",
+    "strategies": [
+      { "id": "render-git-credential-local-browser", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-git-credential-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" },
+      { "id": "render-git-credential-github-queue", "authority": "development-governance", "transport": "github-issue-queue", "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"], "minimumState": "configured" }
+    ]
+  }
+]

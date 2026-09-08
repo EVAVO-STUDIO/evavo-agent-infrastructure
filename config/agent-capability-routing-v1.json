@@ -33,6 +33,7 @@
       "agent-capability-routes-core-v1.json",
       "agent-capability-routes-repository-tasks-v1.json",
       "agent-capability-routes-vercel-v1.json",
+      "agent-capability-routes-render-v1.json",
       "agent-capability-routes-specialists-v1.json",
       "agent-capability-routes-dynamic-specialists-v1.json",
       "agent-capability-routes-organization-v1.json",
