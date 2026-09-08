@@ -44,8 +44,10 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
     structuredTurnCompleted: true,
     paidFallbackUsed: false,
   });
-  assert.equal(result.state, "DEGRADED");
+  assert.equal(result.state, "OFFLINE");
+  assert.equal(result.reason, "UNCLASSIFIED_CODEX_RUN_FAILURE");
   assert.equal(result.completionEvidenceVerified, false);
+  assert.equal(result.failedWorkerTurnTreatedAsDispatchableDegradedCapacity, false);
 }
 
 {
@@ -58,9 +60,23 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
     capacityState: "AVAILABLE",
     paidFallbackUsed: false,
   });
-  assert.equal(result.state, "DEGRADED");
-  assert.equal(result.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+  assert.equal(result.state, "OFFLINE");
+  assert.equal(result.reason, "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED");
   assert.equal(result.contradictoryAvailableClaimRejected, true);
+  assert.equal(result.failedWorkerDispatchableClaimRejected, true);
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-run-v1",
+    finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
+    capacityState: "DEGRADED",
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "OFFLINE");
+  assert.equal(result.reason, "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED");
+  assert.equal(result.failedWorkerDispatchableClaimRejected, true);
 }
 
 {
@@ -117,8 +133,8 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
     structuredTurnCompleted: false,
     paidFallbackUsed: false,
   });
-  assert.equal(result.state, "DEGRADED");
-  assert.equal(result.reason, "EXPLICIT_CAPACITY_CLASSIFICATION");
+  assert.equal(result.state, "OFFLINE");
+  assert.equal(result.reason, "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED");
 }
 
 {
@@ -143,8 +159,8 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
     structuredTurnCompleted: true,
     paidFallbackUsed: false,
   });
-  assert.equal(result.state, "DEGRADED");
-  assert.equal(result.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+  assert.equal(result.state, "OFFLINE");
+  assert.equal(result.reason, "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED");
 }
 
 {
@@ -159,6 +175,17 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   });
   assert.equal(result.state, "AVAILABLE");
   assert.equal(result.completionEvidenceVerified, true);
+}
+
+{
+  const result = classify({
+    kind: "independent-capacity-observation",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "DEGRADED",
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "DEGRADED");
+  assert.equal(result.reason, "EXPLICIT_CAPACITY_CLASSIFICATION");
 }
 
 {
@@ -184,7 +211,8 @@ assert.throws(
 console.log("Codex Spark capacity observation tests passed.");
 console.log("- AVAILABLE requires coherent zero-exit structured completion evidence for raw runs/classifiers");
 console.log("- verified completion overrides incidental failure-like text and repairs stale v1 classifier false negatives");
-console.log("- contradictory AVAILABLE claims are rejected rather than routed as capacity");
+console.log("- failed worker turns cannot become dispatchable AVAILABLE or DEGRADED capacity");
+console.log("- DEGRADED remains available to independent capacity observations");
 console.log("- rate limits, exhaustion, authentication and transport failures remain distinct");
 console.log("- installation or authentication alone never implies capacity");
 console.log("- the classifier does not spend a model turn or scrape account usage");
