@@ -122,8 +122,8 @@ if (parsedTime - Date.now() > 120_000) throw new Error("Observed capacity receip
 if (!STATES.has(state)) throw new Error("Raw capacity state is invalid.");
 
 const result = {
-  schemaVersion: 2,
-  kind: "evavo-codex-spark-raw-capacity-observation-v2",
+  schemaVersion: 1,
+  kind: "evavo-codex-spark-raw-capacity-observation-v1",
   routeId: ROUTE_ID,
   modelPreference: MODEL,
   capacityClass: CAPACITY_CLASS,
