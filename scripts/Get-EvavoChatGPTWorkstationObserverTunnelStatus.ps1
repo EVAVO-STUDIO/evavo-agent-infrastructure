@@ -15,7 +15,7 @@ $Tunnel = Get-Command tunnel-client.exe,tunnel-client -CommandType Application -
 $WScript = Join-Path $env:SystemRoot 'System32\wscript.exe'
 $WScriptAvailable = Test-Path -LiteralPath $WScript -PathType Leaf
 $Task = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
-$Info = Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue
+$Info = if ($Task) { Get-ScheduledTaskInfo -TaskName $TaskName -ErrorAction SilentlyContinue } else { $null }
 $TunnelId = [Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','User')
 if ([string]::IsNullOrWhiteSpace($TunnelId)) { $TunnelId = [string]$env:EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID }
 $TunnelIdConfigured = [bool]($TunnelId -match '^tunnel_[0-9a-f]{32}$')
@@ -70,7 +70,7 @@ if ($Task) {
     if ($Actions.Count -eq 1) {
         $ObservedExecute = [IO.Path]::GetFullPath([string]$Actions[0].Execute)
         $DirectTunnelClientScheduledHost = [bool]($Tunnel -and $ObservedExecute -eq [IO.Path]::GetFullPath([string]$Tunnel.Source))
-        if ($WScriptAvailable -and $TaskLauncherPath) {
+        if ($WScriptAvailable -and $TaskLauncherPath -and $BundlePath) {
             $ExpectedArguments = ('//B //NoLogo "{0}"' -f $TaskLauncherPath)
             $TaskExact = [bool](
                 [string]$Task.State -ne 'Disabled' -and
@@ -89,14 +89,25 @@ $DoctorAttempted = $false
 $DoctorPassed = $false
 if ($ProbeDoctor -and $Tunnel -and $TunnelIdConfigured) {
     $DoctorAttempted = $true
-    $Output = (& $Tunnel.Source doctor --profile $Profile --explain 2>&1 | Out-String).Trim()
-    $DoctorPassed = $LASTEXITCODE -eq 0
+    $Previous = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        $Output = (& $Tunnel.Source doctor --profile $Profile --explain 2>&1 | Out-String).Trim()
+        $DoctorPassed = $LASTEXITCODE -eq 0
+    } finally {
+        $ErrorActionPreference = $Previous
+    }
 }
 
+$InstalledReady = [bool]($Tunnel -and $TunnelIdConfigured -and $TaskExact -and $BundleValid)
+# When the caller explicitly asks for a live doctor probe, its result is part of
+# readiness. A valid installed bundle must not mask a failed or impossible probe.
+$RuntimeReady = [bool]($InstalledReady -and (-not $ProbeDoctor -or ($DoctorAttempted -and $DoctorPassed)))
+
 [ordered]@{
-    schemaVersion=3
-    kind='evavo-chatgpt-workstation-observer-tunnel-status-v3'
-    ok=[bool]($Tunnel -and $TunnelIdConfigured -and $TaskExact -and $BundleValid)
+    schemaVersion=4
+    kind='evavo-chatgpt-workstation-observer-tunnel-status-v4'
+    ok=$RuntimeReady
     checkedAt=[DateTimeOffset]::UtcNow.ToString('o')
     profile=$Profile
     tunnelClientAvailable=[bool]$Tunnel
@@ -125,9 +136,15 @@ if ($ProbeDoctor -and $Tunnel -and $TunnelIdConfigured) {
         lastRunTime=if($Info -and $Info.LastRunTime -gt [DateTime]::MinValue){$Info.LastRunTime.ToUniversalTime().ToString('o')}else{$null}
         nextRunTime=if($Info -and $Info.NextRunTime -gt [DateTime]::MinValue){$Info.NextRunTime.ToUniversalTime().ToString('o')}else{$null}
     }
+    doctorRequested=[bool]$ProbeDoctor
     doctorAttempted=$DoctorAttempted
     doctorPassed=$DoctorPassed
     networkProbePerformed=[bool]$DoctorAttempted
+    executionReadyByInstalledState=$InstalledReady
+    executionReadyByTunnelDoctor=if($ProbeDoctor){[bool]($DoctorAttempted -and $DoctorPassed)}else{$null}
+    runtimeReadinessProbed=[bool]$ProbeDoctor
+    runtimeReady=$RuntimeReady
+    readinessBasis=if($ProbeDoctor){'installed-state-and-tunnel-doctor'}else{'installed-state-only'}
     outboundOnly=$true
     observerReadOnly=$true
     mutationAuthority=$false
