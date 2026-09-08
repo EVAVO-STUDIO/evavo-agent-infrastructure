@@ -3,6 +3,13 @@
   "kind": "evavo-repository-task-manifest",
   "repository": "evavo-agent-infrastructure",
   "tasks": {
+    "source-verification": {
+      "runtime": "node-script",
+      "entry": "scripts/verify-source.mjs",
+      "network": "disabled",
+      "timeoutSeconds": 1200,
+      "description": "Run the deterministic repository source gate: capability and Spark governance contracts, estate routing, lint, type-check, workspace tests, Vercel-control and remote-relay contract tests, and builds. Excludes workstation tunnels, physical-device acceptance, provider credential readiness, installation and deployment."
+    },
     "capability-manifest-certify": {
       "runtime": "node-script",
       "entry": "scripts/check-evavo-capability-manifest.mjs",
