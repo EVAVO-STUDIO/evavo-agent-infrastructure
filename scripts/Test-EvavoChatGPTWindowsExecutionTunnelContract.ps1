@@ -5,11 +5,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $Installer=Join-Path $Root 'scripts\Install-EvavoChatGPTWindowsExecutionTunnel.ps1'
+$Status=Join-Path $Root 'scripts\Get-EvavoChatGPTWindowsExecutionTunnelStatus.ps1'
 $Mcp=Join-Path $Root 'mcp-server\windows-chat-execution-mcp.mjs'
-foreach($Path in @($Installer,$Mcp)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_SOURCE_MISSING:$Path"}}
-$Tokens=$null;$Errors=$null;[Management.Automation.Language.Parser]::ParseFile($Installer,[ref]$Tokens,[ref]$Errors)|Out-Null
-if(@($Errors).Count-gt0){throw'EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_PARSE_FAILED'}
+foreach($Path in @($Installer,$Status,$Mcp)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_SOURCE_MISSING:$Path"}}
+foreach($PowerShellSource in @($Installer,$Status)){
+    $Tokens=$null;$Errors=$null
+    [Management.Automation.Language.Parser]::ParseFile($PowerShellSource,[ref]$Tokens,[ref]$Errors)|Out-Null
+    if(@($Errors).Count-gt0){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_PARSE_FAILED:$PowerShellSource"}
+}
 $Text=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
+$StatusText=Get-Content -LiteralPath $Status -Raw -Encoding UTF8
 foreach($Required in @(
     'evavo-windows-execution',
     'EVAVO Windows Execution Compatibility',
@@ -50,9 +55,22 @@ foreach($Forbidden in @(
     'adminKeyReturned=$true',
     '$Action=New-ScheduledTaskAction -Execute $TunnelExe'
 )){if($Text.Contains($Forbidden)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_CONTRACT_FORBIDDEN:$Forbidden"}}
+
+foreach($Required in @(
+    '$InstalledReady=[bool]($Tunnel-and$TunnelIdConfigured-and$BundleIntegrity-and$TaskExact)',
+    '$RuntimeReady=[bool]($InstalledReady-and(-not$ProbeTunnelDoctor-or$DoctorPassed))',
+    'ok=$RuntimeReady',
+    'runtimeReadinessProbed=[bool]$ProbeTunnelDoctor',
+    'runtimeReady=$RuntimeReady',
+    "readinessBasis=if($ProbeTunnelDoctor){'installed-state-and-tunnel-doctor'}else{'installed-state-only'}"
+)){if(-not$StatusText.Contains($Required)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_STATUS_CONTRACT_MISSING:$Required"}}
+foreach($Forbidden in @(
+    'ok=[bool]($Tunnel-and$TunnelIdConfigured-and$BundleIntegrity-and$TaskExact)'
+)){if($StatusText.Contains($Forbidden)){throw"EVAVO_WINDOWS_EXECUTION_TUNNEL_STATUS_CONTRACT_STALE_SUCCESS:$Forbidden"}}
+
 [ordered]@{
-    schemaVersion=3
-    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v3'
+    schemaVersion=4
+    kind='evavo-chatgpt-windows-execution-tunnel-static-contract-v4'
     ok=$true
     separateFromObserverTunnel=$true
     compatibilityShim=$true
@@ -73,6 +91,8 @@ foreach($Forbidden in @(
     scheduledTaskWaitsForTunnelExit=$true
     mcpCommandUsesDirectNode=$true
     legacyPowerShellMcpLauncherAuthoritative=$false
+    runtimeProbeAuthoritative=$true
+    failedDoctorCannotReportOk=$true
     chatGptProductSideConnectorSetupStillRequired=$true
     credentialsReturned=$false
     tunnelInstalled=$false
