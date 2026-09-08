@@ -73,7 +73,10 @@ if (verifiedCompletion) {
   workDecision = "RETAIN_READY_JOB";
   category = "missing-runtime-result";
 } else {
-  capacityState = "DEGRADED";
+  // A nonzero process exit is failure evidence, not degraded-capacity evidence.
+  // DEGRADED is reserved for an independent capacity observation that deliberately
+  // reports a usable-but-degraded route; failed worker turns must not trigger retries.
+  capacityState = "OFFLINE";
   workDecision = "REVIEW_RUNTIME_FAILURE";
   category = "unclassified-runtime-failure";
 }
@@ -97,5 +100,6 @@ console.log(JSON.stringify({
   sourceModelTurnCompletedClaim: input.modelTurnCompleted === true,
   structuredTurnCompleted: verifiedCompletion,
   completionEvidenceConsistent: verifiedCompletion || input.modelTurnCompleted !== true,
-  truthBoundary: "This classifier trusts completion only when the supplied runtime exit code is zero and the runtime receipt claims modelTurnCompleted=true. Error-like text is diagnostic evidence only for non-completed runs; it cannot override a verified successful completion. The classifier does not query or estimate remaining ChatGPT/Codex allowance and never authorizes paid fallback."
+  failedWorkerTurnTreatedAsDispatchableDegradedCapacity: false,
+  truthBoundary: "This classifier trusts completion only when the supplied runtime exit code is zero and the runtime receipt claims modelTurnCompleted=true. Error-like text is diagnostic evidence only for non-completed runs; it cannot override a verified successful completion. A nonzero unclassified worker exit is OFFLINE rather than dispatchable DEGRADED capacity. The classifier does not query or estimate remaining ChatGPT/Codex allowance and never authorizes paid fallback."
 }, null, 2));
