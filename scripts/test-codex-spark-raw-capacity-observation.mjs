@@ -34,10 +34,31 @@ try {
     paidFallbackUsed: false,
   });
   assert.equal(run.result.status, 0, run.result.stderr);
+  assert.equal(run.receipt.kind, "evavo-codex-spark-raw-capacity-observation-v1");
+  assert.equal(run.receipt.schemaVersion, 1);
   assert.equal(run.receipt.state, "AVAILABLE");
   assert.equal(run.receipt.observationType, "successful-spark-model-turn");
   assert.equal(run.receipt.evidenceClass, "observed-not-inferred");
   assert.equal(run.receipt.maximumConcurrency, 1);
+  assert.equal(run.receipt.failedWorkerTurnTreatedAsDispatchableCapacity, false);
+  assert.equal(run.receipt.wildcardClassificationKindAccepted, false);
+
+  run = invoke({
+    schemaVersion: 2,
+    kind: "evavo-codex-worker-result-classification-v2",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    capacityState: "EXHAUSTED",
+    sourceExitCode: 1,
+    structuredTurnCompleted: false,
+    completionEvidenceConsistent: true,
+    observedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.equal(run.result.status, 0, run.result.stderr);
+  assert.equal(run.receipt.state, "EXHAUSTED");
+  assert.equal(run.receipt.observationType, "explicit-non-dispatchable-result-classification");
 
   run = invoke({
     schemaVersion: 1,
@@ -46,11 +67,14 @@ try {
     modelPreference: "gpt-5.3-codex-spark",
     capacityClass: "included-consumer",
     capacityState: "EXHAUSTED",
+    sourceExitCode: 0,
+    structuredTurnCompleted: true,
     observedAt: now,
     paidFallbackUsed: false,
   });
   assert.equal(run.result.status, 0, run.result.stderr);
-  assert.equal(run.receipt.state, "EXHAUSTED");
+  assert.equal(run.receipt.state, "AVAILABLE");
+  assert.equal(run.receipt.observationType, "verified-successful-result-classification");
 
   run = invoke({
     schemaVersion: 1,
@@ -58,12 +82,46 @@ try {
     routeId: "codex-spark-pro",
     modelPreference: "gpt-5.3-codex-spark",
     capacityClass: "included-consumer",
-    state: "RATE_LIMITED",
+    state: "DEGRADED",
+    maximumConcurrency: 1,
     observedAt: now,
     paidFallbackUsed: false,
   });
   assert.equal(run.result.status, 0, run.result.stderr);
-  assert.equal(run.receipt.state, "RATE_LIMITED");
+  assert.equal(run.receipt.state, "DEGRADED");
+  assert.equal(run.receipt.observationType, "explicit-independent-capacity-classification");
+
+  run = invoke({
+    schemaVersion: 1,
+    kind: "evavo-codex-worker-run-v1",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    structuredTurnCompleted: false,
+    modelTurnCompleted: false,
+    exitCode: 1,
+    capacityState: "DEGRADED",
+    finishedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.notEqual(run.result.status, 0);
+  assert.match(run.result.stderr, /cannot become dispatchable AVAILABLE or DEGRADED/i);
+
+  run = invoke({
+    schemaVersion: 2,
+    kind: "evavo-codex-worker-result-classification-v2",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    capacityState: "AVAILABLE",
+    sourceExitCode: 2,
+    structuredTurnCompleted: true,
+    completionEvidenceConsistent: false,
+    observedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.notEqual(run.result.status, 0);
+  assert.match(run.result.stderr, /cannot become dispatchable AVAILABLE or DEGRADED/i);
 
   run = invoke({
     schemaVersion: 1,
@@ -82,6 +140,19 @@ try {
 
   run = invoke({
     schemaVersion: 1,
+    kind: "evavo-codex-worker-fake-classification-v9",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    capacityState: "AVAILABLE",
+    observedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.notEqual(run.result.status, 0);
+  assert.match(run.result.stderr, /Only exact admitted|cannot provide raw Spark capacity/i);
+
+  run = invoke({
+    schemaVersion: 1,
     kind: "evavo-codex-worker-capability-probe-v1",
     eligibleForWorkerDispatch: true,
     observedAt: now,
@@ -95,7 +166,9 @@ try {
     routeId: "codex-spark-pro",
     modelPreference: "gpt-5.3-codex-spark",
     capacityClass: "included-consumer",
-    capacityState: "AVAILABLE",
+    capacityState: "EXHAUSTED",
+    sourceExitCode: 1,
+    structuredTurnCompleted: false,
     observedAt: now,
     paidFallbackUsed: true,
   });
@@ -108,7 +181,9 @@ try {
     routeId: "codex-spark-pro",
     modelPreference: "another-model",
     capacityClass: "included-consumer",
-    capacityState: "AVAILABLE",
+    capacityState: "EXHAUSTED",
+    sourceExitCode: 1,
+    structuredTurnCompleted: false,
     observedAt: now,
     paidFallbackUsed: false,
   });
@@ -130,10 +205,11 @@ try {
   assert.match(run.result.stderr, /unadmitted observation source/i);
 
   console.log("Codex Spark raw-capacity observation tests passed.");
-  console.log("- a successful Spark turn can prove availability");
-  console.log("- explicit exhaustion/rate-limit classifications are preserved");
-  console.log("- capability, authentication and physical acceptance cannot be promoted into quota evidence");
-  console.log("- incomplete turns, paid fallback, model mismatch and unreviewed account scraping fail closed");
+  console.log("- a verified successful Spark turn can prove availability while retaining the v1 receipt identity");
+  console.log("- non-dispatchable result classifications are preserved and successful legacy classifier receipts are repaired");
+  console.log("- failed worker/result receipts cannot become AVAILABLE or DEGRADED capacity");
+  console.log("- independent exact capacity classifications can still deliberately report DEGRADED");
+  console.log("- wildcard classification kinds, capability promotion, paid fallback, model mismatch and unreviewed account scraping fail closed");
 } finally {
   fs.rmSync(temporary, { recursive: true, force: true });
 }
