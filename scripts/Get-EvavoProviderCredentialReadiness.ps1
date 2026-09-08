@@ -26,23 +26,11 @@ function Probe-Native([string[]]$Names,[string[]]$Arguments){
     return[ordered]@{available=$true;attempted=$true;passed=[bool]($Code-eq0)}
 }
 
+# Credential probes use only already-installed provider CLIs. A readiness/doctor
+# operation must not download a package or reinterpret package-resolution failure as
+# an authentication result.
 $Gh=Probe-Native @('gh.exe','gh') @('auth','status','--hostname','github.com')
 $Wrangler=Probe-Native @('wrangler.cmd','wrangler') @('whoami')
-if(-not$Wrangler.available){
-    $Npx=Get-Command npx.cmd,npx -CommandType Application -ErrorAction SilentlyContinue|Select-Object -First 1
-    if($Npx){
-        if($ProbeCliAuth){
-            $Previous=$ErrorActionPreference
-            try{
-                $ErrorActionPreference='Continue';$global:LASTEXITCODE=0
-                # --no-install keeps a credential/readiness probe from downloading a package.
-                &$Npx.Source --no-install wrangler whoami 1>$null 2>$null
-                $Code=[int]$global:LASTEXITCODE
-            }finally{$ErrorActionPreference=$Previous}
-            if($Code-eq0){$Wrangler=[ordered]@{available=$true;attempted=$true;passed=$true;via='npx-no-install'}}
-        }
-    }
-}
 $Vercel=Probe-Native @('vercel.cmd','vercel') @('whoami')
 $TunnelClient=Command-Available @('tunnel-client.exe','tunnel-client')
 
