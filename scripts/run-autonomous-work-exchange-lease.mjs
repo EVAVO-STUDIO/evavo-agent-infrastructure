@@ -23,6 +23,14 @@ function ordered(value) {
 const canonical = (value) => JSON.stringify(ordered(value));
 const sha256 = (value) => createHash("sha256").update(Buffer.isBuffer(value) ? value : Buffer.from(String(value), "utf8")).digest("hex");
 
+function safeError(value) {
+  let text = String(value ?? "Autonomous lease runner failed");
+  text = text.replace(/\b[A-Za-z]:[\\/][^\r\n]*/g, "<windows-path>");
+  text = text.replace(/(?<![A-Za-z0-9])\/(?:[^\s/:]+\/)+[^\s:]*/g, "<path>");
+  text = text.replace(/(?:token|secret|password|authorization|credential)\s*[:=]\s*[^\s;]+/gi, "credential=<redacted>");
+  return text.slice(0, 3000);
+}
+
 function usage() {
   return "Usage: node scripts/run-autonomous-work-exchange-lease.mjs --work-item <json> --route-plan <json> --worker-id <id> --work-exchange-root <dir> --local-storage-root <dir> [--agent-infrastructure-root <dir> --runtime-grant-envelope <json> --runtime-grant-trust-anchor <json> --runtime-grant-request <json>]";
 }
@@ -168,6 +176,18 @@ function validatePlan(plan, policy) {
   if (plan.maximumItemsLeased !== 1 || plan.oneWriterPerRepository !== true || plan.paidFallbackUsed !== false) {
     throw new Error("Compiled plan widened lease or paid-fallback authority.");
   }
+  if (!Number.isInteger(plan.expectedGeneration) || plan.expectedGeneration < 0) {
+    throw new Error("Compiled plan expectedGeneration is invalid.");
+  }
+  if (!SHA256.test(String(plan.expectedSnapshotSha256 ?? ""))) {
+    throw new Error("Compiled plan expectedSnapshotSha256 is invalid.");
+  }
+  if (typeof plan.leasedAt !== "string" || !Number.isFinite(Date.parse(plan.leasedAt))) {
+    throw new Error("Compiled plan leasedAt is invalid.");
+  }
+  if (typeof plan.leaseExpiresAt !== "string" || !Number.isFinite(Date.parse(plan.leaseExpiresAt))) {
+    throw new Error("Compiled plan leaseExpiresAt is invalid.");
+  }
   for (const field of ["queueMutationPerformed", "leaseAcquired", "modelTurnPerformed", "deterministicValidationPerformed", "repositoryMutationPerformed", "commitPerformed", "pushPerformed", "publicationPerformed", "deploymentPerformed"]) {
     if (plan[field] !== false) throw new Error(`Compiled plan pre-effect field ${field} must remain false.`);
   }
@@ -215,8 +235,29 @@ function validateReceipt(receipt, plan, policy) {
   if (!SHA256.test(String(observedReceiptSha ?? "")) || sha256(canonical(receiptBody)) !== observedReceiptSha) {
     throw new Error("Lease receipt SHA-256 is invalid.");
   }
-  for (const field of ["planSha256", "workItemId", "repository", "sourceRevision", "workerId", "workerClass", "routeAdmissionSha256", "dispatchIntentSha256", "expectedSnapshotSha256"]) {
+  for (const field of ["planSha256", "workItemId", "repository", "sourceRevision", "workerId", "workerClass", "routeId", "routeAdmissionSha256", "dispatchIntentSha256", "expectedSnapshotSha256"]) {
     if (receipt[field] !== plan[field]) throw new Error(`Lease receipt ${field} continuity failed.`);
+  }
+  for (const field of ["beforeStateSha256", "afterStateSha256", "reducerReceiptSha256"]) {
+    if (!SHA256.test(String(receipt[field] ?? ""))) throw new Error(`Lease receipt ${field} is invalid.`);
+  }
+  if (receipt.beforeStateSha256 !== plan.expectedSnapshotSha256) {
+    throw new Error("Lease receipt beforeStateSha256 differs from the exact planned snapshot.");
+  }
+  if (receipt.afterStateSha256 === receipt.beforeStateSha256) {
+    throw new Error("Lease receipt does not prove a changed canonical Work Exchange state.");
+  }
+  if (receipt.beforeGeneration !== plan.expectedGeneration || receipt.afterGeneration !== plan.expectedGeneration + 1) {
+    throw new Error("Lease receipt generation continuity failed.");
+  }
+  if (receipt.leaseExpiresAt !== plan.leaseExpiresAt || !Number.isFinite(Date.parse(receipt.leaseExpiresAt))) {
+    throw new Error("Lease receipt leaseExpiresAt continuity failed.");
+  }
+  if (typeof receipt.completedAt !== "string" || !Number.isFinite(Date.parse(receipt.completedAt))) {
+    throw new Error("Lease receipt completedAt is invalid.");
+  }
+  if (receipt.idempotentReplaySafe !== true) {
+    throw new Error("Lease receipt does not prove idempotent replay safety.");
   }
   if (receipt.queueMutationPerformed !== true || receipt.leaseAcquired !== true || receipt.itemsLeased !== 1) {
     throw new Error("Lease receipt does not prove exactly one lease transition.");
@@ -241,6 +282,11 @@ function validateReceipt(receipt, plan, policy) {
     if (receipt[field] !== false) throw new Error(`Lease receipt widened authority through ${field}.`);
   }
 }
+
+let canonicalLeaseEffectAttempted = false;
+let effectReceiptReturned = false;
+let effectReceiptValidated = false;
+let effectReceipt = null;
 
 try {
   const input = parseArguments(process.argv.slice(2));
@@ -270,34 +316,47 @@ try {
   try {
     fs.writeFileSync(planPath, `${JSON.stringify(plan, null, 2)}\n`, { encoding: "utf8", mode: 0o600, flag: "wx" });
     const python = process.platform === "win32" ? "python.exe" : "python3";
-    const receipt = runJson(
+    canonicalLeaseEffectAttempted = true;
+    effectReceipt = runJson(
       python,
       [effect, "--root", workExchangeRoot, "--plan-json", planPath, ...runtimeGrantArguments],
       localStorageRoot,
       policy.effectTimeoutSeconds,
       policy.maximumOutputBytes
     );
-    validateReceipt(receipt, plan, policy);
-    const grantConsumed = receipt.grantConsumed === true;
+    effectReceiptReturned = true;
+    validateReceipt(effectReceipt, plan, policy);
+    effectReceiptValidated = true;
+    const grantConsumed = effectReceipt.grantConsumed === true;
     process.stdout.write(`${JSON.stringify({
       schemaVersion: 1,
       kind: "evavo-autonomous-work-exchange-lease-run-v1",
       ok: true,
       decision: "LEASE_ACQUIRED",
       planSha256: plan.planSha256,
-      receiptSha256: receipt.receiptSha256,
-      workItemId: receipt.workItemId,
-      repository: receipt.repository,
-      sourceRevision: receipt.sourceRevision,
-      workerId: receipt.workerId,
-      workerClass: receipt.workerClass,
-      leaseExpiresAt: receipt.leaseExpiresAt,
-      runtimeGrantVerificationPerformed: receipt.runtimeGrantVerificationPerformed,
+      receiptSha256: effectReceipt.receiptSha256,
+      workItemId: effectReceipt.workItemId,
+      repository: effectReceipt.repository,
+      sourceRevision: effectReceipt.sourceRevision,
+      workerId: effectReceipt.workerId,
+      workerClass: effectReceipt.workerClass,
+      routeId: effectReceipt.routeId,
+      beforeStateSha256: effectReceipt.beforeStateSha256,
+      afterStateSha256: effectReceipt.afterStateSha256,
+      beforeGeneration: effectReceipt.beforeGeneration,
+      afterGeneration: effectReceipt.afterGeneration,
+      leaseExpiresAt: effectReceipt.leaseExpiresAt,
+      runtimeGrantVerificationPerformed: effectReceipt.runtimeGrantVerificationPerformed,
       grantConsumed,
-      grantConsumptionRecorded: receipt.grantConsumptionRecorded,
-      runtimeActivationGrantId: grantConsumed ? receipt.runtimeActivationGrantId : null,
-      runtimeActivationGrantVerificationSha256: grantConsumed ? receipt.runtimeActivationGrantVerificationSha256 : null,
-      runtimeGrantConsumptionSha256: grantConsumed ? receipt.runtimeGrantConsumptionSha256 : null,
+      grantConsumptionRecorded: effectReceipt.grantConsumptionRecorded,
+      runtimeActivationGrantId: grantConsumed ? effectReceipt.runtimeActivationGrantId : null,
+      runtimeActivationGrantVerificationSha256: grantConsumed ? effectReceipt.runtimeActivationGrantVerificationSha256 : null,
+      runtimeGrantConsumptionSha256: grantConsumed ? effectReceipt.runtimeGrantConsumptionSha256 : null,
+      canonicalLeaseEffectAttempted: true,
+      effectReceiptReturned: true,
+      effectReceiptValidated: true,
+      leaseMutationStateKnown: true,
+      retrySafeFromThisReceipt: false,
       queueMutationPerformed: true,
       leaseAcquired: true,
       modelTurnPerformed: false,
@@ -315,17 +374,42 @@ try {
     fs.rmSync(temporaryDirectory, { recursive: true, force: true });
   }
 } catch (error) {
+  const preEffectFailure = canonicalLeaseEffectAttempted === false;
+  const mutationStateKnown = preEffectFailure || effectReceiptValidated;
+  const knownQueueMutation = preEffectFailure ? false : effectReceiptValidated ? true : null;
+  const knownLeaseAcquired = preEffectFailure ? false : effectReceiptValidated ? true : null;
+  const knownRuntimeGrantVerification = preEffectFailure
+    ? false
+    : effectReceiptValidated
+      ? effectReceipt?.runtimeGrantVerificationPerformed === true
+      : null;
+  const knownGrantConsumed = preEffectFailure
+    ? false
+    : effectReceiptValidated
+      ? effectReceipt?.grantConsumed === true
+      : null;
+  const knownGrantConsumptionRecorded = preEffectFailure
+    ? false
+    : effectReceiptValidated
+      ? effectReceipt?.grantConsumptionRecorded === true
+      : null;
   process.stderr.write(`${JSON.stringify({
-    schemaVersion: 1,
-    kind: "evavo-autonomous-work-exchange-lease-run-error-v1",
+    schemaVersion: 2,
+    kind: "evavo-autonomous-work-exchange-lease-run-error-v2",
     ok: false,
-    decision: "RETAIN_READY_JOB",
-    errorMessage: String(error?.message ?? error).slice(0, 3000),
-    runtimeGrantVerificationPerformed: false,
-    grantConsumed: false,
-    grantConsumptionRecorded: false,
-    queueMutationPerformed: false,
-    leaseAcquired: false,
+    decision: preEffectFailure ? "RETAIN_READY_JOB" : "RECONCILE_LEASE_STATE",
+    errorMessage: safeError(error?.message ?? error),
+    canonicalLeaseEffectAttempted,
+    effectReceiptReturned,
+    effectReceiptValidated,
+    leaseMutationStateKnown: mutationStateKnown,
+    reconciliationRequired: canonicalLeaseEffectAttempted && !effectReceiptValidated,
+    retrySafeFromThisReceipt: preEffectFailure,
+    runtimeGrantVerificationPerformed: knownRuntimeGrantVerification,
+    grantConsumed: knownGrantConsumed,
+    grantConsumptionRecorded: knownGrantConsumptionRecorded,
+    queueMutationPerformed: knownQueueMutation,
+    leaseAcquired: knownLeaseAcquired,
     modelTurnPerformed: false,
     deterministicValidationPerformed: false,
     repositoryMutationPerformed: false,
@@ -334,7 +418,10 @@ try {
     publicationPerformed: false,
     deploymentPerformed: false,
     financialActionPerformed: false,
-    paidFallbackUsed: false
+    paidFallbackUsed: false,
+    truthBoundary: preEffectFailure
+      ? "The canonical lease effect was not invoked, so no Work Exchange lease mutation or runtime-grant consumption was performed by this runner."
+      : "The canonical Local Storage lease effect was invoked but this runner did not obtain and validate sufficient evidence to make a safe mutation/lease/grant-consumption claim. Canonical Work Exchange state must be reconciled before retry."
   }, null, 2)}\n`);
   process.exitCode = 1;
 }
