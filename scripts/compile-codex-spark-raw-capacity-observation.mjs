@@ -15,6 +15,14 @@ const ROUTE_ID = "codex-spark-pro";
 const MODEL = "gpt-5.3-codex-spark";
 const CAPACITY_CLASS = "included-consumer";
 const STATES = new Set(["AVAILABLE", "DEGRADED", "RATE_LIMITED", "EXHAUSTED", "AUTH_REQUIRED", "OFFLINE", "UNKNOWN"]);
+const DISPATCHABLE_STATES = new Set(["AVAILABLE", "DEGRADED"]);
+const RESULT_CLASSIFICATION_KINDS = new Set([
+  "evavo-codex-worker-result-classification-v1",
+  "evavo-codex-worker-result-classification-v2",
+]);
+const INDEPENDENT_CLASSIFICATION_KINDS = new Set([
+  "evavo-codex-worker-capacity-classification-v1",
+]);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 const resolved = fs.realpathSync.native(path.resolve(inputPath));
 const stat = fs.lstatSync(resolved);
@@ -39,32 +47,55 @@ let observationType = null;
 let observedAt = source.observedAt ?? source.finishedAt ?? source.completedAt ?? source.recordedAt ?? null;
 let maximumConcurrency = null;
 
+const explicitState = () => source.capacityState ?? source.observedCapacityState ?? source.state ?? source.classification?.capacityState ?? source.classification?.state ?? null;
+const admittedExplicitState = (label) => {
+  const explicit = explicitState();
+  if (typeof explicit !== "string" || !STATES.has(explicit)) {
+    throw new Error(`${label} lacks an admitted explicit capacity state.`);
+  }
+  return explicit;
+};
+
 if (sourceKind === "evavo-codex-worker-run-v1") {
   if (source.routeId !== ROUTE_ID) throw new Error("Codex worker run receipt is not the Spark route.");
-  if (source.structuredTurnCompleted === true && source.modelTurnCompleted === true && source.exitCode === 0) {
+  const completed = source.structuredTurnCompleted === true && source.modelTurnCompleted === true && source.exitCode === 0;
+  if (completed) {
     state = "AVAILABLE";
     observationType = "successful-spark-model-turn";
     maximumConcurrency = 1;
   } else {
-    const explicit = source.capacityState ?? source.observedCapacityState ?? source.classification?.capacityState ?? null;
-    if (typeof explicit === "string" && STATES.has(explicit)) {
-      state = explicit;
-      observationType = "explicit-capacity-state-on-worker-run";
-    } else {
-      throw new Error("A failed/incomplete worker run cannot infer capacity without an explicit classified capacity state.");
+    const explicit = explicitState();
+    if (typeof explicit !== "string" || !STATES.has(explicit)) {
+      throw new Error("A failed/incomplete worker run cannot infer capacity without an explicit classified non-dispatchable capacity state.");
     }
+    if (DISPATCHABLE_STATES.has(explicit)) {
+      throw new Error("A failed/incomplete worker run cannot become dispatchable AVAILABLE or DEGRADED capacity evidence.");
+    }
+    state = explicit;
+    observationType = "explicit-non-dispatchable-capacity-state-on-worker-run";
   }
-} else if (
-  sourceKind === "evavo-codex-worker-result-classification-v1" ||
-  sourceKind === "evavo-codex-worker-capacity-classification-v1" ||
-  (sourceKind.includes("codex-worker") && sourceKind.includes("classification"))
-) {
-  const explicit = source.capacityState ?? source.state ?? source.classification?.capacityState ?? source.classification?.state ?? null;
-  if (typeof explicit !== "string" || !STATES.has(explicit)) {
-    throw new Error("Codex result classification lacks an admitted explicit capacity state.");
+} else if (RESULT_CLASSIFICATION_KINDS.has(sourceKind)) {
+  const explicit = admittedExplicitState("Codex result classification");
+  const completionVerified =
+    Number.isInteger(source.sourceExitCode) &&
+    source.sourceExitCode === 0 &&
+    source.structuredTurnCompleted === true &&
+    source.completionEvidenceConsistent !== false;
+  if (completionVerified) {
+    state = "AVAILABLE";
+    observationType = "verified-successful-result-classification";
+    maximumConcurrency = 1;
+  } else {
+    if (DISPATCHABLE_STATES.has(explicit)) {
+      throw new Error("A failed/incomplete Codex result classification cannot become dispatchable AVAILABLE or DEGRADED capacity evidence.");
+    }
+    state = explicit;
+    observationType = "explicit-non-dispatchable-result-classification";
+    maximumConcurrency = null;
   }
-  state = explicit;
-  observationType = "explicit-result-classification";
+} else if (INDEPENDENT_CLASSIFICATION_KINDS.has(sourceKind)) {
+  state = admittedExplicitState("Codex capacity classification");
+  observationType = "explicit-independent-capacity-classification";
   maximumConcurrency = Number.isInteger(source.maximumConcurrency) && source.maximumConcurrency > 0
     ? Math.min(source.maximumConcurrency, 64)
     : null;
@@ -82,7 +113,7 @@ if (sourceKind === "evavo-codex-worker-run-v1") {
     ? Math.min(source.maximumConcurrency, 64)
     : null;
 } else {
-  throw new Error("Receipt kind cannot provide raw Spark capacity. Capability, authentication and physical-acceptance receipts are deliberately non-capacity evidence.");
+  throw new Error("Receipt kind cannot provide raw Spark capacity. Only exact admitted worker-run, result-classification, independent capacity-classification, or reviewed account-status kinds are accepted; capability, authentication and physical-acceptance receipts are deliberately non-capacity evidence.");
 }
 
 const parsedTime = typeof observedAt === "string" ? Date.parse(observedAt) : Number.NaN;
@@ -91,8 +122,8 @@ if (parsedTime - Date.now() > 120_000) throw new Error("Observed capacity receip
 if (!STATES.has(state)) throw new Error("Raw capacity state is invalid.");
 
 const result = {
-  schemaVersion: 1,
-  kind: "evavo-codex-spark-raw-capacity-observation-v1",
+  schemaVersion: 2,
+  kind: "evavo-codex-spark-raw-capacity-observation-v2",
   routeId: ROUTE_ID,
   modelPreference: MODEL,
   capacityClass: CAPACITY_CLASS,
@@ -106,6 +137,8 @@ const result = {
   maximumConcurrency,
   paidFallbackAllowed: false,
   paidFallbackUsed: false,
+  failedWorkerTurnTreatedAsDispatchableCapacity: false,
+  wildcardClassificationKindAccepted: false,
   accountUsageQueriedByCompiler: false,
   capacityInferredFromTransport: false,
   capacityInferredFromAuthentication: false,
@@ -114,6 +147,6 @@ const result = {
   repositoryMutationPerformed: false,
   publicationPerformed: false,
   truthBoundary:
-    "This receipt normalizes only a successful Spark model turn or an explicit capacity classification/account-status observation. Codex installation, CLI flags, authentication policy and physical acceptance are intentionally rejected as capacity evidence.",
+    "This receipt normalizes only a verified successful Spark model turn, an exact admitted non-dispatchable result classification, an exact independent capacity classification, or a reviewed account-status observation. Failed worker turns cannot become dispatchable AVAILABLE/DEGRADED evidence, wildcard classification kinds are rejected, and Codex installation, CLI flags, authentication policy and physical acceptance remain non-capacity evidence.",
 };
 console.log(JSON.stringify(result, null, 2));
