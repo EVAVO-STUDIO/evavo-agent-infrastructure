@@ -18,6 +18,7 @@ const CLASSIFIER_KINDS = new Set([
   "evavo-codex-worker-result-classification-v1",
   "evavo-codex-worker-result-classification-v2",
 ]);
+const DISPATCHABLE_STATES = new Set(["AVAILABLE", "DEGRADED"]);
 
 function object(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -111,6 +112,11 @@ export function classifyCodexSparkCapacityObservation(input) {
   const diagnostic = diagnosticText(source);
   const completion = completionEvidence(source);
   const contradictoryAvailableClaim = completion.recognized && explicit === "AVAILABLE" && !completion.verified;
+  const failedWorkerDispatchableClaim =
+    completion.recognized &&
+    !completion.verified &&
+    explicit !== null &&
+    DISPATCHABLE_STATES.has(explicit);
   let state = null;
   let reason = null;
 
@@ -120,7 +126,7 @@ export function classifyCodexSparkCapacityObservation(input) {
   if (completion.verified) {
     state = "AVAILABLE";
     reason = "VERIFIED_STRUCTURED_TURN_COMPLETED";
-  } else if (explicit && !contradictoryAvailableClaim) {
+  } else if (explicit && !failedWorkerDispatchableClaim) {
     state = explicit;
     reason = "EXPLICIT_CAPACITY_CLASSIFICATION";
   }
@@ -140,16 +146,16 @@ export function classifyCodexSparkCapacityObservation(input) {
     state = "OFFLINE";
     reason = "TRANSPORT_OR_EXECUTABLE_FAILURE_OBSERVED";
   }
-  if (!state && contradictoryAvailableClaim) {
-    state = "DEGRADED";
-    reason = "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE";
+  if (!state && failedWorkerDispatchableClaim) {
+    state = "OFFLINE";
+    reason = "FAILED_WORKER_DISPATCHABLE_CAPACITY_CLAIM_REJECTED";
   }
   if (!state && source.kind === "evavo-codex-worker-run-v1") {
-    state = "DEGRADED";
+    state = "OFFLINE";
     reason = "UNCLASSIFIED_CODEX_RUN_FAILURE";
   }
   if (!state && CLASSIFIER_KINDS.has(source.kind)) {
-    state = "DEGRADED";
+    state = "OFFLINE";
     reason = "UNCLASSIFIED_CODEX_CLASSIFICATION_FAILURE";
   }
   if (!state) {
@@ -174,6 +180,8 @@ export function classifyCodexSparkCapacityObservation(input) {
     completionEvidenceRecognized: completion.recognized,
     completionEvidenceVerified: completion.verified,
     contradictoryAvailableClaimRejected: contradictoryAvailableClaim,
+    failedWorkerDispatchableClaimRejected: failedWorkerDispatchableClaim,
+    failedWorkerTurnTreatedAsDispatchableDegradedCapacity: false,
     paidFallbackUsed: false,
     modelTurnPerformedByClassifier: false,
     accountUsageScraped: false,
@@ -182,7 +190,7 @@ export function classifyCodexSparkCapacityObservation(input) {
     credentialValuesReturned: false,
     diagnosticTextReturned: false,
     truthBoundary:
-      "This observation classifies an already-observed Codex result. AVAILABLE from a raw run or worker-result classifier requires coherent zero-exit structured completion evidence; incidental error-like text cannot override verified completion and a contradictory AVAILABLE claim is rejected. It does not scrape account usage, start a probe model turn, treat CLI installation/authentication as capacity, expose diagnostic text or authorize dispatch.",
+      "This observation classifies an already-observed Codex result. AVAILABLE from a raw run or worker-result classifier requires coherent zero-exit structured completion evidence; incidental error-like text cannot override verified completion. A failed worker run cannot become dispatchable AVAILABLE or DEGRADED capacity, including through stale explicit classifier labels. DEGRADED remains available only to independent capacity evidence. The classifier does not scrape account usage, start a probe model turn, treat CLI installation/authentication as capacity, expose diagnostic text or authorize dispatch.",
   };
 }
 
