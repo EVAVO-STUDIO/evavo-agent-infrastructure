@@ -11,6 +11,7 @@ if (!source) {
 
 const input = JSON.parse(fs.readFileSync(path.resolve(source), "utf8"));
 const exitCode = Number.isInteger(input.exitCode) ? input.exitCode : null;
+const verifiedCompletion = exitCode === 0 && input.modelTurnCompleted === true;
 const textValue = (value) => {
   if (typeof value === "string") return value;
   if (value && typeof value === "object" && typeof value.text === "string") return value.text;
@@ -48,7 +49,14 @@ let capacityState;
 let workDecision;
 let category;
 
-if (matches(patterns.auth)) {
+// A verified successful process/protocol completion is authoritative. Output from
+// successful work can legitimately discuss quotas, authentication, or rate limits
+// as subject matter and must not be reclassified as a runtime failure by text alone.
+if (verifiedCompletion) {
+  capacityState = "AVAILABLE";
+  workDecision = "PROCESS_WORKER_RESULT";
+  category = "completed-model-turn";
+} else if (matches(patterns.auth)) {
   capacityState = "AUTH_REQUIRED";
   workDecision = "RETAIN_READY_JOB";
   category = "authentication";
@@ -60,10 +68,6 @@ if (matches(patterns.auth)) {
   capacityState = "RATE_LIMITED";
   workDecision = "BACKOFF_RETAIN_READY_JOB";
   category = "rate-limit";
-} else if (exitCode === 0 && input.modelTurnCompleted === true) {
-  capacityState = "AVAILABLE";
-  workDecision = "PROCESS_WORKER_RESULT";
-  category = "completed-model-turn";
 } else if (exitCode === null) {
   capacityState = "OFFLINE";
   workDecision = "RETAIN_READY_JOB";
@@ -74,11 +78,13 @@ if (matches(patterns.auth)) {
   category = "unclassified-runtime-failure";
 }
 
-const resetMatch = text.match(/(?:reset(?:s| time)?|try again after)\s*[: ]\s*([^\n,.]+)/i);
+const resetMatch = verifiedCompletion
+  ? null
+  : text.match(/(?:reset(?:s| time)?|try again after)\s*[: ]\s*([^\n,.]+)/i);
 
 console.log(JSON.stringify({
-  schemaVersion: 1,
-  kind: "evavo-codex-worker-result-classification-v1",
+  schemaVersion: 2,
+  kind: "evavo-codex-worker-result-classification-v2",
   routeId: input.routeId ?? "codex-spark-pro",
   capacityState,
   category,
@@ -88,6 +94,8 @@ console.log(JSON.stringify({
   paidFallbackUsed: false,
   exactUsageRemainingKnown: false,
   sourceExitCode: exitCode,
-  structuredTurnCompleted: input.modelTurnCompleted === true,
-  truthBoundary: "This classifier derives route health only from the supplied runtime result. It does not query or estimate remaining ChatGPT/Codex allowance and never authorizes paid fallback."
+  sourceModelTurnCompletedClaim: input.modelTurnCompleted === true,
+  structuredTurnCompleted: verifiedCompletion,
+  completionEvidenceConsistent: verifiedCompletion || input.modelTurnCompleted !== true,
+  truthBoundary: "This classifier trusts completion only when the supplied runtime exit code is zero and the runtime receipt claims modelTurnCompleted=true. Error-like text is diagnostic evidence only for non-completed runs; it cannot override a verified successful completion. The classifier does not query or estimate remaining ChatGPT/Codex allowance and never authorizes paid fallback."
 }, null, 2));
