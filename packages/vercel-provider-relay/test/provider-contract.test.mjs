@@ -29,8 +29,19 @@ test("provider relay supports Git-backed project and deployment creation", () =>
   assert.match(source, /\^\(EVAVO-STUDIO\)/);
 });
 
+test("provider relay supports retry-safe desired-state project convergence", () => {
+  assert.match(source, /"project\.ensure"/);
+  assert.match(source, /providerOptionalGet/);
+  assert.match(source, /projectGitMatches/);
+  assert.match(source, /project-git-link-mismatch/);
+  assert.match(source, /project-git-link-readback-mismatch/);
+  assert.match(source, /project-settings-readback-mismatch/);
+  assert.match(source, /state = "created"/);
+  assert.match(source, /state = "updated"/);
+});
+
 test("provider relay supports project-domain lifecycle and exact DNS planning", () => {
-  for (const operation of ["domain.list", "domain.get", "domain.add", "domain.update", "domain.verify", "domain.remove", "domain.config", "domain.dns-plan"]) {
+  for (const operation of ["domain.list", "domain.get", "domain.add", "domain.update", "domain.ensure", "domain.verify", "domain.remove", "domain.config", "domain.dns-plan"]) {
     assert.match(source, new RegExp(operation.replaceAll(".", "\\.")));
   }
   assert.match(source, /recommendedIPv4/);
@@ -38,8 +49,22 @@ test("provider relay supports project-domain lifecycle and exact DNS planning", 
   assert.match(source, /verification:\s*redact/);
 });
 
+test("domain ensure reads before writing and verifies desired state after mutation", () => {
+  assert.match(source, /case "domain\.ensure"/);
+  assert.match(source, /domainDelta/);
+  assert.match(source, /assertDomainDesired/);
+  assert.match(source, /domain-readback-mismatch/);
+  assert.match(source, /\/v10\/projects\/\$\{encode\(projectId\)\}\/domains/);
+});
+
 test("writes require explicit execution and destructive domain removal is double-gated", () => {
   assert.match(source, /if \(write\) \{/);
   assert.match(source, /if \(!allowWrite\) return \{ ok: true, status: "planned", executed: false/);
   assert.match(source, /allow-destructive-required/);
+});
+
+test("health advertises desired-state support without leaking credentials", () => {
+  assert.match(source, /version:\s*"1\.1\.0"/);
+  assert.match(source, /desiredStateOperations:\s*\["project\.ensure",\s*"domain\.ensure"\]/);
+  assert.match(source, /credentialValuesReturned:\s*false/);
 });
