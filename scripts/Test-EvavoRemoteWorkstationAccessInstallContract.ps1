@@ -4,13 +4,15 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $Installer=Join-Path $PSScriptRoot 'Install-EvavoRemoteWorkstationAccess.ps1'
 $Status=Join-Path $PSScriptRoot 'Get-EvavoRemoteWorkstationAccessStatus.ps1'
+$ProviderStatus=Join-Path $PSScriptRoot 'Get-EvavoProviderCredentialReadiness.ps1'
 $ObserverTunnel=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWorkstationObserverTunnelV3.ps1'
 $ExecutionTunnel=Join-Path $PSScriptRoot 'Install-EvavoChatGPTWindowsExecutionTunnel.ps1'
 $Relay=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelayV2.ps1'
 $RelayV1=Join-Path $PSScriptRoot 'Deploy-EvavoRemoteMcpRelay.ps1'
-foreach($Path in @($Installer,$Status,$ObserverTunnel,$ExecutionTunnel,$Relay,$RelayV1)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_MISSING:$Path"};$t=$null;$e=$null;[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$t,[ref]$e)|Out-Null;if(@($e).Count-gt0){throw "EVAVO_REMOTE_ACCESS_CONTRACT_PARSE_FAILED:$Path"}}
+foreach($Path in @($Installer,$Status,$ProviderStatus,$ObserverTunnel,$ExecutionTunnel,$Relay,$RelayV1)){if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw "EVAVO_REMOTE_ACCESS_CONTRACT_MISSING:$Path"};$t=$null;$e=$null;[Management.Automation.Language.Parser]::ParseFile($Path,[ref]$t,[ref]$e)|Out-Null;if(@($e).Count-gt0){throw "EVAVO_REMOTE_ACCESS_CONTRACT_PARSE_FAILED:$Path"}}
 $Source=Get-Content -LiteralPath $Installer -Raw -Encoding UTF8
 $StatusSource=Get-Content -LiteralPath $Status -Raw -Encoding UTF8
+$ProviderStatusSource=Get-Content -LiteralPath $ProviderStatus -Raw -Encoding UTF8
 $ObserverSource=Get-Content -LiteralPath $ObserverTunnel -Raw -Encoding UTF8
 $ExecutionSource=Get-Content -LiteralPath $ExecutionTunnel -Raw -Encoding UTF8
 $RelaySource=Get-Content -LiteralPath $Relay -Raw -Encoding UTF8
@@ -80,6 +82,20 @@ foreach($Needle in @(
  'currentWindowsUserRawShellAuthorityExposed=',
  'arbitraryShellConfiguredLocally=$false'
 )){if(-not$StatusSource.Contains($Needle)){throw "EVAVO_REMOTE_ACCESS_STATUS_CONTRACT_MISSING:$Needle"}}
+foreach($Needle in @(
+ 'schemaVersion=2',
+ "kind='evavo-provider-credential-readiness-v2'",
+ '$AuthProbeAttemptedCount=0',
+ '$AuthProbePassedCount=0',
+ '$AuthProbeFailedCount=0',
+ '$AuthProbeAttemptedCount-gt0',
+ '$AuthProbeFailedCount-eq0',
+ 'ok=$AuthProbeReady',
+ 'requestedAuthProbePassed=if($ProbeCliAuth){$AuthProbeReady}else{$null}',
+ 'packageDownloadPerformed=$false',
+ 'networkProbePerformed=[bool]($AuthProbeAttemptedCount-gt0)',
+ "$Wrangler=Probe-Native @('wrangler.cmd','wrangler') @('whoami')"
+)){if(-not$ProviderStatusSource.Contains($Needle)){throw "EVAVO_PROVIDER_CREDENTIAL_STATUS_CONTRACT_MISSING:$Needle"}}
 foreach($Forbidden in @(
  'Invoke-Expression',
  'effectfulWorkstationToolsExposed=$true',
@@ -98,9 +114,15 @@ foreach($Forbidden in @(
  'acceptedRestExecutorAttestationRequired=',
  'arbitraryShellConfiguredLocally=$ExecutionInstalled'
 )){if($StatusSource.Contains($Forbidden)){throw "EVAVO_REMOTE_ACCESS_STATUS_STALE_SUCCESS_OR_FIELD:$Forbidden"}}
+foreach($Forbidden in @(
+ 'ok=$true',
+ 'npx.cmd',
+ 'npx --yes',
+ 'npx --no-install'
+)){if($ProviderStatusSource.Contains($Forbidden)){throw "EVAVO_PROVIDER_CREDENTIAL_STATUS_FALSE_SUCCESS_OR_DOWNLOAD_PATH:$Forbidden"}}
 [ordered]@{
- schemaVersion=5
- kind='evavo-remote-workstation-access-install-contract-v5'
+ schemaVersion=6
+ kind='evavo-remote-workstation-access-install-contract-v6'
  ok=$true
  powershellSyntaxValid=$true
  localRecoveryBootstrapRequired=$true
@@ -122,6 +144,7 @@ foreach($Forbidden in @(
  requestedDoctorChecksMustPass=$true
  providerProbeRequiresAtLeastOneAttempt=$true
  failedProviderProbeCannotReportOk=$true
+ providerDoctorCannotDownloadPackages=$true
  staleExecutionStatusFieldsForbidden=$true
  githubActionsRequired=$false
 }|ConvertTo-Json -Depth 8
