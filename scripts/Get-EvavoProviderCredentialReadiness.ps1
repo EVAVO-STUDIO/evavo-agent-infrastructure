@@ -28,7 +28,21 @@ function Probe-Native([string[]]$Names,[string[]]$Arguments){
 
 $Gh=Probe-Native @('gh.exe','gh') @('auth','status','--hostname','github.com')
 $Wrangler=Probe-Native @('wrangler.cmd','wrangler') @('whoami')
-if(-not$Wrangler.available){$Npx=Get-Command npx.cmd,npx -CommandType Application -ErrorAction SilentlyContinue|Select-Object -First 1;if($Npx){if($ProbeCliAuth){$Previous=$ErrorActionPreference;try{$ErrorActionPreference='Continue';$global:LASTEXITCODE=0;&$Npx.Source wrangler whoami 1>$null 2>$null;$Code=[int]$global:LASTEXITCODE}finally{$ErrorActionPreference=$Previous};$Wrangler=[ordered]@{available=$true;attempted=$true;passed=[bool]($Code-eq0);via='npx'}}else{$Wrangler=[ordered]@{available=$true;attempted=$false;passed=$false;via='npx'}}}}
+if(-not$Wrangler.available){
+    $Npx=Get-Command npx.cmd,npx -CommandType Application -ErrorAction SilentlyContinue|Select-Object -First 1
+    if($Npx){
+        if($ProbeCliAuth){
+            $Previous=$ErrorActionPreference
+            try{
+                $ErrorActionPreference='Continue';$global:LASTEXITCODE=0
+                # --no-install keeps a credential/readiness probe from downloading a package.
+                &$Npx.Source --no-install wrangler whoami 1>$null 2>$null
+                $Code=[int]$global:LASTEXITCODE
+            }finally{$ErrorActionPreference=$Previous}
+            if($Code-eq0){$Wrangler=[ordered]@{available=$true;attempted=$true;passed=$true;via='npx-no-install'}}
+        }
+    }
+}
 $Vercel=Probe-Native @('vercel.cmd','vercel') @('whoami')
 $TunnelClient=Command-Available @('tunnel-client.exe','tunnel-client')
 
@@ -41,12 +55,32 @@ $TunnelId=[Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNN
 if([string]::IsNullOrWhiteSpace($TunnelId)){$TunnelId=[Environment]::GetEnvironmentVariable('EVAVO_WORKSTATION_OBSERVER_TUNNEL_ID','Process')}
 $TunnelIdConfigured=[bool]([string]$TunnelId-match'^tunnel_[0-9a-f]{32}$')
 
+$AuthProbeAttemptedCount=0
+$AuthProbePassedCount=0
+$AuthProbeFailedCount=0
+foreach($Provider in @($Gh,$Wrangler,$Vercel)){
+    if($Provider.attempted-eq$true){
+        $AuthProbeAttemptedCount++
+        if($Provider.passed-eq$true){$AuthProbePassedCount++}else{$AuthProbeFailedCount++}
+    }
+}
+$AuthProbeReady=[bool](
+    -not$ProbeCliAuth-or(
+        $AuthProbeAttemptedCount-gt0-and
+        $AuthProbeFailedCount-eq0
+    )
+)
+
 [ordered]@{
- schemaVersion=1
- kind='evavo-provider-credential-readiness-v1'
- ok=$true
+ schemaVersion=2
+ kind='evavo-provider-credential-readiness-v2'
+ ok=$AuthProbeReady
  checkedAt=[DateTimeOffset]::UtcNow.ToString('o')
  probeCliAuthRequested=[bool]$ProbeCliAuth
+ authProbeAttemptedCount=$AuthProbeAttemptedCount
+ authProbePassedCount=$AuthProbePassedCount
+ authProbeFailedCount=$AuthProbeFailedCount
+ requestedAuthProbePassed=if($ProbeCliAuth){$AuthProbeReady}else{$null}
  github=[ordered]@{cliAvailable=[bool]$Gh.available;authProbeAttempted=[bool]$Gh.attempted;authProbePassed=[bool]$Gh.passed;credentialValueReturned=$false}
  cloudflare=[ordered]@{wranglerAvailable=[bool]$Wrangler.available;authProbeAttempted=[bool]$Wrangler.attempted;authProbePassed=[bool]$Wrangler.passed;credentialSourceCategory=$CloudflareTokenSource;accountSourceCategory=$CloudflareAccountSource;credentialValueReturned=$false;accountIdReturned=$false}
  openAi=[ordered]@{tunnelClientAvailable=$TunnelClient;runtimeCredentialSourceCategory=$OpenAiRuntimeSource;runtimeCredentialConfigured=[bool]($OpenAiRuntimeSource-ne'none');adminCredentialConfigured=$OpenAiAdmin;workspaceOrOrganizationScopeConfigured=$OpenAiScope;tunnelIdConfigured=$TunnelIdConfigured;credentialValueReturned=$false;tunnelIdReturned=$false}
@@ -55,5 +89,6 @@ $TunnelIdConfigured=[bool]([string]$TunnelId-match'^tunnel_[0-9a-f]{32}$')
  secretValuesReturned=$false
  environmentValuesReturned=$false
  mutationPerformed=$false
- networkProbePerformed=[bool]$ProbeCliAuth
+ packageDownloadPerformed=$false
+ networkProbePerformed=[bool]($AuthProbeAttemptedCount-gt0)
 }|ConvertTo-Json -Depth 10
