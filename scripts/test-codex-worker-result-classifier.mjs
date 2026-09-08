@@ -20,6 +20,20 @@ const observe = (source) => classifyCodexSparkCapacityObservation({
   source,
   sourceSha256: "a".repeat(64),
 });
+const compileRaw = (document) => {
+  const source = path.join(dir, `raw-${Math.random().toString(16).slice(2)}.json`);
+  fs.writeFileSync(source, `${JSON.stringify(document, null, 2)}\n`, "utf8");
+  const result = spawnSync(process.execPath, ["scripts/compile-codex-spark-raw-capacity-observation.mjs", source], {
+    encoding: "utf8",
+    shell: false,
+    timeout: 30_000,
+    maxBuffer: 2 * 1024 * 1024,
+  });
+  return {
+    result,
+    receipt: result.status === 0 ? JSON.parse(String(result.stdout).trim()) : null,
+  };
+};
 
 try {
   let result = classify({exitCode:0, modelTurnCompleted:true, stdout:"done", routeId:"codex-spark-pro"});
@@ -134,12 +148,59 @@ try {
   assert.equal(observation.state, "DEGRADED");
   assert.equal(observation.reason, "EXPLICIT_CAPACITY_CLASSIFICATION");
 
+  const now = new Date().toISOString();
+  let raw = compileRaw({
+    schemaVersion: 2,
+    kind: "evavo-codex-worker-result-classification-v2",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    capacityState: "DEGRADED",
+    sourceExitCode: 2,
+    structuredTurnCompleted: false,
+    completionEvidenceConsistent: true,
+    observedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.notEqual(raw.result.status, 0);
+  assert.match(String(raw.result.stderr), /cannot become dispatchable AVAILABLE or DEGRADED/i);
+
+  raw = compileRaw({
+    schemaVersion: 1,
+    kind: "evavo-codex-worker-fake-classification-v9",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    capacityState: "AVAILABLE",
+    observedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.notEqual(raw.result.status, 0);
+  assert.match(String(raw.result.stderr), /Only exact admitted|cannot provide raw Spark capacity/i);
+
+  raw = compileRaw({
+    schemaVersion: 1,
+    kind: "evavo-codex-worker-run-v1",
+    routeId: "codex-spark-pro",
+    modelPreference: "gpt-5.3-codex-spark",
+    capacityClass: "included-consumer",
+    exitCode: 0,
+    modelTurnCompleted: true,
+    structuredTurnCompleted: true,
+    finishedAt: now,
+    paidFallbackUsed: false,
+  });
+  assert.equal(raw.result.status, 0, raw.result.stderr);
+  assert.equal(raw.receipt.kind, "evavo-codex-spark-raw-capacity-observation-v1");
+  assert.equal(raw.receipt.state, "AVAILABLE");
+  assert.equal(raw.receipt.wildcardClassificationKindAccepted, false);
+
   console.log("Codex worker result classifier tests passed.");
   console.log("- verified successful completion is authoritative over incidental error-like text");
   console.log("- nonzero or missing exit evidence cannot be promoted by modelTurnCompleted=true");
   console.log("- failed worker turns remain OFFLINE and cannot become dispatchable DEGRADED capacity");
   console.log("- DEGRADED remains available to independent capacity telemetry rather than failed worker receipts");
-  console.log("- mandatory classifier governance also rejects contradictory Spark capacity observations");
+  console.log("- mandatory governance rejects contradictory observations and legacy raw-capacity wildcard/provenance bypasses");
 } finally {
   fs.rmSync(dir, {recursive:true, force:true});
 }
