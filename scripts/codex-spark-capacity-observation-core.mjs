@@ -14,6 +14,10 @@ const RATE_LIMIT = /(?:rate[ -]?limit|too many requests|retry[- ]after|http\s*42
 const EXHAUSTED = /(?:usage limit|quota (?:is )?exhausted|quota exceeded|allowance exhausted|capacity exhausted|weekly limit|monthly limit)/i;
 const AUTH = /(?:auth(?:entication|orization)? required|not logged in|login required|sign in|unauthorized|forbidden|invalid credential|http\s*401|status\s*401)/i;
 const OFFLINE = /(?:enoent|executable not found|command not found|could not resolve host|dns|network is unreachable|connection refused|offline)/i;
+const CLASSIFIER_KINDS = new Set([
+  "evavo-codex-worker-result-classification-v1",
+  "evavo-codex-worker-result-classification-v2",
+]);
 
 function object(value, label) {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
@@ -72,6 +76,30 @@ function diagnosticText(source) {
     .slice(0, 256 * 1024);
 }
 
+function completionEvidence(source) {
+  if (source.kind === "evavo-codex-worker-run-v1") {
+    return {
+      recognized: true,
+      verified:
+        Number.isInteger(source.exitCode) &&
+        source.exitCode === 0 &&
+        source.modelTurnCompleted === true &&
+        source.structuredTurnCompleted === true,
+    };
+  }
+  if (CLASSIFIER_KINDS.has(source.kind)) {
+    return {
+      recognized: true,
+      verified:
+        Number.isInteger(source.sourceExitCode) &&
+        source.sourceExitCode === 0 &&
+        source.structuredTurnCompleted === true &&
+        source.completionEvidenceConsistent !== false,
+    };
+  }
+  return { recognized: false, verified: false };
+}
+
 export function classifyCodexSparkCapacityObservation(input) {
   object(input, "Capacity observation input");
   const source = object(input.source, "Capacity observation source");
@@ -81,12 +109,20 @@ export function classifyCodexSparkCapacityObservation(input) {
   const at = observedAt(source);
   const explicit = explicitState(source);
   const diagnostic = diagnosticText(source);
-  let state = explicit;
-  let reason = explicit ? "EXPLICIT_CAPACITY_CLASSIFICATION" : null;
+  const completion = completionEvidence(source);
+  const contradictoryAvailableClaim = completion.recognized && explicit === "AVAILABLE" && !completion.verified;
+  let state = null;
+  let reason = null;
 
-  if (!state && source.kind === "evavo-codex-worker-run-v1" && source.structuredTurnCompleted === true) {
+  // Exit-code-backed completion outranks incidental diagnostic text and stale
+  // classifier labels. This also repairs old v1 classifier receipts whose text
+  // matcher could label a successful model turn as exhausted or rate-limited.
+  if (completion.verified) {
     state = "AVAILABLE";
-    reason = "STRUCTURED_TURN_COMPLETED";
+    reason = "VERIFIED_STRUCTURED_TURN_COMPLETED";
+  } else if (explicit && !contradictoryAvailableClaim) {
+    state = explicit;
+    reason = "EXPLICIT_CAPACITY_CLASSIFICATION";
   }
   if (!state && EXHAUSTED.test(diagnostic)) {
     state = "EXHAUSTED";
@@ -104,9 +140,17 @@ export function classifyCodexSparkCapacityObservation(input) {
     state = "OFFLINE";
     reason = "TRANSPORT_OR_EXECUTABLE_FAILURE_OBSERVED";
   }
+  if (!state && contradictoryAvailableClaim) {
+    state = "DEGRADED";
+    reason = "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE";
+  }
   if (!state && source.kind === "evavo-codex-worker-run-v1") {
     state = "DEGRADED";
     reason = "UNCLASSIFIED_CODEX_RUN_FAILURE";
+  }
+  if (!state && CLASSIFIER_KINDS.has(source.kind)) {
+    state = "DEGRADED";
+    reason = "UNCLASSIFIED_CODEX_CLASSIFICATION_FAILURE";
   }
   if (!state) {
     state = "UNKNOWN";
@@ -127,6 +171,9 @@ export function classifyCodexSparkCapacityObservation(input) {
     sourceSha256: input.sourceSha256,
     reason,
     maximumConcurrency,
+    completionEvidenceRecognized: completion.recognized,
+    completionEvidenceVerified: completion.verified,
+    contradictoryAvailableClaimRejected: contradictoryAvailableClaim,
     paidFallbackUsed: false,
     modelTurnPerformedByClassifier: false,
     accountUsageScraped: false,
@@ -135,7 +182,7 @@ export function classifyCodexSparkCapacityObservation(input) {
     credentialValuesReturned: false,
     diagnosticTextReturned: false,
     truthBoundary:
-      "This observation classifies an already-observed Codex result. It does not scrape account usage, start a probe model turn, treat CLI installation/authentication as capacity, expose diagnostic text or authorize dispatch.",
+      "This observation classifies an already-observed Codex result. AVAILABLE from a raw run or worker-result classifier requires coherent zero-exit structured completion evidence; incidental error-like text cannot override verified completion and a contradictory AVAILABLE claim is rejected. It does not scrape account usage, start a probe model turn, treat CLI installation/authentication as capacity, expose diagnostic text or authorize dispatch.",
   };
 }
 
