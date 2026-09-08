@@ -10,11 +10,14 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   const result = classify({
     kind: "evavo-codex-worker-run-v1",
     finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 0,
+    modelTurnCompleted: true,
     structuredTurnCompleted: true,
     paidFallbackUsed: false,
   });
   assert.equal(result.state, "AVAILABLE");
-  assert.equal(result.reason, "STRUCTURED_TURN_COMPLETED");
+  assert.equal(result.reason, "VERIFIED_STRUCTURED_TURN_COMPLETED");
+  assert.equal(result.completionEvidenceVerified, true);
   assert.equal(result.accountUsageScraped, false);
 }
 
@@ -22,6 +25,49 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   const result = classify({
     kind: "evavo-codex-worker-run-v1",
     finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 0,
+    modelTurnCompleted: true,
+    structuredTurnCompleted: true,
+    stdout: { text: "Added regression coverage for usage limit and rate limit messages." },
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "AVAILABLE");
+  assert.equal(result.reason, "VERIFIED_STRUCTURED_TURN_COMPLETED");
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-run-v1",
+    finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
+    modelTurnCompleted: true,
+    structuredTurnCompleted: true,
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "DEGRADED");
+  assert.equal(result.completionEvidenceVerified, false);
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-run-v1",
+    finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
+    modelTurnCompleted: false,
+    structuredTurnCompleted: false,
+    capacityState: "AVAILABLE",
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "DEGRADED");
+  assert.equal(result.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+  assert.equal(result.contradictoryAvailableClaimRejected, true);
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-run-v1",
+    finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
     structuredTurnCompleted: false,
     errorMessage: "Too many requests; retry-after 120",
     paidFallbackUsed: false,
@@ -33,6 +79,7 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   const result = classify({
     kind: "evavo-codex-worker-run-v1",
     finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
     errorMessage: "Weekly usage limit reached; allowance exhausted",
     paidFallbackUsed: false,
   });
@@ -43,6 +90,7 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   const result = classify({
     kind: "evavo-codex-worker-run-v1",
     finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
     errorMessage: "Not logged in. Sign in required.",
     paidFallbackUsed: false,
   });
@@ -53,6 +101,7 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
   const result = classify({
     kind: "evavo-codex-worker-run-v1",
     finishedAt: "2026-09-01T08:00:00.000Z",
+    exitCode: 1,
     error: "spawn codex ENOENT",
     paidFallbackUsed: false,
   });
@@ -64,10 +113,52 @@ const classify = (source) => classifyCodexSparkCapacityObservation({ source, sou
     kind: "evavo-codex-worker-result-classification-v1",
     observedAt: "2026-09-01T08:00:00.000Z",
     capacityState: "DEGRADED",
+    sourceExitCode: 2,
+    structuredTurnCompleted: false,
     paidFallbackUsed: false,
   });
   assert.equal(result.state, "DEGRADED");
   assert.equal(result.reason, "EXPLICIT_CAPACITY_CLASSIFICATION");
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-result-classification-v1",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "EXHAUSTED",
+    sourceExitCode: 0,
+    structuredTurnCompleted: true,
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "AVAILABLE");
+  assert.equal(result.reason, "VERIFIED_STRUCTURED_TURN_COMPLETED");
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-result-classification-v1",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "AVAILABLE",
+    sourceExitCode: 2,
+    structuredTurnCompleted: true,
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "DEGRADED");
+  assert.equal(result.reason, "CONTRADICTORY_AVAILABLE_COMPLETION_EVIDENCE");
+}
+
+{
+  const result = classify({
+    kind: "evavo-codex-worker-result-classification-v2",
+    observedAt: "2026-09-01T08:00:00.000Z",
+    capacityState: "AVAILABLE",
+    sourceExitCode: 0,
+    structuredTurnCompleted: true,
+    completionEvidenceConsistent: true,
+    paidFallbackUsed: false,
+  });
+  assert.equal(result.state, "AVAILABLE");
+  assert.equal(result.completionEvidenceVerified, true);
 }
 
 {
@@ -91,7 +182,9 @@ assert.throws(
 );
 
 console.log("Codex Spark capacity observation tests passed.");
-console.log("- successful structured turns produce AVAILABLE observations");
+console.log("- AVAILABLE requires coherent zero-exit structured completion evidence for raw runs/classifiers");
+console.log("- verified completion overrides incidental failure-like text and repairs stale v1 classifier false negatives");
+console.log("- contradictory AVAILABLE claims are rejected rather than routed as capacity");
 console.log("- rate limits, exhaustion, authentication and transport failures remain distinct");
 console.log("- installation or authentication alone never implies capacity");
 console.log("- the classifier does not spend a model turn or scrape account usage");
