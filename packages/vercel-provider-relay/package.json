@@ -1,0 +1,25 @@
+{
+  "name": "@evavo/vercel-provider-relay",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cloudflare-hosted EVAVO Vercel provider control plane independent of workstation liveness.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "types": "wrangler types",
+    "type-check": "wrangler types && tsc --noEmit",
+    "build": "wrangler deploy --dry-run",
+    "test": "node --test test/*.test.mjs",
+    "check": "npm run test && npm run type-check && npm run build"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "2.0.0",
+    "agents": "^0.21.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "wrangler": "^4.30.0"
+  }
+}
