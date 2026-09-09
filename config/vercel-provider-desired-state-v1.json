@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-vercel-provider-desired-state-v1",
+  "enabled": true,
+  "projects": [
+    {
+      "name": "naomis30th",
+      "repository": "EVAVO-STUDIO/naomi-30-queen-of-hearts",
+      "rootDirectory": "deployment/vercel-guest-r15",
+      "productionBranch": "main",
+      "deployIfMissing": true,
+      "domains": [
+        {
+          "name": "naomis30th.com"
+        },
+        {
+          "name": "www.naomis30th.com",
+          "redirect": "naomis30th.com",
+          "redirectStatusCode": 308
+        }
+      ]
+    }
+  ]
+}
