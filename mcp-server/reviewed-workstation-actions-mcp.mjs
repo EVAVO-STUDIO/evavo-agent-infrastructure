@@ -15,12 +15,19 @@ const IMAGE_PROOF_KIND = "evavo-local-image-smoke-proof-v3";
 const IMAGE_PROOF_CONTRACT = "evavo-single-file-image-smoke-proof-v3";
 const IMAGE_CHILD_RECEIPT_CONTRACT = "evavo-sha-bound-child-receipt-v1";
 const REVIEWED_IMAGE_JOB_ID = /^reviewed-image-smoke-(?:cel-animation|90s-game-art|realistic)-[a-z0-9._-]+$/u;
+const REVIEWED_COMFYUI_JOB_ID = /^reviewed-comfyui-open-ui-[a-z0-9._-]+$/u;
+const COMFYUI_PROOF_KIND = "evavo-comfyui-chat-open-receipt-v1";
+const COMFYUI_UI_URL = "http://127.0.0.1:8188/";
+const COMFYUI_COMPUTER_AGENT_REVISION = "f6abf455a72141ebbe1cd4ccbac6e01e2a70cbfa";
 const HEX64 = /^[0-9a-f]{64}$/u;
 const ACTIONS = Object.freeze([
   "resident-status",
+  "comfyui-open-ui",
   "image-smoke-cel-animation",
   "image-smoke-90s-game-art",
   "image-smoke-realistic",
+  "naomi-qoh-vercel-go-live",
+  "vercel-control-commission",
 ]);
 
 const TOOLS = Object.freeze([
@@ -28,6 +35,13 @@ const TOOLS = Object.freeze([
     name: "evavo_reviewed_workstation_actions",
     description: "List the fixed reviewed workstation actions available through the governed Local Compute queue. Performs no execution.",
     inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  },
+  {
+    name: "evavo_open_comfyui_ui",
+    description: "Start or reuse native ComfyUI and open its fixed loopback UI in the default browser on the signed-in Windows workstation. No URL, command, script, path or execution policy is accepted. Returns a durable queue identity for receipt polling.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   {
     name: "evavo_reviewed_workstation_submit",
@@ -38,6 +52,7 @@ const TOOLS = Object.freeze([
       required: ["action"],
       properties: { action: { enum: ACTIONS } },
     },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   {
     name: "evavo_reviewed_workstation_submit_and_wait",
@@ -52,6 +67,7 @@ const TOOLS = Object.freeze([
         pollSeconds: { type: "integer", minimum: 2, maximum: 30 },
       },
     },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
   },
   {
     name: "evavo_reviewed_workstation_job_status",
@@ -62,6 +78,7 @@ const TOOLS = Object.freeze([
       required: ["issueNumber"],
       properties: { issueNumber: { type: "integer", minimum: 1 } },
     },
+    annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
   },
 ]);
 
@@ -242,6 +259,34 @@ function imageProofCorrelation(receipt, proof) {
   };
 }
 
+function comfyUiProofState(output) {
+  const requiredFields = {
+    kind: COMFYUI_PROOF_KIND,
+    ok: true,
+    requestedFromChat: true,
+    target: "comfyui",
+    uiUrl: COMFYUI_UI_URL,
+    nativeBackendReady: true,
+    browserLaunchDispatched: true,
+    browserVisibilityProven: false,
+    fixedAction: true,
+    callerSelectedUrl: false,
+    callerSelectedScript: false,
+    callerSelectedArguments: false,
+    arbitraryCommandAccepted: false,
+    physicalInputInjected: false,
+    computerAgentRevision: COMFYUI_COMPUTER_AGENT_REVISION,
+  };
+  if (typeof output !== "string" || !output.trim()) return { valid: false, proof: null, reason: "comfyui-proof-missing" };
+  let proof;
+  try { proof = JSON.parse(output.trim()); } catch { return { valid: false, proof: null, reason: "comfyui-proof-json-invalid" }; }
+  if (!proof || typeof proof !== "object" || Array.isArray(proof)) return { valid: false, proof: null, reason: "comfyui-proof-object-invalid" };
+  for (const [field, expected] of Object.entries(requiredFields)) {
+    if (proof[field] !== expected) return { valid: false, proof, reason: `comfyui-proof-${field}-invalid` };
+  }
+  return { valid: true, proof, reason: null };
+}
+
 function classifyReceipt(receipt, proofCorrelation = null, proofState = null, proofRequiredByJob = false) {
   if (!receipt) return "receipt-missing";
   if (proofRequiredByJob && proofState?.claimed !== true) return "image-proof-missing";
@@ -264,10 +309,13 @@ function normalizeReceipt(receipt, issueNumber) {
   const outerOk = receipt?.ok === true && receipt?.status === "completed";
   const imageProofRequired = proofRequiredByJob || proofState.claimed === true;
   const imageProofOk = !imageProofRequired || (proofState.valid === true && correlation?.correlated === true);
+  const comfyUiProofRequired = REVIEWED_COMFYUI_JOB_ID.test(String(receipt?.jobId ?? ""));
+  const comfyUiState = comfyUiProofRequired ? comfyUiProofState(receipt?.output) : { valid: false, proof: null, reason: null };
+  const comfyUiProofOk = !comfyUiProofRequired || comfyUiState.valid === true;
   return {
     schemaVersion: 2,
     kind: "evavo-reviewed-workstation-session-result-v2",
-    ok: outerOk && imageProofOk,
+    ok: outerOk && imageProofOk && comfyUiProofOk,
     issueNumber,
     jobId: receipt?.jobId ?? null,
     jobSha256: receipt?.jobSha256 ?? null,
@@ -290,6 +338,17 @@ function normalizeReceipt(receipt, issueNumber) {
     imageProofValidationFailure: proofRequiredByJob && proofState.claimed !== true ? "image-proof-missing" : proofState.reason,
     imageProofPresent: imageProof !== null,
     imageProofCorrelation: correlation,
+    comfyUiProofRequired,
+    comfyUiProofValid: comfyUiProofRequired ? comfyUiState.valid : null,
+    comfyUiProofValidationFailure: comfyUiProofRequired ? comfyUiState.reason : null,
+    comfyUiProof: comfyUiState.proof ? {
+      kind: comfyUiState.proof.kind,
+      uiUrl: comfyUiState.proof.uiUrl,
+      nativeBackendReady: comfyUiState.proof.nativeBackendReady === true,
+      browserLaunchDispatched: comfyUiState.proof.browserLaunchDispatched === true,
+      browserVisibilityProven: comfyUiState.proof.browserVisibilityProven === true,
+      computerAgentRevision: comfyUiState.proof.computerAgentRevision,
+    } : null,
     imageProof: imageProof ? {
       kind: imageProof.kind,
       proofContract: imageProof.proofContract,
@@ -302,7 +361,7 @@ function normalizeReceipt(receipt, issueNumber) {
       terminalReceiptPersisted: imageProof.terminalReceiptPersisted === true,
       singleFilePhysicalProof: imageProof.singleFilePhysicalProof === true,
     } : null,
-    failureClass: classifyReceipt(receipt, correlation, proofState, proofRequiredByJob),
+    failureClass: comfyUiProofRequired && !comfyUiProofOk ? comfyUiState.reason : classifyReceipt(receipt, correlation, proofState, proofRequiredByJob),
     rawReceipt: receipt,
     credentialValuesReturned: false,
   };
@@ -464,6 +523,11 @@ async function callTool(name, raw) {
       credentialValuesReturned: false,
     };
   }
+  if (name === "evavo_open_comfyui_ui") {
+    if (Object.keys(args).length) throw new Error("evavo_open_comfyui_ui accepts no arguments");
+    const submission = await submitReviewed({ action: "comfyui-open-ui" });
+    return { ...submission, requestedFromChat: true, fixedLoopbackTarget: true, uiUrl: COMFYUI_UI_URL };
+  }
   if (name === "evavo_reviewed_workstation_submit") return submitReviewed(args);
   if (name === "evavo_reviewed_workstation_submit_and_wait") return submitAndWait(args);
   if (name === "evavo_reviewed_workstation_job_status") {
@@ -498,7 +562,7 @@ for await (const line of input) {
   try {
     if (request.method === "notifications/initialized") continue;
     if (request.method === "ping") write(result(request.id, {}));
-    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.6.0" } }));
+    else if (request.method === "initialize") write(result(request.id, { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: { listChanged: false } }, serverInfo: { name: "evavo-reviewed-workstation-actions-mcp", version: "1.7.0" } }));
     else if (request.method === "tools/list") write(result(request.id, { tools: TOOLS }));
     else if (request.method === "tools/call") {
       const params = asObject(request.params, "params");

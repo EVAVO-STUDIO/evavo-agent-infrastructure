@@ -12,12 +12,16 @@ const unified = JSON.parse(fs.readFileSync(path.join(root, 'config', 'chatgpt-un
 test('reviewed workstation MCP exposes only fixed action selection plus receipt lookup', () => {
   for (const action of [
     'resident-status',
+    'comfyui-open-ui',
     'image-smoke-cel-animation',
     'image-smoke-90s-game-art',
     'image-smoke-realistic',
+    'naomi-qoh-vercel-go-live',
+    'vercel-control-commission',
   ]) assert.match(source, new RegExp(`"${action}"`));
 
   assert.match(source, /name: "evavo_reviewed_workstation_actions"/);
+  assert.match(source, /name: "evavo_open_comfyui_ui"/);
   assert.match(source, /name: "evavo_reviewed_workstation_submit"/);
   assert.match(source, /name: "evavo_reviewed_workstation_submit_and_wait"/);
   assert.match(source, /name: "evavo_reviewed_workstation_job_status"/);
@@ -149,4 +153,20 @@ test('correlated proof cannot silently grant approval, publication, mutation or 
   assert.match(source, /proof\.modelPromotionGranted === false/);
   assert.match(source, /proof\.publicationGranted === false/);
   assert.match(source, /proof\.repositoryMutationGranted === false/);
+});
+
+
+test("ComfyUI chat shortcut is fixed, effectful and receipt-verified", () => {
+  assert.match(source, /REVIEWED_COMFYUI_JOB_ID/);
+  assert.match(source, /COMFYUI_PROOF_KIND = "evavo-comfyui-chat-open-receipt-v1"/);
+  assert.match(source, /name: "evavo_open_comfyui_ui"/);
+  assert.match(source, /additionalProperties: false, properties: \{\}/);
+  assert.match(source, /submitReviewed\(\{ action: "comfyui-open-ui" \}\)/);
+  assert.match(source, /function comfyUiProofState\(output\)/);
+  assert.match(source, /nativeBackendReady: true/);
+  assert.match(source, /browserLaunchDispatched: true/);
+  assert.match(source, /computerAgentRevision: COMFYUI_COMPUTER_AGENT_REVISION/);
+  assert.match(source, /ok: outerOk && imageProofOk && comfyUiProofOk/);
+  assert.match(source, /comfyUiProofValidationFailure/);
+  assert.doesNotMatch(source, /evavo_open_comfyui_ui.*callerUrl/s);
 });
