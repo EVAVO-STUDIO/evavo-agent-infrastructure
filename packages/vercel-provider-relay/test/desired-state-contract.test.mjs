@@ -52,6 +52,22 @@ test("project reconciliation enforces repository, root directory and production 
   assert.match(source, /project-production-branch-readback-mismatch/);
 });
 
+test("production deployment converges to the current GitHub branch head", () => {
+  assert.match(source, /function githubBranchRevision\(/);
+  assert.match(source, /githubCommitRef/);
+  assert.match(source, /githubCommitSha/);
+  assert.match(source, /desiredRevision/);
+  assert.match(source, /present-current-revision/);
+  assert.match(source, /created-current-revision/);
+  assert.match(source, /limit:\s*"20"/);
+});
+
+test("failed current revisions are blocked instead of retried by every cron tick", () => {
+  assert.match(source, /blocked-current-revision/);
+  assert.match(source, /deploymentBlocked/);
+  assert.match(source, /automaticFailedDeploymentRetry:\s*false/);
+});
+
 test("reconciliation is idempotent desired-state convergence", () => {
   assert.match(source, /vercelOptionalGet/);
   assert.match(source, /ensureProject/);
