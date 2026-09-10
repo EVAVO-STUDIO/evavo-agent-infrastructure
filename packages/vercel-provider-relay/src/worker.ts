@@ -45,6 +45,13 @@ function projectName(value: unknown): string {
   if (result.startsWith("prj_")) throw new Error("project-name-required");
   return result;
 }
+function branch(value: unknown): string {
+  const result = text(value, "productionBranch", 200);
+  if (!/^[A-Za-z0-9._/-]+$/u.test(result) || result.includes("..") || result.startsWith("/") || result.endsWith("/")) {
+    throw new Error("productionBranch-invalid");
+  }
+  return result;
+}
 function domain(value: unknown): string {
   const result = text(value, "domain", 253).toLowerCase().replace(/\.$/u, "");
   if (!/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u.test(result)) throw new Error("domain-invalid");
@@ -145,6 +152,11 @@ function projectGitMatches(observed: JsonObject, desired?: { org: string; repo: 
   const link = optionalObject(observed.link);
   return Boolean(link && link.type === "github" && link.org === desired.org && link.repo === desired.repo);
 }
+function projectProductionBranchMatches(observed: JsonObject, desired?: string): boolean {
+  if (desired === undefined) return true;
+  const link = optionalObject(observed.link);
+  return Boolean(link && String(link.productionBranch ?? "") === desired);
+}
 function domainMutationBody(request: JsonObject, includeName: boolean): JsonObject {
   const body: JsonObject = {};
   if (includeName) body.name = domain(request.domain);
@@ -198,25 +210,37 @@ async function execute(env: Env, input: unknown, allowWrite: boolean): Promise<J
       const name = projectName(request.project);
       const settings = cleanSettings(request.settings);
       const git = gitRepositoryFromRequest(request.gitRepository);
+      const desiredProductionBranch = request.productionBranch === undefined ? undefined : branch(request.productionBranch);
       let observed = await providerOptionalGet(env, `/v9/projects/${encode(name)}`);
       let state = "present";
       if (!observed) {
         await provider(env, "POST", "/v11/projects", { name, ...settings, ...(git.body ? { gitRepository: git.body } : {}) });
         state = "created";
         observed = await provider(env, "GET", `/v9/projects/${encode(name)}`);
-      } else {
-        if (!projectGitMatches(observed, git.desired)) throw new Error("project-git-link-mismatch");
-        const delta = projectSettingsDelta(observed, settings);
-        if (Object.keys(delta).length) {
-          await provider(env, "PATCH", `/v9/projects/${encode(name)}`, delta);
-          state = "updated";
-          observed = await provider(env, "GET", `/v9/projects/${encode(name)}`);
-        }
+      }
+      if (!projectGitMatches(observed, git.desired)) throw new Error("project-git-link-mismatch");
+      const delta = projectSettingsDelta(observed, settings);
+      if (Object.keys(delta).length) {
+        await provider(env, "PATCH", `/v9/projects/${encode(name)}`, delta);
+        state = state === "created" ? "created-and-updated" : "updated";
+        observed = await provider(env, "GET", `/v9/projects/${encode(name)}`);
+      }
+      if (desiredProductionBranch !== undefined && !projectProductionBranchMatches(observed, desiredProductionBranch)) {
+        const providerProjectId = project(observed.id);
+        await provider(env, "PATCH", `/v9/projects/${encode(providerProjectId)}/branch`, { branch: desiredProductionBranch });
+        state = state === "created" ? "created-and-updated" : state === "created-and-updated" ? state : "updated";
+        observed = await provider(env, "GET", `/v9/projects/${encode(name)}`);
       }
       if (!projectGitMatches(observed, git.desired)) throw new Error("project-git-link-readback-mismatch");
       const remaining = projectSettingsDelta(observed, settings);
       if (Object.keys(remaining).length) throw new Error(`project-settings-readback-mismatch:${Object.keys(remaining).join(",")}`);
-      data = { state, project: redact(observed), desiredGitRepository: git.desired ? `${git.desired.org}/${git.desired.repo}` : null };
+      if (!projectProductionBranchMatches(observed, desiredProductionBranch)) throw new Error("project-production-branch-readback-mismatch");
+      data = {
+        state,
+        project: redact(observed),
+        desiredGitRepository: git.desired ? `${git.desired.org}/${git.desired.repo}` : null,
+        desiredProductionBranch: desiredProductionBranch ?? null,
+      };
       break;
     }
     case "deployment.list": {
@@ -296,7 +320,7 @@ function same(a: string, b: string): boolean {
   if (!a || !b || a.length !== b.length) return false; let diff = 0; for (let i=0;i<a.length;i++) diff |= a.charCodeAt(i)^b.charCodeAt(i); return diff === 0;
 }
 function makeServer(env: Env): McpServer {
-  const server = new McpServer({ name: "EVAVO Vercel Provider Control", version: "1.1.0" });
+  const server = new McpServer({ name: "EVAVO Vercel Provider Control", version: "1.2.0" });
   server.registerTool("evavo_vercel_provider_probe", {
     description: "Prove cloud-side EVAVO Vercel provider authentication without workstation dependency or credential disclosure.",
     inputSchema: {},
@@ -306,7 +330,7 @@ function makeServer(env: Env): McpServer {
     return { content: [{ type: "text", text: JSON.stringify({ ok: true, authenticated: true, workstationRequired: false, projectSurfaceReadable: Array.isArray(result.projects), credentialValuesReturned: false }) }] };
   });
   server.registerTool("evavo_vercel_provider_control", {
-    description: "Plan or execute governed cloud-side Vercel project, Git deployment, and custom-domain operations. Prefer project.ensure and domain.ensure for retry-safe desired-state convergence. Writes require execute=true plus a reason; destructive operations additionally require allowDestructive=true.",
+    description: "Plan or execute governed cloud-side Vercel project, Git deployment, production-branch, and custom-domain operations. Prefer project.ensure and domain.ensure for retry-safe desired-state convergence. project.ensure accepts productionBranch separately from ordinary project settings. Writes require execute=true plus a reason; destructive operations additionally require allowDestructive=true.",
     inputSchema: { request: z.record(z.string(), z.unknown()), execute: z.boolean().optional() },
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true },
   }, async ({ request, execute: allowWrite }) => ({ content: [{ type: "text", text: JSON.stringify(await execute(env, request, allowWrite === true)) }] }));
@@ -317,7 +341,7 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/health" && request.method === "GET") {
-      return new Response(JSON.stringify({ ok: true, service: "evavo-vercel-provider-relay", version: "1.1.0", workstationRequired: false, providerCredentialConfigured: Boolean(env.VERCEL_TOKEN), controlCredentialConfigured: Boolean(env.CONTROL_TOKEN), desiredStateOperations: ["project.ensure", "domain.ensure"], credentialValuesReturned: false }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
+      return new Response(JSON.stringify({ ok: true, service: "evavo-vercel-provider-relay", version: "1.2.0", workstationRequired: false, providerCredentialConfigured: Boolean(env.VERCEL_TOKEN), controlCredentialConfigured: Boolean(env.CONTROL_TOKEN), desiredStateOperations: ["project.ensure", "domain.ensure"], productionBranchReconciliation: true, credentialValuesReturned: false }), { headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
     if (url.pathname === "/mcp") {
       const supplied = bearer(request);
