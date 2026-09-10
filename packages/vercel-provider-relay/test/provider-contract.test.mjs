@@ -37,7 +37,16 @@ test("provider relay supports retry-safe desired-state project convergence", () 
   assert.match(source, /project-git-link-readback-mismatch/);
   assert.match(source, /project-settings-readback-mismatch/);
   assert.match(source, /state = "created"/);
-  assert.match(source, /state = "updated"/);
+  assert.match(source, /state = state === "created" \? "created-and-updated" : "updated"/);
+});
+
+test("project ensure converges and verifies the Git production branch", () => {
+  assert.match(source, /function projectProductionBranchMatches\(/);
+  assert.match(source, /request\.productionBranch === undefined \? undefined : branch\(request\.productionBranch\)/);
+  assert.match(source, /\/v9\/projects\/\$\{encode\(providerProjectId\)\}\/branch/);
+  assert.match(source, /\{ branch: desiredProductionBranch \}/);
+  assert.match(source, /project-production-branch-readback-mismatch/);
+  assert.match(source, /productionBranchReconciliation:\s*true/);
 });
 
 test("provider relay supports project-domain lifecycle and exact DNS planning", () => {
@@ -63,8 +72,9 @@ test("writes require explicit execution and destructive domain removal is double
   assert.match(source, /allow-destructive-required/);
 });
 
-test("health advertises desired-state support without leaking credentials", () => {
-  assert.match(source, /version:\s*"1\.1\.0"/);
+test("health advertises desired-state and production-branch support without leaking credentials", () => {
+  assert.match(source, /version:\s*"1\.2\.0"/);
   assert.match(source, /desiredStateOperations:\s*\["project\.ensure",\s*"domain\.ensure"\]/);
+  assert.match(source, /productionBranchReconciliation:\s*true/);
   assert.match(source, /credentialValuesReturned:\s*false/);
 });
