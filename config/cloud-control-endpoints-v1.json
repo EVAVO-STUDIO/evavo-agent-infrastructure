@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "evavo-cloud-control-endpoints-v1",
+  "status": "canonical",
+  "accountWorkersSubdomain": "evavo.workers.dev",
+  "credentialValuesIncluded": false,
+  "endpoints": {
+    "vercel-provider-cloud-mcp": {
+      "transport": "cloudflare-worker-streamable-http",
+      "workerName": "evavo-vercel-provider-relay",
+      "baseUrl": "https://evavo-vercel-provider-relay.evavo.workers.dev",
+      "healthPath": "/health",
+      "mcpPath": "/mcp",
+      "controlPath": "/api/control",
+      "reconcilePath": "/api/reconcile",
+      "workstationRequired": false,
+      "writeAuthentication": "bearer-control-token",
+      "credentialsEmbedded": false
+    },
+    "workstation-typed-relay": {
+      "transport": "cloudflare-worker-streamable-http-plus-websocket",
+      "workerName": "evavo-workstation-mcp-relay",
+      "baseUrl": "https://evavo-workstation-mcp-relay.evavo.workers.dev",
+      "healthPath": "/health",
+      "mcpPath": "/mcp",
+      "websocketPath": "/ws",
+      "dispatchPath": "/api/dispatch",
+      "requestStatusPath": "/api/request",
+      "workstationRequired": true,
+      "writeAuthentication": "bearer-dispatch-token",
+      "credentialsEmbedded": false
+    }
+  }
+}
