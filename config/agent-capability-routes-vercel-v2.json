@@ -2,6 +2,8 @@
   "schemaVersion": 2,
   "kind": "evavo-vercel-capability-routes-v2",
   "authority": "development-governance",
+  "endpointRegistry": "config/cloud-control-endpoints-v1.json",
+  "preferredProviderEndpoint": "vercel-provider-cloud-mcp",
   "providerControlMustSurviveWorkstationOutage": true,
   "automaticFallbackAfterUncertainMutation": false,
   "routes": [
