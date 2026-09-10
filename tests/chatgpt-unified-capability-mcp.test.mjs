@@ -92,6 +92,7 @@ function structured(callResponse) {
 
 test("canonical contract is safe and forward compatible", () => {
   const value = JSON.parse(readFileSync(CANONICAL_CONFIG, "utf8"));
+  assert.equal(value.schemaVersion, 2);
   assert.equal(value.kind, "evavo-chatgpt-unified-capability-surface-v1");
   assert.equal(value.status, "canonical");
   assert.equal(value.server.id, "evavo-fabric");
@@ -109,6 +110,11 @@ test("canonical contract is safe and forward compatible", () => {
   assert.equal(value.relay.githubActionsRequired, false);
   assert.equal(value.relay.vercelRequired, false);
   assert.equal(value.evidence.issueClosureIsExecutionProof, false);
+});
+
+test("unified capability server directly accepts canonical schema 2", () => {
+  const source = readFileSync(SERVER, "utf8");
+  assert.match(source, /new Set\(\[1, 2\]\)\.has\(config\.schemaVersion\)/);
 });
 
 test("server exposes stable tools and dynamic catalog to an existing attached chat", async () => {

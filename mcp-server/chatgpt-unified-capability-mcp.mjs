@@ -544,7 +544,7 @@ class CapabilitySurface {
 
 const config = loadJson(CONFIG_PATH, "EVAVO ChatGPT capability surface contract");
 if (
-  config.schemaVersion !== 1 ||
+  !new Set([1, 2]).has(config.schemaVersion) ||
   config.kind !== "evavo-chatgpt-unified-capability-surface-v1" ||
   config.status !== "canonical"
 ) {
@@ -652,9 +652,9 @@ async function handleTool(name, args) {
   if (name === "evavo_capabilities" || name === "evavo_fleet_capabilities" || name === "fleet_capabilities") {
     await surface.refresh(false);
     return content({
+      ...surface.summary(),
       schemaVersion: 1,
       kind: "evavo-chatgpt-capability-catalog-v1",
-      ...surface.summary(),
       capabilities: surface.list(args || {}),
       allCapabilitiesDiscoverableThroughStableRouter: true,
       newCapabilityRequiresNewChatTool: false,
