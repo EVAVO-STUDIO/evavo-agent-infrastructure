@@ -174,7 +174,7 @@ async function githubGet(env: Env, path: string): Promise<JsonObject> {
       authorization: `Bearer ${env.GITHUB_TOKEN}`,
       accept: "application/vnd.github+json",
       "x-github-api-version": "2022-11-28",
-      "user-agent": "EVAVO-Vercel-Provider-Relay/1.2",
+      "user-agent": "EVAVO-Vercel-Provider-Relay/1.3",
     },
   });
   return boundedJson(response, "github-read-failed");
@@ -206,6 +206,14 @@ async function loadDesiredState(env: Env): Promise<{ revision: string; state: De
     throw new Error("desired-state-json-invalid");
   }
   return { revision, state: parseDesiredState(parsed) };
+}
+
+async function githubBranchRevision(env: Env, desiredRepository: string, desiredBranch: string): Promise<string> {
+  const repo = repoParts(desiredRepository);
+  const commit = await githubGet(env, `/repos/${repo.org}/${repo.repo}/commits/${encodeURIComponent(desiredBranch)}`);
+  const revision = asText(commit.sha, "github-target-branch-invalid", 40).toLowerCase();
+  if (!/^[0-9a-f]{40}$/u.test(revision)) throw new Error("github-target-branch-invalid");
+  return revision;
 }
 
 async function vercel(env: Env, method: string, path: string, body?: JsonObject): Promise<JsonObject> {
@@ -289,14 +297,33 @@ async function ensureProject(env: Env, desired: DesiredProject): Promise<{ state
   return { state, project: current };
 }
 
-async function ensureDeployment(env: Env, desired: DesiredProject): Promise<{ state: string; deployment?: JsonObject }> {
-  const query = new URLSearchParams({ projectId: desired.name, target: "production", limit: "5" });
+function deploymentSourceMatches(entry: JsonObject, desired: DesiredProject, desiredRevision: string): boolean {
+  const meta = entry.meta;
+  if (!meta || typeof meta !== "object" || Array.isArray(meta)) return false;
+  const source = meta as JsonObject;
+  const repo = repoParts(desired.repository);
+  return String(source.githubCommitOrg ?? "").toLowerCase() === repo.org.toLowerCase()
+    && String(source.githubCommitRepo ?? "").toLowerCase() === repo.repo.toLowerCase()
+    && String(source.githubCommitRef ?? "") === desired.productionBranch
+    && String(source.githubCommitSha ?? "").toLowerCase() === desiredRevision;
+}
+
+async function ensureDeployment(env: Env, desired: DesiredProject): Promise<{ state: string; deployment?: JsonObject; desiredRevision: string }> {
+  const desiredRevision = await githubBranchRevision(env, desired.repository, desired.productionBranch);
+  const query = new URLSearchParams({ projectId: desired.name, target: "production", limit: "20" });
   const listed = await vercel(env, "GET", `/v6/deployments?${query.toString()}`);
   const deployments = Array.isArray(listed.deployments)
     ? listed.deployments.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry)) as JsonObject[]
     : [];
-  const current = deployments.find((entry) => LIVE_DEPLOYMENT_STATES.has(String(entry.state ?? entry.readyState ?? "").toUpperCase()));
-  if (current || !desired.deployIfMissing) return { state: current ? "present" : "not-required", ...(current ? { deployment: current } : {}) };
+  const matching = deployments.filter((entry) => deploymentSourceMatches(entry, desired, desiredRevision));
+  const live = matching.find((entry) => LIVE_DEPLOYMENT_STATES.has(String(entry.state ?? entry.readyState ?? "").toUpperCase()));
+  if (live) return { state: "present-current-revision", deployment: live, desiredRevision };
+
+  const attempted = matching[0];
+  if (attempted) {
+    return { state: "blocked-current-revision", deployment: attempted, desiredRevision };
+  }
+  if (!desired.deployIfMissing) return { state: "not-required", desiredRevision };
 
   const repo = repoParts(desired.repository);
   const deployment = await vercel(env, "POST", "/v13/deployments", {
@@ -305,7 +332,7 @@ async function ensureDeployment(env: Env, desired: DesiredProject): Promise<{ st
     gitSource: { type: "github", org: repo.org, repo: repo.repo, ref: desired.productionBranch },
     target: "production",
   });
-  return { state: "created", deployment };
+  return { state: "created-current-revision", deployment, desiredRevision };
 }
 
 function domainDelta(current: JsonObject, desired: DesiredDomain): JsonObject {
@@ -376,8 +403,10 @@ async function reconcile(env: Env): Promise<JsonObject> {
       repository: desired.repository,
       rootDirectory: desired.rootDirectory,
       productionBranch: desired.productionBranch,
+      desiredRevision: ensuredDeployment.desiredRevision,
       projectState: ensuredProject.state,
       deploymentState: ensuredDeployment.state,
+      deploymentBlocked: ensuredDeployment.state === "blocked-current-revision",
       domains,
     });
   }
@@ -394,6 +423,7 @@ async function reconcile(env: Env): Promise<JsonObject> {
     projects: results,
     githubMutationPerformed: false,
     destructiveProviderOperationPerformed: false,
+    automaticFailedDeploymentRetry: false,
     workstationRequired: false,
     credentialValuesReturned: false,
   };
@@ -435,6 +465,8 @@ export default {
         desiredStateRepository: DESIRED_REPOSITORY,
         desiredStatePath: DESIRED_PATH,
         desiredStateCronMinutes: 5,
+        deploymentRevisionConvergence: true,
+        automaticFailedDeploymentRetry: false,
       }), { status: base.status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
 
