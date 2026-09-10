@@ -211,7 +211,11 @@
     "vercelControlAlwaysEffectfulForReplaySafety": true,
     "vercelCredentialCrossesRelay": false,
     "vercelRawApiAccepted": false,
-    "vercelCallerSelectedDeploymentPathAccepted": false
+    "vercelCallerSelectedDeploymentPathAccepted": false,
+    "comfyUiOpenAction": "comfyui.open",
+    "comfyUiOpenArgumentsRequireEmpty": true,
+    "comfyUiOpenPrimaryTransport": "cloudflare-typed-relay",
+    "comfyUiOpenFallbackTransport": "github-receipt-relay"
   },
   "relay": {
     "transport": "github-receipt-relay",

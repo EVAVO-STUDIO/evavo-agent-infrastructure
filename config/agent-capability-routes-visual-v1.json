@@ -1,5 +1,19 @@
 [
   {
+    "id": "comfyui-ui-open",
+    "capability": "comfyui.ui.open",
+    "requestedEffect": "execute",
+    "completionState": "completed",
+    "physicalState": null,
+    "minimumIndependentIngressDomains": 2,
+    "description": "Start or reuse native ComfyUI on the signed-in Windows workstation and dispatch its fixed loopback UI to the default browser. Completion requires correlated native-backend and browser-dispatch receipt evidence; transport acceptance is not completion.",
+    "strategies": [
+      {"id":"comfyui-ui-open-typed-relay","authority":"local-compute","transport":"cloudflare-typed-relay","clients":["chatgpt-pro","api-agent"],"minimumState":"transport_online"},
+      {"id":"comfyui-ui-open-workstation-bridge","authority":"local-compute","transport":"structured-workstation-bridge","clients":["claude-code","codex","api-agent"],"minimumState":"transport_online"},
+      {"id":"comfyui-ui-open-issue-queue","authority":"local-compute","transport":"github-issue-queue","clients":["chatgpt-pro","claude-code","codex","api-agent"],"minimumState":"configured"}
+    ]
+  },
+  {
     "id": "browser-visual-inspect",
     "capability": "browser.visual-inspect",
     "requestedEffect": "read",

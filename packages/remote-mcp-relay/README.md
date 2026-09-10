@@ -133,6 +133,7 @@ storage.status
 storage.inventory.refresh
 storage.google_pressure.activate
 storage.estate.activate
+comfyui.open
 vercel.control
 ```
 
@@ -150,6 +151,8 @@ gateway.wake_target
 Those identifiers remain reserved until each has a separate typed schema, explicit disruption/acceptance policy, local implementation, receipt contract and end-to-end tests. They must never be implemented by widening `gateway.fabric_status` or by introducing arbitrary shell parameters.
 
 Direct generic execution actions such as `execution.prepare`, `execution.run_request`, `godot.runtime_probe`, raw shell, and caller-supplied script text are intentionally not admitted by this internet-facing relay. Structured local execution remains owned by `evavo-local-compute` and is reached through reviewed typed capability routes or the governed GitHub issue fallback.
+
+`comfyui.open` is a fixed zero-argument effectful action. The Windows resident independently admits it, delegates only to Local Compute's reviewed ComfyUI opener, requires native loopback health plus a correlated browser-dispatch receipt, and returns no caller-selected URL, path, script, executable, command, or arguments. It is long-running and pollable; transport acceptance alone does not prove the browser was opened.
 
 The storage actions require `{}` arguments and are intentionally coarse fixed operations:
 

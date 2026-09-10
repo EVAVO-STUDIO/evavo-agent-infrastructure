@@ -89,6 +89,7 @@ const STORAGE_ACTIONS = new Set([
 const GATEWAY_READ_ACTIONS = new Set([
   "gateway.fabric_status",
 ]);
+const COMFYUI_ACTIONS = new Set(["comfyui.open"]);
 const VERCEL_ACTIONS = new Set(["vercel.control"]);
 const VERCEL_REMOTE_FIELDS: Record<string, ReadonlySet<string>> = {
   "project.list": new Set(["operation", "query"]),
@@ -137,6 +138,7 @@ const EFFECTFUL_ACTIONS = new Set([
   "storage.inventory.refresh",
   "storage.google_pressure.activate",
   "storage.estate.activate",
+  ...COMFYUI_ACTIONS,
   ...VERCEL_ACTIONS,
 ]);
 const ACTIONS = new Set([
@@ -146,6 +148,7 @@ const ACTIONS = new Set([
   "rest.health",
   ...GATEWAY_READ_ACTIONS,
   ...STORAGE_ACTIONS,
+  ...COMFYUI_ACTIONS,
   ...VERCEL_ACTIONS,
 ]);
 
@@ -637,6 +640,9 @@ export class WorkstationRelay extends DurableObject<Env> {
     if (GATEWAY_READ_ACTIONS.has(action) && Object.keys(args).length !== 0) {
       return json({ ok: false, error: "gateway-read-actions-require-empty-arguments" }, { status: 400 });
     }
+    if (COMFYUI_ACTIONS.has(action) && Object.keys(args).length !== 0) {
+      return json({ ok: false, error: "comfyui-actions-require-empty-arguments" }, { status: 400 });
+    }
     if (VERCEL_ACTIONS.has(action)) {
       const validationError = validateVercelArguments(args);
       if (validationError) return json({ ok: false, error: validationError }, { status: 400 });
@@ -646,7 +652,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     }
 
     const requestedAt = new Date();
-    const longRunning = STORAGE_ACTIONS.has(action) || VERCEL_ACTIONS.has(action);
+    const longRunning = STORAGE_ACTIONS.has(action) || COMFYUI_ACTIONS.has(action) || VERCEL_ACTIONS.has(action);
     const desired = Number(body.timeoutMs ?? (longRunning ? MAX_DEADLINE_MS : 30_000));
     const deadlineMs = Math.min(MAX_DEADLINE_MS, Math.max(1_000, Number.isFinite(desired) ? desired : 30_000));
     const id = crypto.randomUUID();
@@ -712,7 +718,7 @@ export class WorkstationRelay extends DurableObject<Env> {
     };
     await this.remember(record);
 
-    const wait = typeof body.wait === "boolean" ? body.wait : !(STORAGE_ACTIONS.has(action) || VERCEL_ACTIONS.has(action));
+    const wait = typeof body.wait === "boolean" ? body.wait : !(STORAGE_ACTIONS.has(action) || COMFYUI_ACTIONS.has(action) || VERCEL_ACTIONS.has(action));
     const waitMs = Math.min(MAX_SYNC_WAIT_MS, deadlineMs);
     let resultPromise: Promise<ResultMessage> | null = null;
     if (wait) {

@@ -79,6 +79,7 @@ test("effectful dispatch is separately authenticated, typed and end-to-end imple
     "storage.inventory.refresh",
     "storage.google_pressure.activate",
     "storage.estate.activate",
+    "comfyui.open",
   ]) assert.match(source, new RegExp(action.replaceAll(".", "\\.")));
   for (const reserved of ["execution.prepare", "execution.run_request", "godot.runtime_probe"]) {
     assert.doesNotMatch(source, new RegExp(reserved.replaceAll(".", "\\.")));

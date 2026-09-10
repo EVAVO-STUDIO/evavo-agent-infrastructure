@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-const source = readFileSync(new URL("../src/index.ts", import.meta.url), "utf8");
+const source = readFileSync(new URL("../src/worker.ts", import.meta.url), "utf8");
 
 test("storage relay actions are typed and zero-argument", () => {
   for (const action of [
@@ -19,12 +19,13 @@ test("storage relay actions are typed and zero-argument", () => {
 test("long storage dispatch is durable and pollable", () => {
   assert.match(source, /DispatchRecord/);
   assert.match(source, /request:\$\{id\}/);
-  assert.match(source, /REQUEST_RETENTION_SECONDS/);
+  assert.match(source, /MAX_STORED_REQUESTS/);
   assert.match(source, /status:\s*"queued"/);
   assert.match(source, /\/api\/request/);
   assert.match(source, /workstation_request_status/);
   assert.match(source, /pollingRequired:\s*true/);
-  assert.match(source, /STORAGE_ACTIONS\.has\(action\).*!STORAGE_ACTIONS\.has\(action\)/s);
+  assert.match(source, /const longRunning = STORAGE_ACTIONS\.has\(action\)/);
+  assert.match(source, /!\(STORAGE_ACTIONS\.has\(action\) \|\| COMFYUI_ACTIONS\.has\(action\) \|\| VERCEL_ACTIONS\.has\(action\)\)/);
 });
 
 test("Pro MCP remains read-only", () => {

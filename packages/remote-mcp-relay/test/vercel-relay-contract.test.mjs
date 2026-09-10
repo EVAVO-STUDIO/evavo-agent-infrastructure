@@ -21,10 +21,9 @@ test("Vercel cloud validator has a fixed operation and field allowlist", () => {
   for (const operation of [
     "project.get", "project.update", "env.list", "env.set", "domain.list", "domain.get", "domain.add",
     "domain.update", "domain.verify", "domain.remove", "domain.config", "domain.dns-plan",
-    "dns.list", "dns.create", "dns.update", "dns.delete", "deployment.redeploy", "deployment.promote",
+    "dns.list", "dns.create", "dns.update", "dns.delete", "deployment.deploy", "deployment.redeploy", "deployment.promote",
   ]) assert.match(source, new RegExp(operation.replaceAll(".", "\\.")));
   assert.doesNotMatch(source, /"api\.call": new Set/);
-  assert.doesNotMatch(source, /"deployment\.deploy": new Set/);
   assert.match(source, /vercel-operation-not-admitted/);
   assert.match(source, /vercel-argument-not-admitted/);
 });
@@ -40,9 +39,9 @@ test("Vercel secret input and destructive writes fail closed at Cloudflare", () 
 });
 
 test("Vercel dispatch is asynchronous by default and uses bounded long deadline", () => {
-  assert.match(source, /const longRunning = STORAGE_ACTIONS\.has\(action\) \|\| VERCEL_ACTIONS\.has\(action\)/);
+  assert.match(source, /const longRunning = STORAGE_ACTIONS\.has\(action\) \|\| COMFYUI_ACTIONS\.has\(action\) \|\| VERCEL_ACTIONS\.has\(action\)/);
   assert.match(source, /MAX_DEADLINE_MS = 10 \* 60_000/);
-  assert.match(source, /!\(STORAGE_ACTIONS\.has\(action\) \|\| VERCEL_ACTIONS\.has\(action\)\)/);
+  assert.match(source, /!\(STORAGE_ACTIONS\.has\(action\) \|\| COMFYUI_ACTIONS\.has\(action\) \|\| VERCEL_ACTIONS\.has\(action\)\)/);
   assert.match(source, /vercelTypedControlAvailableThroughAuthenticatedDispatch/);
 });
 
