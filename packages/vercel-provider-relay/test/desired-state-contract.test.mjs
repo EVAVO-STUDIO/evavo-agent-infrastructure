@@ -44,6 +44,14 @@ test("Naomi canonical Vercel desired state is Git-backed and domain-complete", (
   ]);
 });
 
+test("project reconciliation enforces repository, root directory and production branch", () => {
+  assert.match(source, /function productionBranchMatches\(/);
+  assert.match(source, /\.productionBranch \?\? ""/);
+  assert.match(source, /\/v9\/projects\/\$\{encodeURIComponent\(projectId\)\}\/branch/);
+  assert.match(source, /\{ branch: desired\.productionBranch \}/);
+  assert.match(source, /project-production-branch-readback-mismatch/);
+});
+
 test("reconciliation is idempotent desired-state convergence", () => {
   assert.match(source, /vercelOptionalGet/);
   assert.match(source, /ensureProject/);
@@ -52,6 +60,7 @@ test("reconciliation is idempotent desired-state convergence", () => {
   assert.match(source, /project-git-link-mismatch/);
   assert.match(source, /project-git-readback-mismatch/);
   assert.match(source, /project-root-readback-mismatch/);
+  assert.match(source, /project-production-branch-readback-mismatch/);
   assert.match(source, /domain-readback-mismatch/);
   assert.match(source, /workstationRequired:\s*false/);
   assert.match(source, /credentialValuesReturned:\s*false/);
