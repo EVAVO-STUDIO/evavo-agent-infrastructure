@@ -243,12 +243,19 @@ function gitMatches(project: JsonObject, desiredRepository: string): boolean {
     && String(current.repo ?? "").toLowerCase() === desired.repo.toLowerCase();
 }
 
+function productionBranchMatches(project: JsonObject, desiredBranch: string): boolean {
+  const link = project.link;
+  if (!link || typeof link !== "object" || Array.isArray(link)) return false;
+  return String((link as JsonObject).productionBranch ?? "") === desiredBranch;
+}
+
 function normalizedRoot(value: unknown): string {
   return String(value ?? "").replace(/\\/gu, "/").replace(/^\/+|\/+$/gu, "");
 }
 
 async function ensureProject(env: Env, desired: DesiredProject): Promise<{ state: string; project: JsonObject }> {
-  let current = await vercelOptionalGet(env, `/v9/projects/${encodeURIComponent(desired.name)}`);
+  const encodedProjectName = encodeURIComponent(desired.name);
+  let current = await vercelOptionalGet(env, `/v9/projects/${encodedProjectName}`);
   let state = "present";
   if (!current) {
     await vercel(env, "POST", "/v11/projects", {
@@ -257,17 +264,28 @@ async function ensureProject(env: Env, desired: DesiredProject): Promise<{ state
       gitRepository: { type: "github", repo: desired.repository },
     });
     state = "created";
-    current = await vercel(env, "GET", `/v9/projects/${encodeURIComponent(desired.name)}`);
-  } else {
-    if (!gitMatches(current, desired.repository)) throw new Error(`project-git-link-mismatch:${desired.name}`);
-    if (normalizedRoot(current.rootDirectory) !== desired.rootDirectory) {
-      await vercel(env, "PATCH", `/v9/projects/${encodeURIComponent(desired.name)}`, { rootDirectory: desired.rootDirectory });
-      state = "updated";
-      current = await vercel(env, "GET", `/v9/projects/${encodeURIComponent(desired.name)}`);
-    }
+    current = await vercel(env, "GET", `/v9/projects/${encodedProjectName}`);
   }
+
+  if (!gitMatches(current, desired.repository)) throw new Error(`project-git-link-mismatch:${desired.name}`);
+
+  if (normalizedRoot(current.rootDirectory) !== desired.rootDirectory) {
+    await vercel(env, "PATCH", `/v9/projects/${encodedProjectName}`, { rootDirectory: desired.rootDirectory });
+    state = state === "created" ? "created-and-updated" : "updated";
+    current = await vercel(env, "GET", `/v9/projects/${encodedProjectName}`);
+    if (!gitMatches(current, desired.repository)) throw new Error(`project-git-readback-mismatch:${desired.name}`);
+  }
+
+  if (!productionBranchMatches(current, desired.productionBranch)) {
+    const projectId = asText(current.id, "project-id-invalid", 100);
+    await vercel(env, "PATCH", `/v9/projects/${encodeURIComponent(projectId)}/branch`, { branch: desired.productionBranch });
+    state = state === "created" ? "created-and-updated" : state === "created-and-updated" ? state : "updated";
+    current = await vercel(env, "GET", `/v9/projects/${encodedProjectName}`);
+  }
+
   if (!gitMatches(current, desired.repository)) throw new Error(`project-git-readback-mismatch:${desired.name}`);
   if (normalizedRoot(current.rootDirectory) !== desired.rootDirectory) throw new Error(`project-root-readback-mismatch:${desired.name}`);
+  if (!productionBranchMatches(current, desired.productionBranch)) throw new Error(`project-production-branch-readback-mismatch:${desired.name}`);
   return { state, project: current };
 }
 
