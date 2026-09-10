@@ -18,6 +18,7 @@ const REVIEWED_IMAGE_JOB_ID = /^reviewed-image-smoke-(?:cel-animation|90s-game-a
 const REVIEWED_COMFYUI_JOB_ID = /^reviewed-comfyui-open-ui-[a-z0-9._-]+$/u;
 const COMFYUI_PROOF_KIND = "evavo-comfyui-chat-open-receipt-v1";
 const COMFYUI_UI_URL = "http://127.0.0.1:8188/";
+const COMFYUI_RELAY_ACTION = "comfyui.open";
 const COMFYUI_COMPUTER_AGENT_REVISION = "f6abf455a72141ebbe1cd4ccbac6e01e2a70cbfa";
 const HEX64 = /^[0-9a-f]{64}$/u;
 const ACTIONS = Object.freeze([
@@ -450,6 +451,84 @@ async function submitReviewed(rawArgs) {
   };
 }
 
+function configuredComfyUiRelay() {
+  const rawBase = String(process.env.EVAVO_REMOTE_MCP_RELAY_BASE_URL || "").trim();
+  const token = String(process.env.EVAVO_REMOTE_MCP_RELAY_DISPATCH_TOKEN || "").trim();
+  if (!rawBase && !token) return null;
+  if (!rawBase || !token) throw new Error("ComfyUI typed relay configuration is incomplete");
+  const url = new URL(rawBase);
+  if (url.protocol !== "https:" || url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) {
+    throw new Error("ComfyUI typed relay base URL is invalid");
+  }
+  return { baseUrl: url.origin, token };
+}
+
+async function fetchJson(url, init, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const text = await response.text();
+    let body;
+    try { body = text ? JSON.parse(text) : {}; } catch { body = {}; }
+    return { response, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function trySubmitComfyUiThroughTypedRelay() {
+  const relay = configuredComfyUiRelay();
+  if (!relay) return null;
+  let status;
+  try {
+    status = await fetchJson(`${relay.baseUrl}/api/status`, { method: "GET" }, 10_000);
+  } catch {
+    return null;
+  }
+  const advertised = Array.isArray(status.body?.capabilities) ? status.body.capabilities : [];
+  if (!status.response.ok || status.body?.online !== true || status.body?.journalReady !== true || !advertised.includes(COMFYUI_RELAY_ACTION)) {
+    return null;
+  }
+  let dispatched;
+  try {
+    dispatched = await fetchJson(`${relay.baseUrl}/api/dispatch`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${relay.token}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ action: COMFYUI_RELAY_ACTION, arguments: {}, wait: false, timeoutMs: 600_000 }),
+    }, 20_000);
+  } catch {
+    throw new Error("ComfyUI typed relay dispatch outcome is uncertain; reconcile before retrying");
+  }
+  if (!dispatched.response.ok || dispatched.body?.ok !== true || dispatched.body?.action !== COMFYUI_RELAY_ACTION || typeof dispatched.body?.id !== "string") {
+    throw new Error("ComfyUI typed relay rejected the dispatch; automatic fallback is disabled after submission");
+  }
+  return {
+    schemaVersion: 1,
+    kind: "evavo-comfyui-typed-relay-submission-v1",
+    ok: true,
+    terminal: false,
+    action: COMFYUI_RELAY_ACTION,
+    requestId: dispatched.body.id,
+    transport: "cloudflare-typed-relay",
+    requestedFromChat: true,
+    fixedLoopbackTarget: true,
+    uiUrl: COMFYUI_UI_URL,
+    executionClaimed: false,
+    sideEffectMayHaveCommitted: dispatched.body.sideEffectMayHaveCommitted === true,
+    safeAutomaticReplay: false,
+    followUpTool: "workstation_request_status",
+    callerSelectedUrl: false,
+    callerSelectedScript: false,
+    callerSelectedArguments: false,
+    arbitraryCommandAccepted: false,
+    credentialValuesReturned: false,
+  };
+}
+
 async function waitForReceipt(repository, issueNumber, waitSeconds, pollSeconds) {
   const deadline = Date.now() + waitSeconds * 1000;
   while (Date.now() < deadline) {
@@ -525,8 +604,10 @@ async function callTool(name, raw) {
   }
   if (name === "evavo_open_comfyui_ui") {
     if (Object.keys(args).length) throw new Error("evavo_open_comfyui_ui accepts no arguments");
+    const primary = await trySubmitComfyUiThroughTypedRelay();
+    if (primary) return primary;
     const submission = await submitReviewed({ action: "comfyui-open-ui" });
-    return { ...submission, requestedFromChat: true, fixedLoopbackTarget: true, uiUrl: COMFYUI_UI_URL };
+    return { ...submission, transport: "github-receipt-relay", requestedFromChat: true, fixedLoopbackTarget: true, uiUrl: COMFYUI_UI_URL };
   }
   if (name === "evavo_reviewed_workstation_submit") return submitReviewed(args);
   if (name === "evavo_reviewed_workstation_submit_and_wait") return submitAndWait(args);

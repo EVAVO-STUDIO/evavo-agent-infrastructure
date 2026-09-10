@@ -170,3 +170,15 @@ test("ComfyUI chat shortcut is fixed, effectful and receipt-verified", () => {
   assert.match(source, /comfyUiProofValidationFailure/);
   assert.doesNotMatch(source, /evavo_open_comfyui_ui.*callerUrl/s);
 });
+
+test("ComfyUI chat shortcut prefers the typed relay and falls back only before dispatch", () => {
+  assert.match(source, /EVAVO_REMOTE_MCP_RELAY_BASE_URL/);
+  assert.match(source, /EVAVO_REMOTE_MCP_RELAY_DISPATCH_TOKEN/);
+  assert.match(source, /action: COMFYUI_RELAY_ACTION, arguments: \{\}, wait: false, timeoutMs: 600_000/);
+  assert.match(source, /status\.body\?\.online !== true/);
+  assert.match(source, /status\.body\?\.journalReady !== true/);
+  assert.match(source, /outcome is uncertain; reconcile before retrying/);
+  assert.match(source, /automatic fallback is disabled after submission/);
+  assert.match(source, /transport: "github-receipt-relay"/);
+  assert.doesNotMatch(source, /callerSelectedUrl:\s*true|arbitraryCommandAccepted:\s*true/);
+});
