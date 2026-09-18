@@ -51,7 +51,7 @@ function plan(document, now = NOW) {
 
 test('canonical routing config validates and remains zero-cost/structured-only', () => {
   assert.equal(validatedRouting.routeCount, 26);
-  assert.equal(validatedRouting.strategyCount, 101);
+  assert.equal(validatedRouting.strategyCount, 108);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -63,7 +63,11 @@ test('canonical routing config validates and remains zero-cost/structured-only',
     assert.equal(transport.arbitraryShell, false);
     assert.ok(Array.isArray(transport.sharedDependencies));
     if (transport.effects.some((effect) => effect !== 'read')) {
-      assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-local-compute');
+      assert.ok([
+        'EVAVO-STUDIO/evavo-local-compute',
+        'EVAVO-STUDIO/evavo-agent-infrastructure',
+        'EVAVO-STUDIO/evavo-development-studio',
+      ].includes(transport.executorRepository));
     }
   }
 });
@@ -89,6 +93,61 @@ test('Brain specialist discovery is read-only and available to ChatGPT without i
   assert.equal(result.authority.sourceMutation, false);
   assert.equal(result.authority.repositoryWrite, false);
   assert.equal(result.authority.publication, false);
+});
+
+
+
+test('ChatGPT Vercel routes prefer workstation-independent provider MCP only with live evidence', () => {
+  const result = plan(status({
+    requestedCapabilities: ['vercel.inspect', 'vercel.configure', 'vercel.deploy', 'vercel.domain-dns'],
+    evidence: [
+      evidence('vercel-inspect-provider-cloud', 'transport_online'),
+      evidence('vercel-configure-provider-cloud', 'transport_online'),
+      evidence('vercel-deploy-provider-cloud', 'transport_online'),
+      evidence('vercel-domain-dns-provider-cloud', 'transport_online'),
+    ],
+  }));
+  assert.equal(result.overallStatus, 'ready');
+  for (const decision of result.decisions) {
+    assert.equal(decision.status, 'ready');
+    assert.match(decision.selected.strategyId, /provider-cloud$/u);
+    assert.equal(decision.selected.transport, 'cloudflare-provider-mcp');
+    assert.equal(decision.selected.authority, 'development-governance');
+  }
+});
+
+test('uncommissioned Vercel provider cloud cannot be selected from configuration alone', () => {
+  const result = plan(status({
+    requestedCapabilities: ['vercel.domain-dns'],
+    evidence: [
+      evidence('vercel-domain-dns-provider-cloud', 'transport_online', {
+        healthy: false,
+        detail: 'provider Worker hostname does not resolve',
+      }),
+      evidence('vercel-domain-dns-issue-queue', 'configured'),
+    ],
+  }));
+  const decision = result.decisions[0];
+  assert.equal(decision.status, 'ready');
+  assert.equal(decision.selected.strategyId, 'vercel-domain-dns-issue-queue');
+  assert.equal(decision.selected.transport, 'github-issue-queue');
+  assert.equal(decision.claims.mayClaimCompleted, false);
+  assert.equal(decision.candidates.find((candidate) => candidate.strategyId === 'vercel-domain-dns-provider-cloud').reason, 'unhealthy');
+});
+
+test('Vercel provider Worker transport has no workstation dependency', () => {
+  const transport = configDocument.transports['cloudflare-provider-mcp'];
+  assert.equal(transport.executorRepository, 'EVAVO-STUDIO/evavo-agent-infrastructure');
+  assert.equal(transport.failureDomain, 'cloudflare-provider-plane');
+  assert.equal(transport.receiptRequired, true);
+  assert.equal(transport.physicalReceiptCapable, true);
+  assert.equal(transport.arbitraryShell, false);
+  assert.ok(!transport.sharedDependencies.includes('windows-workstation'));
+  assert.ok(!transport.sharedDependencies.includes('interactive-user-session'));
+
+  const local = configDocument.transports['development-studio-vercel-mcp'];
+  assert.equal(local.executorRepository, 'EVAVO-STUDIO/evavo-development-studio');
+  assert.ok(local.sharedDependencies.includes('windows-workstation'));
 });
 
 test('ChatGPT browser pixel inspection prefers Computer Agent Visual Review', () => {
