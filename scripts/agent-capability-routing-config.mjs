@@ -50,6 +50,11 @@ function validateAuthority(authorityId, authority) {
   text(authority.description, 'EVAVO_AGENT_ROUTING_AUTHORITY_DESCRIPTION', { maximum: 1200 });
 }
 
+const EFFECT_EXECUTOR_REPOSITORIES = new Set([
+  "EVAVO-STUDIO/evavo-local-compute",
+  "EVAVO-STUDIO/evavo-agent-infrastructure",
+]);
+
 function validateTransport(transportId, transport, clientSet) {
   exactKeys(
     transport,
@@ -103,7 +108,7 @@ function validateTransport(transportId, transport, clientSet) {
   text(transport.description, 'EVAVO_AGENT_ROUTING_TRANSPORT_DESCRIPTION', { maximum: 1200 });
   if (effects.some((effect) => effect !== 'read')) {
     assert(transport.receiptRequired === true, 'EVAVO_AGENT_ROUTING_EFFECT_RECEIPT', transportId);
-    assert(transport.executorRepository === 'EVAVO-STUDIO/evavo-local-compute', 'EVAVO_AGENT_ROUTING_PHYSICAL_EXECUTOR', transportId);
+    assert(EFFECT_EXECUTOR_REPOSITORIES.has(transport.executorRepository), 'EVAVO_AGENT_ROUTING_PHYSICAL_EXECUTOR', transportId);
   }
 }
 
