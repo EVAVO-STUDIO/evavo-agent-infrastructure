@@ -34,10 +34,31 @@ $Config = Join-Path $Package 'wrangler.jsonc'
 $BaseWorker = Join-Path $Package 'src\worker.ts'
 $DesiredWorker = Join-Path $Package 'src\desired-state-worker.ts'
 $DesiredState = Join-Path $Root 'config\vercel-provider-desired-state-v1.json'
-foreach ($Path in @($Package,$Config,$BaseWorker,$DesiredWorker,$DesiredState)) {
+$EndpointRegistry = Join-Path $Root 'config\cloud-control-endpoints-v1.json'
+foreach ($Path in @($Package,$Config,$BaseWorker,$DesiredWorker,$DesiredState,$EndpointRegistry)) {
     if (-not (Test-Path -LiteralPath $Path)) { throw 'EVAVO_VERCEL_PROVIDER_RELAY_SOURCE_MISSING' }
     $Item = Get-Item -LiteralPath $Path -Force -ErrorAction Stop
     if (($Item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'EVAVO_VERCEL_PROVIDER_RELAY_SOURCE_UNSAFE' }
+}
+
+try {
+    $EndpointDocument = Get-Content -LiteralPath $EndpointRegistry -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+}
+catch {
+    throw 'EVAVO_VERCEL_PROVIDER_RELAY_ENDPOINT_REGISTRY_INVALID'
+}
+$Endpoint = $EndpointDocument.endpoints.'vercel-provider-cloud-mcp'
+$ExpectedBaseUrl = [string]$Endpoint.baseUrl
+if (
+    [int]$EndpointDocument.schemaVersion -ne 1 -or
+    [string]$EndpointDocument.kind -ne 'evavo-cloud-control-endpoints-v1' -or
+    $EndpointDocument.configuredEndpointIsAvailabilityEvidence -ne $false -or
+    $Endpoint.liveHealthRequiredForSelection -ne $true -or
+    $Endpoint.workstationRequired -ne $false -or
+    [string]$Endpoint.workerName -ne 'evavo-vercel-provider-relay' -or
+    $ExpectedBaseUrl -ne 'https://evavo-vercel-provider-relay.evavo.workers.dev'
+) {
+    throw 'EVAVO_VERCEL_PROVIDER_RELAY_ENDPOINT_AUTHORITY_INVALID'
 }
 
 $CfToken = [string]$(if ($env:CLOUDFLARE_API_TOKEN) { $env:CLOUDFLARE_API_TOKEN } else { $env:CF_API_TOKEN })
@@ -96,7 +117,8 @@ try {
 
 $UrlMatch = [regex]::Matches($Deploy,'https://[A-Za-z0-9.-]+\.workers\.dev') | Select-Object -Last 1
 if ($null -eq $UrlMatch) { throw 'EVAVO_VERCEL_PROVIDER_RELAY_URL_NOT_OBSERVED' }
-$BaseUrl = [string]$UrlMatch.Value
+$BaseUrl = ([string]$UrlMatch.Value).TrimEnd('/')
+if ($BaseUrl -ne $ExpectedBaseUrl) { throw 'EVAVO_VERCEL_PROVIDER_RELAY_URL_MISMATCH' }
 $Health = Invoke-RestMethod -Uri ($BaseUrl + '/health') -Method Get -TimeoutSec 30
 if (
     $Health.ok -ne $true -or
@@ -132,6 +154,9 @@ $Result = [ordered]@{
     ok = $true
     url = $BaseUrl
     mcpUrl = $BaseUrl + '/mcp'
+    endpointRegistryBound = $true
+    expectedBaseUrlMatched = $true
+    configuredEndpointIsAvailabilityEvidence = $false
     providerAuthenticationProven = $true
     providerCloudReady = $true
     workstationRequired = $false
