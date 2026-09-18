@@ -54,6 +54,7 @@ const EFFECT_EXECUTOR_REPOSITORIES = new Set([
   "EVAVO-STUDIO/evavo-local-compute",
   "EVAVO-STUDIO/evavo-agent-infrastructure",
   "EVAVO-STUDIO/evavo-development-studio",
+  "EVAVO-STUDIO/evavo-local-ai-agent-gateway",
 ]);
 
 function validateTransport(transportId, transport, clientSet) {
@@ -75,7 +76,7 @@ function validateTransport(transportId, transport, clientSet) {
       'probe',
       'description',
     ],
-    [],
+    ['providerNative'],
     `EVAVO_AGENT_ROUTING_TRANSPORT_${transportId}`,
   );
   const failureDomain = id(transport.failureDomain, 'EVAVO_AGENT_ROUTING_FAILURE_DOMAIN');
@@ -90,8 +91,16 @@ function validateTransport(transportId, transport, clientSet) {
       return result;
     },
   });
+  const providerNative = transport.providerNative === true;
+  if (Object.hasOwn(transport, 'providerNative')) {
+    bool(transport.providerNative, 'EVAVO_AGENT_ROUTING_PROVIDER_NATIVE');
+  }
   if (transport.executorRepository === null) {
-    assert(effects.every((effect) => effect === 'read'), 'EVAVO_AGENT_ROUTING_EXECUTOR_REQUIRED', transportId);
+    assert(
+      effects.every((effect) => effect === 'read') || providerNative,
+      'EVAVO_AGENT_ROUTING_EXECUTOR_REQUIRED',
+      transportId,
+    );
   } else {
     text(transport.executorRepository, 'EVAVO_AGENT_ROUTING_EXECUTOR_REPOSITORY', {
       maximum: 160,
@@ -109,7 +118,12 @@ function validateTransport(transportId, transport, clientSet) {
   text(transport.description, 'EVAVO_AGENT_ROUTING_TRANSPORT_DESCRIPTION', { maximum: 1200 });
   if (effects.some((effect) => effect !== 'read')) {
     assert(transport.receiptRequired === true, 'EVAVO_AGENT_ROUTING_EFFECT_RECEIPT', transportId);
-    assert(EFFECT_EXECUTOR_REPOSITORIES.has(transport.executorRepository), 'EVAVO_AGENT_ROUTING_PHYSICAL_EXECUTOR', transportId);
+    assert(transport.physicalReceiptCapable === true, 'EVAVO_AGENT_ROUTING_EFFECT_PHYSICAL_RECEIPT', transportId);
+    if (providerNative) {
+      assert(transport.executorRepository === null, 'EVAVO_AGENT_ROUTING_PROVIDER_NATIVE_EXECUTOR', transportId);
+    } else {
+      assert(EFFECT_EXECUTOR_REPOSITORIES.has(transport.executorRepository), 'EVAVO_AGENT_ROUTING_PHYSICAL_EXECUTOR', transportId);
+    }
   }
 }
 
