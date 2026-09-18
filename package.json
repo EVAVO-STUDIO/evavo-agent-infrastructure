@@ -12,7 +12,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:capability-routing": "node --test tests/agent-capability-routing.test.mjs",
+    "test:capability-routing": "node --test tests/agent-capability-routing.test.mjs tests/cloud-provider-routing-mcp.test.mjs tests/cloud-control-readiness-probe.test.mjs",
     "test:github-estate-routing": "node --test tests/github-estate-routing-integrity.test.mjs tests/github-estate-routing-policy.test.mjs",
     "check:capability-routing": "node scripts/check-agent-capability-routing.mjs",
     "plan:capability-routing": "node scripts/plan-agent-capability-route.mjs",
@@ -84,7 +84,8 @@
     "test:spark-safe-certification": "node scripts/test-codex-spark-safe-certification-contract.mjs && node scripts/test-codex-spark-safe-physical-acceptance.mjs",
     "test:spark-documentation-truth-grant-bound": "node scripts/test-documentation-truth-grant-bound-dispatch.mjs",
     "test:spark-governance": "pnpm check:spark-governance && pnpm check:spark-candidate-observation && pnpm check:spark-ignored-workspace && pnpm test:spark-routing && pnpm test:spark-capacity-status && pnpm test:spark-candidate-observer && pnpm test:spark-ignored-workspace && pnpm test:spark-dispatch-binding && pnpm test:spark-test-builder-completion && pnpm test:spark-test-builder-boundary && pnpm test:spark-runner-safety && pnpm test:spark-result-classifier && pnpm test:spark-auth-policy && pnpm test:spark-safe-certification && pnpm check:spark-autonomous-lease && pnpm test:spark-documentation-truth-grant-bound && pnpm check:spark-documentation-truth-readiness",
-    "check:spark-documentation-truth-readiness": "node scripts/check-documentation-truth-contract-compatibility.mjs && node scripts/check-documentation-truth-supervised-fixture-acceptance-v2.mjs && node scripts/check-documentation-truth-supervised-activation-v2.mjs && node scripts/check-documentation-truth-runtime-route-planner-contract.mjs && node scripts/check-documentation-truth-route-bound-lease-v2.mjs"
+    "check:spark-documentation-truth-readiness": "node scripts/check-documentation-truth-contract-compatibility.mjs && node scripts/check-documentation-truth-supervised-fixture-acceptance-v2.mjs && node scripts/check-documentation-truth-supervised-activation-v2.mjs && node scripts/check-documentation-truth-runtime-route-planner-contract.mjs && node scripts/check-documentation-truth-route-bound-lease-v2.mjs",
+    "probe:cloud-control": "node scripts/Probe-EvavoCloudControlReadiness.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
