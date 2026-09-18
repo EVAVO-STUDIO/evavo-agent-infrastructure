@@ -69,7 +69,6 @@ function regularFile(input, label) {
 }
 function redact(text) {
   let value = String(text ?? "");
-  value = value.replace(/(?i)/g, "");
   value = value.replace(/\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,})\b/g, "<redacted-token>");
   value = value.replace(/\b(?:Bearer\s+)[A-Za-z0-9._~+\-/]+=*/gi, "Bearer <redacted>");
   value = value.replace(/\b[A-Za-z]:[\\/][^\r\n]*/g, "<windows-path>");
@@ -77,8 +76,8 @@ function redact(text) {
   const bytes = Buffer.from(value, "utf8");
   return bytes.length <= MAX_DIAGNOSTIC_BYTES ? value : bytes.subarray(0, MAX_DIAGNOSTIC_BYTES).toString("utf8");
 }
-function git(root, gitExecutable, arguments) {
-  return execFileSync(gitExecutable, arguments, {
+function git(root, gitExecutable, commandArguments) {
+  return execFileSync(gitExecutable, commandArguments, {
     cwd: root,
     encoding: "utf8",
     shell: false,
