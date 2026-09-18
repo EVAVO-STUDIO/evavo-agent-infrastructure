@@ -248,14 +248,15 @@
     ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
-    "receiptRequired": false,
-    "physicalReceiptCapable": false,
+    "receiptRequired": true,
+    "physicalReceiptCapable": true,
     "structuredOnly": true,
     "arbitraryShell": false,
     "routineCost": "zero-cost",
     "probe": "Read the exact Render workspace, chatbot-backend service and latest deploy and retain their provider identities.",
     "description": "Provider-native Render connector available to ChatGPT. Its current hosted action set supports service/deploy/log/metric reads, environment-variable mutation, deploy triggering and resource creation. It does not currently expose generic service PATCH, Git Deployment Credentials, GitHub OAuth administration or arbitrary REST calls; those capabilities must route to a governed fallback rather than being assumed.",
-    "executorRepository": null
+    "executorRepository": null,
+    "providerNative": true
   },
   "cloudflare-provider-mcp": {
     "failureDomain": "cloudflare-provider-plane",
