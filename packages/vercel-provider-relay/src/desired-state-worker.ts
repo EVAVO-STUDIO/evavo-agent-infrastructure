@@ -38,7 +38,7 @@ const DESIRED_PATH = "config/vercel-provider-desired-state-v1.json";
 const MAX_BODY_BYTES = 512 * 1024;
 const MAX_PROJECTS = 20;
 const MAX_DOMAINS = 20;
-const LIVE_DEPLOYMENT_STATES = new Set(["READY", "BUILDING", "QUEUED", "INITIALIZING"]);
+const IN_FLIGHT_DEPLOYMENT_STATES = new Set(["BUILDING", "QUEUED", "INITIALIZING"]);
 
 function asObject(value: unknown, code = "object-required"): JsonObject {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(code);
@@ -316,8 +316,11 @@ async function ensureDeployment(env: Env, desired: DesiredProject): Promise<{ st
     ? listed.deployments.filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry)) as JsonObject[]
     : [];
   const matching = deployments.filter((entry) => deploymentSourceMatches(entry, desired, desiredRevision));
-  const live = matching.find((entry) => LIVE_DEPLOYMENT_STATES.has(String(entry.state ?? entry.readyState ?? "").toUpperCase()));
-  if (live) return { state: "present-current-revision", deployment: live, desiredRevision };
+  const ready = matching.find((entry) => String(entry.state ?? entry.readyState ?? "").toUpperCase() === "READY");
+  if (ready) return { state: "ready-current-revision", deployment: ready, desiredRevision };
+
+  const inFlight = matching.find((entry) => IN_FLIGHT_DEPLOYMENT_STATES.has(String(entry.state ?? entry.readyState ?? "").toUpperCase()));
+  if (inFlight) return { state: "in-progress-current-revision", deployment: inFlight, desiredRevision };
 
   const attempted = matching[0];
   if (attempted) {
@@ -387,16 +390,36 @@ async function reconcile(env: Env): Promise<JsonObject> {
   for (const desired of loaded.state.projects) {
     const ensuredProject = await ensureProject(env, desired);
     const ensuredDeployment = await ensureDeployment(env, desired);
+    const deploymentReady = ensuredDeployment.state === "ready-current-revision";
     const domains: JsonObject[] = [];
-    for (const desiredDomain of desired.domains) {
-      const result = await ensureDomain(env, desired.name, desiredDomain);
-      domains.push({
-        state: result.state,
-        name: result.domain.name ?? desiredDomain.name,
-        verified: result.domain.verified === true,
-        redirect: result.domain.redirect ?? null,
-        redirectStatusCode: result.domain.redirectStatusCode ?? null,
-      });
+    if (deploymentReady) {
+      for (const desiredDomain of desired.domains) {
+        const result = await ensureDomain(env, desired.name, desiredDomain);
+        domains.push({
+          state: result.state,
+          name: result.domain.name ?? desiredDomain.name,
+          verified: result.domain.verified === true,
+          redirect: result.domain.redirect ?? null,
+          redirectStatusCode: result.domain.redirectStatusCode ?? null,
+          convergenceAttempted: true,
+          blocker: null,
+        });
+      }
+    } else {
+      const blocker = ensuredDeployment.state === "blocked-current-revision"
+        ? "current-revision-deployment-blocked"
+        : "current-revision-deployment-not-ready";
+      for (const desiredDomain of desired.domains) {
+        domains.push({
+          state: "deferred",
+          name: desiredDomain.name,
+          verified: false,
+          redirect: desiredDomain.redirect ?? null,
+          redirectStatusCode: desiredDomain.redirectStatusCode ?? null,
+          convergenceAttempted: false,
+          blocker,
+        });
+      }
     }
     results.push({
       project: desired.name,
@@ -407,6 +430,8 @@ async function reconcile(env: Env): Promise<JsonObject> {
       projectState: ensuredProject.state,
       deploymentState: ensuredDeployment.state,
       deploymentBlocked: ensuredDeployment.state === "blocked-current-revision",
+      deploymentReadyForDomainConvergence: deploymentReady,
+      domainConvergenceAttempted: deploymentReady,
       domains,
     });
   }
@@ -467,6 +492,7 @@ export default {
         desiredStateCronMinutes: 5,
         deploymentRevisionConvergence: true,
         automaticFailedDeploymentRetry: false,
+        domainConvergenceRequiresReadyDeployment: true,
       }), { status: base.status, headers: { "content-type": "application/json", "cache-control": "no-store" } });
     }
 
