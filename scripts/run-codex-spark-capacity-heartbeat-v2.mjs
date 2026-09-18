@@ -84,8 +84,8 @@ function boundedDiagnostic(text) {
     ? value
     : encoded.subarray(0, MAX_DIAGNOSTIC_BYTES).toString("utf8");
 }
-function git(repository, executable, arguments) {
-  return execFileSync(executable, arguments, {
+function git(repository, executable, commandArguments) {
+  return execFileSync(executable, commandArguments, {
     cwd: repository,
     encoding: "utf8",
     shell: false,

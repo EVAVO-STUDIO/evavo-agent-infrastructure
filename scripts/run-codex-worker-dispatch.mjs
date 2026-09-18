@@ -309,7 +309,7 @@ try {
   const candidateStat = fs.lstatSync(candidatePath);
   if (!candidateStat.isDirectory() || candidateStat.isSymbolicLink()) throw new Error("Candidate working directory must be a real non-symlink directory.");
   const gitExecutable = process.platform === "win32" ? "git.exe" : "git";
-  const git = (arguments) => execFileSync(gitExecutable, arguments, {
+  const git = (commandArguments) => execFileSync(gitExecutable, commandArguments, {
     cwd: candidatePath,
     encoding: "utf8",
     shell: false,
