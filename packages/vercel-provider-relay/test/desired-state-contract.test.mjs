@@ -57,7 +57,8 @@ test("production deployment converges to the current GitHub branch head", () => 
   assert.match(source, /githubCommitRef/);
   assert.match(source, /githubCommitSha/);
   assert.match(source, /desiredRevision/);
-  assert.match(source, /present-current-revision/);
+  assert.match(source, /ready-current-revision/);
+  assert.match(source, /in-progress-current-revision/);
   assert.match(source, /created-current-revision/);
   assert.match(source, /limit:\s*"20"/);
 });
@@ -80,4 +81,21 @@ test("reconciliation is idempotent desired-state convergence", () => {
   assert.match(source, /domain-readback-mismatch/);
   assert.match(source, /workstationRequired:\s*false/);
   assert.match(source, /credentialValuesReturned:\s*false/);
+});
+
+
+test("public domains converge only after the exact current revision is READY", () => {
+  assert.match(source, /deploymentReady = ensuredDeployment\.state === "ready-current-revision"/);
+  assert.match(source, /current-revision-deployment-not-ready/);
+  assert.match(source, /current-revision-deployment-blocked/);
+  assert.match(source, /domainConvergenceAttempted:\s*deploymentReady/);
+  assert.match(source, /deploymentReadyForDomainConvergence:\s*deploymentReady/);
+  assert.match(source, /convergenceAttempted:\s*false/);
+  assert.match(source, /domainConvergenceRequiresReadyDeployment:\s*true/);
+});
+
+test("building queued and initializing deployments are in-flight, not READY", () => {
+  assert.match(source, /IN_FLIGHT_DEPLOYMENT_STATES = new Set\(\["BUILDING", "QUEUED", "INITIALIZING"\]\)/);
+  assert.match(source, /=== "READY"/);
+  assert.doesNotMatch(source, /LIVE_DEPLOYMENT_STATES/);
 });
