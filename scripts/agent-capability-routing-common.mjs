@@ -19,7 +19,7 @@ export const TRUTH_STATES = Object.freeze([
   'physically_verified',
 ]);
 export const STATE_LEVEL = new Map(TRUTH_STATES.map((state, index) => [state, index]));
-export const FORBIDDEN_HOSTED_EXECUTION = /(?:github[-_ ]?actions|vercel)/iu;
+export const FORBIDDEN_HOSTED_EXECUTION = /(?:github[-_ ]?actions|vercel[-_ ]?(?:hosted|functions|compute))/iu;
 
 export function fail(code, detail = '') {
   throw new Error(detail ? `${code}: ${detail}` : code);
