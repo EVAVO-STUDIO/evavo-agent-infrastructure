@@ -6,10 +6,39 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 1,
-    "description": "Inspect EVAVO Vercel teams, projects, deployments, environment-variable metadata, project domains and DNS configuration without mutation. Prefer the EVAVO Vercel control MCP because it shares the same typed contract used for writes; the provider-native Vercel connector remains a useful independent read/deployment evidence path.",
+    "description": "Inspect EVAVO Vercel teams, projects, deployments, project settings, project domains and DNS configuration. Prefer the workstation-independent provider MCP when live; use Development Studio local control or the typed workstation relay only with current transport evidence.",
     "strategies": [
-      { "id": "vercel-inspect-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
-      { "id": "vercel-inspect-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+      {
+        "id": "vercel-inspect-provider-cloud",
+        "authority": "development-governance",
+        "transport": "cloudflare-provider-mcp",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-inspect-local-control-mcp",
+        "authority": "development-governance",
+        "transport": "development-studio-vercel-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-inspect-chatgpt-relay",
+        "authority": "development-governance",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      }
     ]
   },
   {
@@ -19,10 +48,51 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Apply explicit Vercel project settings, custom environments and environment-variable changes through Development Studio using environment-reference-only secret handling and provider read-back. Never place secret values in agent requests or receipts.",
+    "description": "Apply explicit Vercel project settings, Git bindings, custom environments and environment-reference-only configuration through Development Studio authority. Prefer the independent cloud provider MCP; local and queue routes are fallbacks and completion always requires provider readback.",
     "strategies": [
-      { "id": "vercel-configure-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
-      { "id": "vercel-configure-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+      {
+        "id": "vercel-configure-provider-cloud",
+        "authority": "development-governance",
+        "transport": "cloudflare-provider-mcp",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-configure-local-control-mcp",
+        "authority": "development-governance",
+        "transport": "development-studio-vercel-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-configure-chatgpt-relay",
+        "authority": "development-governance",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-configure-issue-queue",
+        "authority": "development-governance",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
     ]
   },
   {
@@ -32,10 +102,51 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Create, redeploy, promote, rollback, cancel and inspect Vercel deployments through the governed Vercel control plane. ChatGPT remote deployment must use typed Git/provider deployment inputs rather than caller-selected Windows paths; Claude/Codex may also use the local MCP path.",
+    "description": "Create and reconcile Git-backed Vercel deployments through the governed provider plane. Prefer the workstation-independent cloud provider MCP; never treat queue acceptance as deployment completion and never accept caller-selected arbitrary deployment paths remotely.",
     "strategies": [
-      { "id": "vercel-deploy-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
-      { "id": "vercel-deploy-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+      {
+        "id": "vercel-deploy-provider-cloud",
+        "authority": "development-governance",
+        "transport": "cloudflare-provider-mcp",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-deploy-local-control-mcp",
+        "authority": "development-governance",
+        "transport": "development-studio-vercel-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-deploy-chatgpt-relay",
+        "authority": "development-governance",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-deploy-issue-queue",
+        "authority": "development-governance",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
     ]
   },
   {
@@ -45,10 +156,51 @@
     "completionState": "completed",
     "physicalState": null,
     "minimumIndependentIngressDomains": 2,
-    "description": "Attach, verify, redirect and remove Vercel project domains; inspect Vercel's exact domain-specific DNS recommendations; and mutate Vercel-authoritative DNS records. External registrars such as Porkbun remain a separate authority: return exact registrar rows and verify them, but never pretend Vercel changed an external registrar unless that registrar adapter also executed successfully.",
+    "description": "Attach, verify and redirect Vercel project domains and return Vercel's exact project-specific DNS plan. Prefer the workstation-independent cloud provider MCP. External registrars remain separate authority and no route may claim registrar mutation without its own adapter receipt.",
     "strategies": [
-      { "id": "vercel-domain-dns-local-control-mcp", "authority": "development-governance", "transport": "local-specialist-mcp", "clients": ["claude-code", "codex", "api-agent"], "minimumState": "transport_online" },
-      { "id": "vercel-domain-dns-chatgpt-relay", "authority": "development-governance", "transport": "cloudflare-typed-relay", "clients": ["chatgpt-pro", "api-agent"], "minimumState": "transport_online" }
+      {
+        "id": "vercel-domain-dns-provider-cloud",
+        "authority": "development-governance",
+        "transport": "cloudflare-provider-mcp",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-domain-dns-local-control-mcp",
+        "authority": "development-governance",
+        "transport": "development-studio-vercel-mcp",
+        "clients": [
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-domain-dns-chatgpt-relay",
+        "authority": "development-governance",
+        "transport": "cloudflare-typed-relay",
+        "clients": [
+          "chatgpt-pro",
+          "api-agent"
+        ],
+        "minimumState": "transport_online"
+      },
+      {
+        "id": "vercel-domain-dns-issue-queue",
+        "authority": "development-governance",
+        "transport": "github-issue-queue",
+        "clients": [
+          "chatgpt-pro",
+          "claude-code",
+          "codex",
+          "api-agent"
+        ],
+        "minimumState": "configured"
+      }
     ]
   }
 ]
