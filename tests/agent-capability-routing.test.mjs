@@ -50,8 +50,8 @@ function plan(document, now = NOW) {
 }
 
 test('canonical routing config validates and remains zero-cost/structured-only', () => {
-  assert.equal(validatedRouting.routeCount, 26);
-  assert.equal(validatedRouting.strategyCount, 108);
+  assert.equal(validatedRouting.routeCount, 53);
+  assert.equal(validatedRouting.strategyCount, 198);
   assert.match(validatedRouting.digestSha256, /^[0-9a-f]{64}$/u);
   assert.equal(configDocument.policy.allowGitHubActions, false);
   assert.equal(configDocument.policy.allowVercelAsExecutionAuthority, false);
@@ -63,13 +63,34 @@ test('canonical routing config validates and remains zero-cost/structured-only',
     assert.equal(transport.arbitraryShell, false);
     assert.ok(Array.isArray(transport.sharedDependencies));
     if (transport.effects.some((effect) => effect !== 'read')) {
-      assert.ok([
-        'EVAVO-STUDIO/evavo-local-compute',
-        'EVAVO-STUDIO/evavo-agent-infrastructure',
-        'EVAVO-STUDIO/evavo-development-studio',
-      ].includes(transport.executorRepository));
+      assert.equal(transport.receiptRequired, true);
+      assert.equal(transport.physicalReceiptCapable, true);
+      if (transport.providerNative === true) {
+        assert.equal(transport.executorRepository, null);
+      } else {
+        assert.ok([
+          'EVAVO-STUDIO/evavo-local-compute',
+          'EVAVO-STUDIO/evavo-agent-infrastructure',
+          'EVAVO-STUDIO/evavo-development-studio',
+          'EVAVO-STUDIO/evavo-local-ai-agent-gateway',
+        ].includes(transport.executorRepository));
+      }
     }
   }
+});
+
+
+
+test('provider-native effect transports are explicit and receipt-bound', () => {
+  const render = configDocument.transports['connected-render'];
+  assert.equal(render.providerNative, true);
+  assert.equal(render.executorRepository, null);
+  assert.equal(render.receiptRequired, true);
+  assert.equal(render.physicalReceiptCapable, true);
+
+  const cloudVercel = configDocument.transports['cloudflare-provider-mcp'];
+  assert.notEqual(cloudVercel.providerNative, true);
+  assert.equal(cloudVercel.executorRepository, 'EVAVO-STUDIO/evavo-agent-infrastructure');
 });
 
 test('Brain specialist discovery is read-only and available to ChatGPT without inventing execution authority', () => {
