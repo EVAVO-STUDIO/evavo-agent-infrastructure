@@ -53,6 +53,7 @@ function validateAuthority(authorityId, authority) {
 const EFFECT_EXECUTOR_REPOSITORIES = new Set([
   "EVAVO-STUDIO/evavo-local-compute",
   "EVAVO-STUDIO/evavo-agent-infrastructure",
+  "EVAVO-STUDIO/evavo-development-studio",
 ]);
 
 function validateTransport(transportId, transport, clientSet) {
