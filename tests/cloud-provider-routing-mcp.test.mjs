@@ -15,7 +15,9 @@ test("cloud fabric exposes evidence-backed provider states", () => {
   assert.equal(status.routes.firebase.state, "authenticated-project-inventory-and-cli-15.28.1-proven");
   assert.equal(status.routes.cloudinary.state, "connected-read-write-delete-lifecycle-proven");
   assert.match(status.routes.cloudflare.state, /auth-pending/);
-  assert.match(status.routes.vercel.state, /auth-pending/);
+  assert.equal(status.routes.vercel.state, "configured-route-live-health-required");
+  assert.equal(status.routes.vercel.configuredEndpointIsAvailabilityEvidence, false);
+  assert.equal(status.policy.liveHealthRequiredForCloudRouteSelection, true);
   assert.match(status.routes.googleDrive.state, /personal-account-oauth-pending/);
   assert.match(status.routes.neonPostgres.state, /sql-wrapper-inconsistent/);
   assert.equal(status.policy.credentialValuesReturned, false);
