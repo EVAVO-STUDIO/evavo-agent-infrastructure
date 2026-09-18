@@ -10,27 +10,41 @@
     {
       "capability": "vercel.inspect",
       "preferred": "vercel-provider-cloud-mcp",
-      "fallbacks": ["official-vercel-connector", "vercel-local-control-mcp", "workstation-typed-relay"],
+      "fallbacks": [
+        "official-vercel-connector",
+        "vercel-local-control-mcp",
+        "workstation-typed-relay"
+      ],
       "workstationRequired": false
     },
     {
       "capability": "vercel.configure",
       "preferred": "vercel-provider-cloud-mcp",
-      "fallbacks": ["vercel-local-control-mcp", "workstation-typed-relay"],
+      "fallbacks": [
+        "vercel-local-control-mcp",
+        "workstation-typed-relay"
+      ],
       "workstationRequired": false,
       "writeRequiresReason": true
     },
     {
       "capability": "vercel.deploy",
       "preferred": "vercel-provider-cloud-mcp",
-      "fallbacks": ["official-vercel-connector-when-operation-exposed", "vercel-local-control-mcp", "workstation-typed-relay"],
+      "fallbacks": [
+        "official-vercel-connector-when-operation-exposed",
+        "vercel-local-control-mcp",
+        "workstation-typed-relay"
+      ],
       "workstationRequired": false,
       "gitDeploymentPreferred": true
     },
     {
       "capability": "vercel.domain-dns",
       "preferred": "vercel-provider-cloud-mcp",
-      "fallbacks": ["vercel-local-control-mcp", "workstation-typed-relay"],
+      "fallbacks": [
+        "vercel-local-control-mcp",
+        "workstation-typed-relay"
+      ],
       "workstationRequired": false,
       "externalRegistrarMutationImplied": false,
       "exactProviderDnsPlanRequired": true
@@ -38,9 +52,24 @@
     {
       "capability": "workstation.execute",
       "preferred": "workstation-typed-relay",
-      "fallbacks": ["local-queue-control-resident", "local-queue-normal-resident"],
+      "fallbacks": [
+        "local-queue-control-resident",
+        "local-queue-normal-resident"
+      ],
       "workstationRequired": true,
       "vercelProviderControlAllowedAsDependency": false
     }
+  ],
+  "preferredRequiresLiveHealth": true,
+  "configuredEndpointIsAvailabilityEvidence": false,
+  "unresolvedPreferredEndpointDisposition": "evaluate-fallback",
+  "providerHealthRequirements": [
+    "dns-resolves",
+    "health-http-200",
+    "ok-true",
+    "workstationRequired-false",
+    "providerCredentialConfigured-true",
+    "controlCredentialConfigured-true",
+    "desiredStateReconcilerConfigured-true"
   ]
 }
