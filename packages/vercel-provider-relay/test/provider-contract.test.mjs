@@ -4,6 +4,8 @@ import test from "node:test";
 
 const source = readFileSync(new URL("../src/worker.ts", import.meta.url), "utf8");
 const config = readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
+const deploy = readFileSync(new URL("../../../scripts/Deploy-EvavoVercelProviderRelayV1.ps1", import.meta.url), "utf8");
+const endpoints = JSON.parse(readFileSync(new URL("../../../config/cloud-control-endpoints-v1.json", import.meta.url), "utf8"));
 
 test("provider relay is explicitly independent of workstation liveness", () => {
   assert.match(source, /workstationRequired:\s*false/);
@@ -77,4 +79,18 @@ test("health advertises desired-state and production-branch support without leak
   assert.match(source, /desiredStateOperations:\s*\["project\.ensure",\s*"domain\.ensure"\]/);
   assert.match(source, /productionBranchReconciliation:\s*true/);
   assert.match(source, /credentialValuesReturned:\s*false/);
+});
+
+
+test("provider commission is bound to the deterministic canonical Worker endpoint", () => {
+  const endpoint = endpoints.endpoints["vercel-provider-cloud-mcp"];
+  assert.equal(endpoint.baseUrl, "https://evavo-vercel-provider-relay.evavo.workers.dev");
+  assert.equal(endpoint.workstationRequired, false);
+  assert.equal(endpoint.liveHealthRequiredForSelection, true);
+  assert.match(deploy, /EVAVO_VERCEL_PROVIDER_RELAY_ENDPOINT_AUTHORITY_INVALID/);
+  assert.match(deploy, /EVAVO_VERCEL_PROVIDER_RELAY_URL_MISMATCH/);
+  assert.match(deploy, /https:\/\/evavo-vercel-provider-relay\.evavo\.workers\.dev/);
+  assert.match(deploy, /endpointRegistryBound = \$true/);
+  assert.match(deploy, /expectedBaseUrlMatched = \$true/);
+  assert.match(deploy, /configuredEndpointIsAvailabilityEvidence = \$false/);
 });
