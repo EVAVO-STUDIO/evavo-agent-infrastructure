@@ -20,7 +20,9 @@ const workstationWrangler = readFileSync(
 test("cloud control endpoints are deterministic and contain no credentials", () => {
   assert.equal(endpoints.schemaVersion, 1);
   assert.equal(endpoints.kind, "evavo-cloud-control-endpoints-v1");
-  assert.equal(endpoints.status, "canonical");
+  assert.equal(endpoints.status, "canonical-addresses-not-runtime-health");
+  assert.equal(endpoints.configuredEndpointIsAvailabilityEvidence, false);
+  assert.equal(endpoints.liveHealthRequiredForSelection, true);
   assert.equal(endpoints.accountWorkersSubdomain, "evavo.workers.dev");
   assert.equal(endpoints.credentialValuesIncluded, false);
 
@@ -33,6 +35,8 @@ test("cloud control endpoints are deterministic and contain no credentials", () 
   assert.equal(provider.reconcilePath, "/api/reconcile");
   assert.equal(provider.workstationRequired, false);
   assert.equal(provider.credentialsEmbedded, false);
+  assert.equal(provider.configuredDoesNotMeanDeployed, true);
+  assert.equal(provider.liveHealthRequiredForSelection, true);
 
   const workstation = endpoints.endpoints["workstation-typed-relay"];
   assert.equal(workstation.workerName, "evavo-workstation-mcp-relay");
@@ -44,6 +48,8 @@ test("cloud control endpoints are deterministic and contain no credentials", () 
   assert.equal(workstation.requestStatusPath, "/api/request");
   assert.equal(workstation.workstationRequired, true);
   assert.equal(workstation.credentialsEmbedded, false);
+  assert.equal(workstation.configuredDoesNotMeanDeployed, true);
+  assert.equal(workstation.liveHealthRequiredForSelection, true);
 });
 
 test("Vercel routes resolve through the endpoint registry and stay workstation independent", () => {
