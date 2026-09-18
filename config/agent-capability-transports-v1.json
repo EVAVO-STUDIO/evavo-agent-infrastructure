@@ -285,5 +285,35 @@
     "routineCost": "zero-cost",
     "probe": "Resolve the deterministic provider Worker hostname, require /health ok with workstationRequired=false and configured provider/control/desired-state credentials, then retain one authenticated typed provider-read receipt.",
     "description": "Workstation-independent Cloudflare Worker MCP for bounded Vercel provider operations. It stores provider/control credentials only as Worker secrets, accepts typed operations, requires provider readback for mutations, and does not expose arbitrary API path/method dispatch."
+  },
+  "development-studio-vercel-mcp": {
+    "failureDomain": "local-vercel-control",
+    "sharedDependencies": [
+      "windows-workstation",
+      "interactive-user-session",
+      "evavo-development-studio",
+      "vercel-provider-credential"
+    ],
+    "executorRepository": "EVAVO-STUDIO/evavo-development-studio",
+    "clients": [
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "publish"
+    ],
+    "minimumState": "transport_online",
+    "freshnessSeconds": 300,
+    "receiptRequired": true,
+    "physicalReceiptCapable": true,
+    "structuredOnly": true,
+    "arbitraryShell": false,
+    "routineCost": "zero-cost",
+    "probe": "Start Development Studio's vercel-control MCP, verify exact clean main authority and call its bounded capabilities/provider-read probe without returning credentials.",
+    "description": "Local typed Vercel provider controller owned by Development Studio. It performs bounded provider operations with strict readback and remains a fallback when the workstation-independent provider Worker is unavailable."
   }
 }
