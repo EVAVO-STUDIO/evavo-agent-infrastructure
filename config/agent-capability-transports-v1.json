@@ -1,9 +1,19 @@
 {
   "connected-github": {
     "failureDomain": "github-api",
-    "sharedDependencies": ["github-service", "connector-credential"],
-    "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-    "effects": ["read"],
+    "sharedDependencies": [
+      "github-service",
+      "connector-credential"
+    ],
+    "clients": [
+      "chatgpt-pro",
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 900,
     "receiptRequired": false,
@@ -17,9 +27,23 @@
   },
   "singleton-gateway-mcp": {
     "failureDomain": "singleton-local-gateway",
-    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-ai-agent-gateway", "evavo-local-storage"],
-    "clients": ["claude-code", "codex", "api-agent"],
-    "effects": ["read", "write", "execute", "control"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "interactive-user-session",
+      "evavo-local-ai-agent-gateway",
+      "evavo-local-storage"
+    ],
+    "clients": [
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "control"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 120,
     "receiptRequired": true,
@@ -33,9 +57,22 @@
   },
   "local-specialist-mcp": {
     "failureDomain": "local-mcp",
-    "sharedDependencies": ["windows-workstation", "interactive-user-session", "specialist-mcp-process"],
-    "clients": ["claude-code", "codex", "api-agent"],
-    "effects": ["read", "write", "execute", "control"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "interactive-user-session",
+      "specialist-mcp-process"
+    ],
+    "clients": [
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "control"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -49,9 +86,23 @@
   },
   "structured-workstation-bridge": {
     "failureDomain": "workstation-bridge",
-    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-compute"],
-    "clients": ["claude-code", "codex", "api-agent"],
-    "effects": ["read", "write", "execute", "control", "publish"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "interactive-user-session",
+      "evavo-local-compute"
+    ],
+    "clients": [
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "control",
+      "publish"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -65,9 +116,24 @@
   },
   "durable-local-execution": {
     "failureDomain": "durable-local-worker",
-    "sharedDependencies": ["windows-workstation", "interactive-user-session", "evavo-local-compute", "durable-job-store"],
-    "clients": ["claude-code", "codex", "api-agent"],
-    "effects": ["read", "write", "execute", "control", "publish"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "interactive-user-session",
+      "evavo-local-compute",
+      "durable-job-store"
+    ],
+    "clients": [
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "control",
+      "publish"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 900,
     "receiptRequired": true,
@@ -81,9 +147,17 @@
   },
   "openai-secure-mcp-tunnel": {
     "failureDomain": "openai-secure-tunnel",
-    "sharedDependencies": ["windows-workstation", "openai-client-registration", "local-read-only-mcp-bundle"],
-    "clients": ["chatgpt-pro"],
-    "effects": ["read"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "openai-client-registration",
+      "local-read-only-mcp-bundle"
+    ],
+    "clients": [
+      "chatgpt-pro"
+    ],
+    "effects": [
+      "read"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": false,
@@ -97,9 +171,23 @@
   },
   "cloudflare-typed-relay": {
     "failureDomain": "cloudflare-typed-relay",
-    "sharedDependencies": ["windows-workstation", "outbound-workstation-websocket", "cloudflare-relay", "local-action-allowlist"],
-    "clients": ["chatgpt-pro", "api-agent"],
-    "effects": ["read", "write", "execute", "control", "publish"],
+    "sharedDependencies": [
+      "windows-workstation",
+      "outbound-workstation-websocket",
+      "cloudflare-relay",
+      "local-action-allowlist"
+    ],
+    "clients": [
+      "chatgpt-pro",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "control",
+      "publish"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": true,
@@ -113,9 +201,24 @@
   },
   "github-issue-queue": {
     "failureDomain": "github-issue-queue",
-    "sharedDependencies": ["github-service", "windows-workstation", "current-user-queue-worker", "replay-journal"],
-    "clients": ["chatgpt-pro", "claude-code", "codex", "api-agent"],
-    "effects": ["write", "execute", "control", "publish"],
+    "sharedDependencies": [
+      "github-service",
+      "windows-workstation",
+      "current-user-queue-worker",
+      "replay-journal"
+    ],
+    "clients": [
+      "chatgpt-pro",
+      "claude-code",
+      "codex",
+      "api-agent"
+    ],
+    "effects": [
+      "write",
+      "execute",
+      "control",
+      "publish"
+    ],
     "minimumState": "configured",
     "freshnessSeconds": 1800,
     "receiptRequired": true,
@@ -129,9 +232,20 @@
   },
   "connected-render": {
     "failureDomain": "render-provider-api",
-    "sharedDependencies": ["render-service", "chatgpt-render-connector", "provider-oauth"],
-    "clients": ["chatgpt-pro"],
-    "effects": ["read", "write", "execute", "publish"],
+    "sharedDependencies": [
+      "render-service",
+      "chatgpt-render-connector",
+      "provider-oauth"
+    ],
+    "clients": [
+      "chatgpt-pro"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "publish"
+    ],
     "minimumState": "transport_online",
     "freshnessSeconds": 300,
     "receiptRequired": false,
@@ -142,5 +256,34 @@
     "probe": "Read the exact Render workspace, chatbot-backend service and latest deploy and retain their provider identities.",
     "description": "Provider-native Render connector available to ChatGPT. Its current hosted action set supports service/deploy/log/metric reads, environment-variable mutation, deploy triggering and resource creation. It does not currently expose generic service PATCH, Git Deployment Credentials, GitHub OAuth administration or arbitrary REST calls; those capabilities must route to a governed fallback rather than being assumed.",
     "executorRepository": null
+  },
+  "cloudflare-provider-mcp": {
+    "failureDomain": "cloudflare-provider-plane",
+    "sharedDependencies": [
+      "cloudflare-workers",
+      "provider-worker-secrets",
+      "vercel-api",
+      "github-read-api"
+    ],
+    "executorRepository": "EVAVO-STUDIO/evavo-agent-infrastructure",
+    "clients": [
+      "chatgpt-pro",
+      "api-agent"
+    ],
+    "effects": [
+      "read",
+      "write",
+      "execute",
+      "publish"
+    ],
+    "minimumState": "transport_online",
+    "freshnessSeconds": 120,
+    "receiptRequired": true,
+    "physicalReceiptCapable": true,
+    "structuredOnly": true,
+    "arbitraryShell": false,
+    "routineCost": "zero-cost",
+    "probe": "Resolve the deterministic provider Worker hostname, require /health ok with workstationRequired=false and configured provider/control/desired-state credentials, then retain one authenticated typed provider-read receipt.",
+    "description": "Workstation-independent Cloudflare Worker MCP for bounded Vercel provider operations. It stores provider/control credentials only as Worker secrets, accepts typed operations, requires provider readback for mutations, and does not expose arbitrary API path/method dispatch."
   }
 }
