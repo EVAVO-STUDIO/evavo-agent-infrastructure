@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "kind": "evavo-cloud-control-endpoints-v1",
-  "status": "canonical",
+  "status": "canonical-addresses-not-runtime-health",
   "accountWorkersSubdomain": "evavo.workers.dev",
   "credentialValuesIncluded": false,
   "endpoints": {
@@ -15,7 +15,9 @@
       "reconcilePath": "/api/reconcile",
       "workstationRequired": false,
       "writeAuthentication": "bearer-control-token",
-      "credentialsEmbedded": false
+      "credentialsEmbedded": false,
+      "configuredDoesNotMeanDeployed": true,
+      "liveHealthRequiredForSelection": true
     },
     "workstation-typed-relay": {
       "transport": "cloudflare-worker-streamable-http-plus-websocket",
@@ -28,7 +30,11 @@
       "requestStatusPath": "/api/request",
       "workstationRequired": true,
       "writeAuthentication": "bearer-dispatch-token",
-      "credentialsEmbedded": false
+      "credentialsEmbedded": false,
+      "configuredDoesNotMeanDeployed": true,
+      "liveHealthRequiredForSelection": true
     }
-  }
+  },
+  "configuredEndpointIsAvailabilityEvidence": false,
+  "liveHealthRequiredForSelection": true
 }
