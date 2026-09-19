@@ -10,6 +10,25 @@
       "timeoutSeconds": 1200,
       "description": "Run the deterministic repository source gate: capability and Spark governance contracts, estate routing, lint, type-check, workspace tests, Vercel-control and remote-relay contract tests, and builds. Excludes workstation tunnels, physical-device acceptance, provider credential readiness, installation and deployment."
     },
+    "remote-workstation-access-status": {
+      "runtime": "powershell-script",
+      "entry": "scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1",
+      "network": "disabled",
+      "timeoutSeconds": 300,
+      "description": "Read the installed-state inventory for EVAVO remote workstation access, including Worker automation, OpenAI observer and execution tunnels, the Cloudflare outbound relay client, and loopback REST Executor, without provider probes, repair, credential values, deployment, or physical-execution claims."
+    },
+    "remote-workstation-access-doctor": {
+      "runtime": "powershell-script",
+      "entry": "scripts/Get-EvavoRemoteWorkstationAccessStatus.ps1",
+      "arguments": [
+        "-ProbeOpenAiTunnelDoctor",
+        "-ProbeRestHealth",
+        "-ProbeProviderCliAuth"
+      ],
+      "network": "required",
+      "timeoutSeconds": 600,
+      "description": "Run bounded read-only runtime diagnostics for the installed OpenAI tunnel routes, loopback REST Executor and existing GitHub, Cloudflare and Vercel CLI authentication. Returns only redacted readiness categories; it performs no repair, package download, provider mutation, credential rotation, deployment, or physical-execution claim."
+    },
     "capability-manifest-certify": {
       "runtime": "node-script",
       "entry": "scripts/check-evavo-capability-manifest.mjs",
