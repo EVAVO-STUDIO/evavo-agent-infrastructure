@@ -12,7 +12,7 @@
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "test:capability-routing": "node --test tests/agent-capability-routing.test.mjs tests/cloud-provider-routing-mcp.test.mjs tests/cloud-control-readiness-probe.test.mjs",
+    "test:capability-routing": "node --test tests/agent-capability-routing.test.mjs tests/cloud-provider-routing-mcp.test.mjs tests/cloud-control-readiness-probe.test.mjs tests/provider-execution-route-selection.test.mjs",
     "test:github-estate-routing": "node --test tests/github-estate-routing-integrity.test.mjs tests/github-estate-routing-policy.test.mjs",
     "check:capability-routing": "node scripts/check-agent-capability-routing.mjs",
     "plan:capability-routing": "node scripts/plan-agent-capability-route.mjs",
