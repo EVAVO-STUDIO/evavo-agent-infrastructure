@@ -219,7 +219,7 @@ async function submitAndWait(rawArgs) {
   const body = JSON.stringify(envelope);
   if (Buffer.byteLength(body, "utf8") > MAX_REQUEST_BYTES) throw new Error("structured execution request is too large");
   const created = await runGh([
-    "api", "-X", "POST", `repos/${LOCAL_COMPUTE_REPO}/issues",
+    "api", "-X", "POST", `repos/${LOCAL_COMPUTE_REPO}/issues`,
     "-f", `title=[EVAVO LOCAL EXEC] ${requestId}`,
     "-f", `body=${body}`,
     "--jq", ".number",
